@@ -96,6 +96,7 @@ class MainActivity : AppCompatActivity() {
             val page = when (item.itemId) {
                 R.id.nav_chat -> "chat"
                 R.id.nav_model -> "model"
+                R.id.nav_konektor -> "konektor"
                 R.id.nav_settings -> "settings"
                 else -> null
             }
@@ -179,6 +180,37 @@ class MainActivity : AppCompatActivity() {
 
         @android.webkit.JavascriptInterface
         fun pickModel(): String = "Letakkan file GGUF di Download atau folder app, lalu Auto Load"
+
+
+        @android.webkit.JavascriptInterface
+        fun saveConnectorToken(id: String, token: String, accountId: String) {
+            Connectors.saveToken(context, id, token, if (accountId.isBlank()) null else accountId)
+        }
+
+        @android.webkit.JavascriptInterface
+        fun getConnectorToken(id: String): String {
+            return Connectors.getToken(context, id) ?: ""
+        }
+
+        @android.webkit.JavascriptInterface
+        fun getConnectorAccountId(id: String): String {
+            return Connectors.getAccountId(context, id) ?: ""
+        }
+
+        @android.webkit.JavascriptInterface
+        fun isConnectorConnected(id: String): Boolean {
+            return Connectors.isConnected(context, id)
+        }
+
+        @android.webkit.JavascriptInterface
+        fun getConnectedConnectors(): String {
+            return Connectors.getConnectedList(context).joinToString(",")
+        }
+
+        @android.webkit.JavascriptInterface
+        fun clearConnectorToken(id: String) {
+            Connectors.clearToken(context, id)
+        }
 
         private fun extractUserMessage(fullPrompt: String): String {
             val s = fullPrompt.indexOf("<|im_start|>user")

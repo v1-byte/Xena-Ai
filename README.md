@@ -3,7 +3,7 @@
 Aplikasi Android untuk menjalankan model **GGUF lokal** via `llama.cpp`.  
 UI HTML custom di WebView + bridge Kotlin. Model **tidak** dibundel di APK.
 
-## Fokus v1.0.7
+## Fokus v1.0.8 Connector Edition
 - **Anti-Error** system prompt (tidak pernah kosong)
 - **Auto Mode** — auto load GGUF yang sudah ada di HP
 - Setting aman **RAM 6GB**: ctx 2048, batch 128, threads 4, temp 0.2
@@ -42,3 +42,16 @@ Output: `app/build/outputs/apk/debug/app-debug.apk`
 
 ## Lisensi
 Private project.
+
+
+## Connectors (tab Konektor)
+Token disimpan **lokal** (SharedPreferences + localStorage), tidak ke server Xena.
+
+| ID | Fungsi |
+|----|--------|
+| github | Cek repo, libllama.so, trigger Actions |
+| cloudflare | Deploy / R2 (token + account id) |
+| meta | Ads / insights |
+| huggingface | Cek model GGUF publik |
+
+Bridge: `saveConnectorToken`, `getConnectorToken`, `isConnectorConnected`, `getConnectedConnectors`

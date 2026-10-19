@@ -26,7 +26,6 @@ button{cursor:pointer;border:0;background:none}
 .badge.ok{color:var(--ok);background:#14301f}
 .badge.bad{color:var(--bad);background:#301414}
 
-/* Chat */
 #chatLog{flex:1;overflow:auto;padding:12px 14px;display:flex;flex-direction:column;gap:10px}
 .msg{max-width:92%;padding:10px 12px;border-radius:12px;line-height:1.45;white-space:pre-wrap;word-break:break-word}
 .msg.user{align-self:flex-end;background:var(--accent2);color:#fff}
@@ -38,20 +37,20 @@ button{cursor:pointer;border:0;background:none}
 .composer button{background:var(--accent);color:#06201e;font-weight:700;border-radius:10px;padding:0 16px;min-width:72px}
 .composer button:disabled{opacity:.5}
 
-/* Model / Settings cards */
 .scroll{flex:1;overflow:auto;padding:14px}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
-.card h3{margin:0 0 8px;font-size:15px}
-.card p{margin:0 0 8px;color:var(--muted);font-size:13px}
+.card h3,.card h4{margin:0 0 8px;font-size:15px}
+.card p,.card small{margin:0 0 8px;color:var(--muted);font-size:13px;display:block}
 .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 .btn{background:var(--accent);color:#06201e;font-weight:700;border-radius:8px;padding:10px 14px}
-.btn.ghost{background:var(--surface2);color:var(--fg)}
-label.f{display:grid;gap:4px;font-size:13px;margin-bottom:10px}
-label.f input,label.f textarea,label.f select{
-  background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px
+.btn.ghost,.btn.secondary{background:var(--surface2);color:var(--fg)}
+label.f,label{display:grid;gap:4px;font-size:13px;margin:8px 0 4px}
+input[type=password],input[type=text],input[type=number],textarea,select{
+  width:100%;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;color:var(--fg)
 }
 .mono{font-family:var(--mono);font-size:12px}
 .ok{color:var(--ok)} .bad{color:var(--bad)}
+#connectorLog{font-size:11px;background:var(--bg);padding:10px;border-radius:8px;max-height:220px;overflow-y:auto;white-space:pre-wrap;margin-top:8px;font-family:var(--mono)}
 </style>
 </head>
 <body>
@@ -82,16 +81,78 @@ label.f input,label.f textarea,label.f select{
     <div class="card">
       <h3>Lokasi yang dicari</h3>
       <p class="mono">files/qwen2.5-coder-7b-instruct-q3_k_m.gguf<br>
-files/model.gguf<br>
 Download/qwen2.5-coder-7b-instruct-q3_k_m.gguf<br>
 (migrasi) com.dte.ai/files/…</p>
-      <p>Letakkan file GGUF (~3.55 GB Q3_K_M), lalu tekan Auto Load. Butuh ~7 GB ruang sementara saat salin privat.</p>
+    </div>
+  </div>
+</section>
+
+<section class="page" id="page-konektor">
+  <div class="hd"><div><b>Konektor</b><small>Token lokal di HP · tidak ke server Xena</small></div></div>
+  <div class="scroll">
+    <div class="card">
+      <h3>🔌 Xena Connectors</h3>
+      <p>Hubungkan ke layanan luar. Model 3.55GB tetap jalan lokal.</p>
+      <div id="connectorStatusList"></div>
+    </div>
+
+    <div class="card" style="border-left:3px solid #6e5494">
+      <h4>🐙 GitHub — WAJIB</h4>
+      <small>Kelola repo v1-byte/Xena-Ai, cek libllama.so, trigger build APK</small>
+      <label>GitHub PAT</label>
+      <input id="github_token" type="password" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" autocomplete="off" />
+      <small>github.com/settings/tokens → scope: repo, workflow</small>
+      <div class="row">
+        <button class="btn" type="button" onclick="saveConn('github')">Simpan</button>
+        <button class="btn secondary" type="button" onclick="testGithub()">Test</button>
+      </div>
+    </div>
+
+    <div class="card" style="border-left:3px solid #f38020">
+      <h4>☁️ Cloudflare</h4>
+      <small>Deploy web / R2 model</small>
+      <label>API Token</label>
+      <input id="cloudflare_token" type="password" placeholder="Token" autocomplete="off" />
+      <label>Account ID (opsional)</label>
+      <input id="cloudflare_account" type="text" placeholder="Account ID" autocomplete="off" />
+      <div class="row">
+        <button class="btn secondary" type="button" onclick="saveConn('cloudflare')">Simpan Cloudflare</button>
+      </div>
+    </div>
+
+    <div class="card" style="border-left:3px solid #1877f2">
+      <h4>📘 Meta (FB/IG)</h4>
+      <small>Ads / Page insights</small>
+      <label>Access Token</label>
+      <input id="meta_token" type="password" placeholder="EAAxxxxxxxx" autocomplete="off" />
+      <div class="row">
+        <button class="btn secondary" type="button" onclick="saveConn('meta')">Simpan Meta</button>
+      </div>
+    </div>
+
+    <div class="card" style="border-left:3px solid #ffcc00">
+      <h4>🤗 HuggingFace</h4>
+      <small>Cek / unduh GGUF publik tanpa token</small>
+      <label>HF Token (opsional)</label>
+      <input id="huggingface_token" type="password" placeholder="hf_xxxx (boleh kosong)" autocomplete="off" />
+      <div class="row">
+        <button class="btn secondary" type="button" onclick="saveConn('huggingface')">Simpan HF</button>
+        <button class="btn secondary" type="button" onclick="checkHFModel()">Cek model Qwen</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h4>🧪 Test & Log</h4>
+      <div id="connectorLog">Belum ada test. Simpan token lalu Test.</div>
+      <div class="row">
+        <button class="btn secondary" type="button" onclick="clearConnLog()">Clear Log</button>
+      </div>
     </div>
   </div>
 </section>
 
 <section class="page" id="page-settings">
-  <div class="hd"><div><b>Atur</b><small>RAM 6GB · anti-error</small></div></div>
+  <div class="hd"><div><b>Atur</b><small>RAM 6GB · anti-error · v1.0.8</small></div></div>
   <div class="scroll">
     <div class="card">
       <h3>Runtime (disarankan 6GB)</h3>
@@ -102,7 +163,6 @@ Download/qwen2.5-coder-7b-instruct-q3_k_m.gguf<br>
       <div class="row">
         <button class="btn" type="button" id="btnSaveCfg">Simpan + muat ulang model</button>
       </div>
-      <p style="margin-top:8px">Matikan Extended RAM di HP jika lag. Battery → Unrestricted.</p>
     </div>
     <div class="card">
       <h3>System prompt (anti-error)</h3>
@@ -124,6 +184,7 @@ function showPage(name){
   if (el) el.classList.add("on");
   if (name === "model") refreshModel();
   if (name === "settings") loadSettings();
+  if (name === "konektor") renderConnStatus();
 }
 window.showPage = showPage;
 
@@ -220,13 +281,110 @@ $("btnResetPrompt").onclick = function(){
   try { if (bridge) bridge.saveSystemPrompt(d); } catch(e){}
 };
 
-// Initial
+/* ===================== CONNECTORS ===================== */
+function tokenFor(id){
+  var t = localStorage.getItem("xena_"+id+"_token") || "";
+  if (bridge) {
+    try {
+      var a = bridge.getConnectorToken(id);
+      if (a) t = a;
+    } catch(e){}
+  }
+  return t;
+}
+
+function saveConn(id){
+  var tokenEl = document.getElementById(id+"_token");
+  var token = tokenEl ? tokenEl.value.trim() : "";
+  if (!token && id !== "huggingface"){ alert("Isi token dulu untuk "+id); return; }
+  var accountId = "";
+  var accEl = document.getElementById(id+"_account");
+  if (accEl) accountId = accEl.value.trim();
+  localStorage.setItem("xena_"+id+"_token", token);
+  if (accountId) localStorage.setItem("xena_"+id+"_account", accountId);
+  if (bridge) {
+    try { bridge.saveConnectorToken(id, token, accountId); } catch(e){}
+  }
+  logConn("✅ "+id+" token disimpan lokal. Panjang: "+token.length+" char");
+  renderConnStatus();
+  if (tokenEl) tokenEl.value = "";
+  if (accEl) accEl.value = "";
+}
+
+function renderConnStatus(){
+  var container = $("connectorStatusList");
+  if (!container) return;
+  var all = ["github","cloudflare","meta","huggingface"];
+  var html = "";
+  all.forEach(function(id){
+    var token = tokenFor(id);
+    var connected = id === "huggingface" ? true : (token && token.length > 5);
+    if (bridge) {
+      try { if (bridge.isConnectorConnected(id)) connected = true; } catch(e){}
+    }
+    var icon = id==="github"?"🐙":id==="cloudflare"?"☁️":id==="meta"?"📘":"🤗";
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;margin:4px 0;background:var(--bg);border-radius:8px;font-size:12px">'
+      +"<span>"+icon+" "+id.toUpperCase()+"</span>"
+      +'<span style="padding:2px 8px;border-radius:10px;background:'+(connected?"#22c55e":"#334155")+';color:'+(connected?"#000":"#fff")+';font-size:10px">'
+      +(connected?"Connected ✅":"Not connected ❌")+"</span></div>";
+  });
+  container.innerHTML = html;
+}
+
+function logConn(msg){
+  var el = $("connectorLog");
+  if (!el) return;
+  var time = new Date().toLocaleTimeString();
+  el.textContent = "["+time+"] "+msg+"\n"+el.textContent;
+}
+function clearConnLog(){ $("connectorLog").textContent = ""; }
+
+async function testGithub(){
+  var token = tokenFor("github");
+  if (!token){ alert("Simpan GitHub token dulu!"); return; }
+  logConn("⏳ Testing GitHub API repo v1-byte/Xena-Ai…");
+  try{
+    var res = await fetch("https://api.github.com/repos/v1-byte/Xena-Ai", {
+      headers: { "Authorization": "token "+token, "Accept": "application/vnd.github.v3+json" }
+    });
+    var data = await res.json();
+    if (res.ok){
+      logConn("✅ GitHub OK!\nRepo: "+data.full_name+"\nStars: "+data.stargazers_count+"\nBranch: "+data.default_branch+"\nIssues: "+data.open_issues);
+      var contentsRes = await fetch("https://api.github.com/repos/v1-byte/Xena-Ai/contents/app/src/main/jniLibs/arm64-v8a", {
+        headers: { "Authorization": "token "+token, "Accept": "application/vnd.github.v3+json" }
+      });
+      if (contentsRes.ok){
+        var files = await contentsRes.json();
+        var hasLlama = Array.isArray(files) && files.some(function(f){ return f.name === "libllama.so"; });
+        logConn(hasLlama ? "✅ libllama.so SUDAH ADA di repo" : "❌ libllama.so BELUM ADA — penyebab build/runtime native gagal. Upload .so ke jniLibs/arm64-v8a/");
+      } else {
+        logConn("⚠️ Folder jniLibs kosong/belum ada: HTTP "+contentsRes.status);
+      }
+    } else {
+      logConn("❌ GitHub Error "+res.status+": "+(data.message||""));
+    }
+  } catch(e){
+    logConn("❌ Fetch error: "+e.message);
+  }
+}
+
+async function checkHFModel(){
+  logConn("⏳ Cek model Qwen2.5-Coder di HuggingFace…");
+  try{
+    var res = await fetch("https://huggingface.co/api/models/Qwen/Qwen2.5-Coder-7B-Instruct-GGUF");
+    var data = await res.json();
+    var n = (data.siblings && data.siblings.length) || "?";
+    logConn("✅ HF Model: "+(data.modelId||data.id)+"\nDownloads: "+(data.downloads||"?")+"\nFiles: "+n+" variants");
+  } catch(e){ logConn("❌ HF error: "+e.message); }
+}
+
 setTimeout(function(){
   try {
     if (bridge && bridge.isModelReady && bridge.isModelReady()) setModelReady(true);
     else setModelReady(false);
   } catch(e){ setModelReady(false); }
   refreshModel();
+  renderConnStatus();
 }, 400);
 </script>
 </body>
