@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.XenaAI" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">#0B7A75</item>
+        <item name="colorPrimaryVariant">#065A56</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="android:statusBarColor">#0D151B</item>
+        <item name="android:navigationBarColor">#0D151B</item>
+        <item name="android:windowBackground">#0D151B</item>
+    </style>
+</resources>

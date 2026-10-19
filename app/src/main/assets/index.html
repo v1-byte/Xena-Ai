@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Xena-AI</title>
+<style>
+:root{
+  --bg:#0d151b; --surface:#141f27; --surface2:#1b2a34; --line:#2a3c48;
+  --fg:#e4ecf0; --muted:#8fa3af; --accent:#3cc7bd; --accent2:#0b7a75;
+  --ok:#4cc77a; --bad:#f2776c; --warn:#e5a13a;
+  --f:system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font:15px/1.45 var(--f);height:100%}
+body{display:flex;flex-direction:column;min-height:100dvh;padding-bottom:env(safe-area-inset-bottom,0)}
+button,input,textarea,select{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none}
+.page{display:none;flex:1;min-height:0;flex-direction:column}
+.page.on{display:flex}
+.hd{padding:12px 16px 8px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line)}
+.hd b{font-size:17px;font-weight:700}
+.hd small{color:var(--muted);display:block;font-size:12px}
+.badge{margin-left:auto;font-size:11px;padding:3px 8px;border-radius:99px;background:var(--surface2);color:var(--muted)}
+.badge.ok{color:var(--ok);background:#14301f}
+.badge.bad{color:var(--bad);background:#301414}
+
+/* Chat */
+#chatLog{flex:1;overflow:auto;padding:12px 14px;display:flex;flex-direction:column;gap:10px}
+.msg{max-width:92%;padding:10px 12px;border-radius:12px;line-height:1.45;white-space:pre-wrap;word-break:break-word}
+.msg.user{align-self:flex-end;background:var(--accent2);color:#fff}
+.msg.ai{align-self:flex-start;background:var(--surface);border:1px solid var(--line)}
+.msg .who{font-size:11px;color:var(--muted);margin-bottom:4px}
+.msg.ai .who{color:var(--accent)}
+.composer{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--line);background:var(--surface)}
+.composer textarea{flex:1;min-height:44px;max-height:120px;resize:none;border:1px solid var(--line);border-radius:10px;background:var(--bg);padding:10px 12px}
+.composer button{background:var(--accent);color:#06201e;font-weight:700;border-radius:10px;padding:0 16px;min-width:72px}
+.composer button:disabled{opacity:.5}
+
+/* Model / Settings cards */
+.scroll{flex:1;overflow:auto;padding:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
+.card h3{margin:0 0 8px;font-size:15px}
+.card p{margin:0 0 8px;color:var(--muted);font-size:13px}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.btn{background:var(--accent);color:#06201e;font-weight:700;border-radius:8px;padding:10px 14px}
+.btn.ghost{background:var(--surface2);color:var(--fg)}
+label.f{display:grid;gap:4px;font-size:13px;margin-bottom:10px}
+label.f input,label.f textarea,label.f select{
+  background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px
+}
+.mono{font-family:var(--mono);font-size:12px}
+.ok{color:var(--ok)} .bad{color:var(--bad)}
+</style>
+</head>
+<body>
+<section class="page on" id="page-chat">
+  <div class="hd">
+    <div><b>Xena-AI</b><small>Chat lokal · Qwen2.5-Coder</small></div>
+    <span class="badge" id="readyBadge">Model…</span>
+  </div>
+  <div id="chatLog"></div>
+  <div class="composer">
+    <textarea id="inp" rows="1" placeholder="Tulis pesan…"></textarea>
+    <button type="button" id="sendBtn">Kirim</button>
+  </div>
+</section>
+
+<section class="page" id="page-model">
+  <div class="hd"><div><b>Model</b><small>GGUF lokal · Auto mode</small></div></div>
+  <div class="scroll">
+    <div class="card">
+      <h3>Status model</h3>
+      <p id="modelStatus">Memeriksa…</p>
+      <p class="mono" id="modelPath"></p>
+      <div class="row">
+        <button class="btn" type="button" id="btnAuto">Auto Load</button>
+        <button class="btn ghost" type="button" id="btnRefresh">Refresh status</button>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Lokasi yang dicari</h3>
+      <p class="mono">files/qwen2.5-coder-7b-instruct-q3_k_m.gguf<br>
+files/model.gguf<br>
+Download/qwen2.5-coder-7b-instruct-q3_k_m.gguf<br>
+(migrasi) com.dte.ai/files/…</p>
+      <p>Letakkan file GGUF (~3.55 GB Q3_K_M), lalu tekan Auto Load. Butuh ~7 GB ruang sementara saat salin privat.</p>
+    </div>
+  </div>
+</section>
+
+<section class="page" id="page-settings">
+  <div class="hd"><div><b>Atur</b><small>RAM 6GB · anti-error</small></div></div>
+  <div class="scroll">
+    <div class="card">
+      <h3>Runtime (disarankan 6GB)</h3>
+      <label class="f">Context (n_ctx)<input id="n_ctx" type="number" value="2048" min="512" max="8192" step="256"></label>
+      <label class="f">Batch (n_batch)<input id="n_batch" type="number" value="128" min="32" max="512" step="32"></label>
+      <label class="f">Threads<input id="n_threads" type="number" value="4" min="1" max="8"></label>
+      <label class="f">Temperature<input id="temp" type="number" value="0.2" min="0.05" max="1.5" step="0.05"></label>
+      <div class="row">
+        <button class="btn" type="button" id="btnSaveCfg">Simpan + muat ulang model</button>
+      </div>
+      <p style="margin-top:8px">Matikan Extended RAM di HP jika lag. Battery → Unrestricted.</p>
+    </div>
+    <div class="card">
+      <h3>System prompt (anti-error)</h3>
+      <label class="f">Prompt<textarea id="sysPrompt" rows="5"></textarea></label>
+      <div class="row">
+        <button class="btn" type="button" id="btnSavePrompt">Simpan prompt</button>
+        <button class="btn ghost" type="button" id="btnResetPrompt">Default</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+var bridge = window.AndroidBridge || null;
+function $(id){ return document.getElementById(id); }
+function showPage(name){
+  document.querySelectorAll(".page").forEach(function(p){ p.classList.remove("on"); });
+  var el = $("page-" + name);
+  if (el) el.classList.add("on");
+  if (name === "model") refreshModel();
+  if (name === "settings") loadSettings();
+}
+window.showPage = showPage;
+
+function setModelReady(ok){
+  var b = $("readyBadge");
+  if (!b) return;
+  if (ok){ b.textContent = "Ready"; b.className = "badge ok"; }
+  else { b.textContent = "Belum siap"; b.className = "badge bad"; }
+}
+window.setModelReady = setModelReady;
+
+function addMsg(role, text){
+  var log = $("chatLog");
+  var d = document.createElement("div");
+  d.className = "msg " + (role === "user" ? "user" : "ai");
+  d.innerHTML = '<div class="who">' + (role === "user" ? "Anda" : "Xena-AI") + "</div>";
+  d.appendChild(document.createTextNode(text));
+  log.appendChild(d);
+  log.scrollTop = log.scrollHeight;
+}
+
+function send(){
+  var t = ($("inp").value || "").trim();
+  if (!t) return;
+  $("inp").value = "";
+  addMsg("user", t);
+  $("sendBtn").disabled = true;
+  addMsg("ai", "…");
+  var last = $("chatLog").lastChild;
+  setTimeout(function(){
+    var out = "[Bridge tidak tersedia]";
+    try {
+      if (bridge && bridge.chat) out = bridge.chat(t);
+      else if (bridge && bridge.sendPrompt) out = bridge.sendPrompt(t, 0.2, 2048);
+    } catch (e) { out = "[Error] " + e.message; }
+    last.removeChild(last.lastChild);
+    last.appendChild(document.createTextNode(out));
+    $("sendBtn").disabled = false;
+    $("chatLog").scrollTop = $("chatLog").scrollHeight;
+  }, 50);
+}
+$("sendBtn").onclick = send;
+$("inp").addEventListener("keydown", function(e){
+  if (e.key === "Enter" && !e.shiftKey){ e.preventDefault(); send(); }
+});
+
+function refreshModel(){
+  try {
+    if (!bridge){ $("modelStatus").textContent = "Web only — buka di APK"; return; }
+    var info = JSON.parse(bridge.getModelInfo());
+    $("modelStatus").innerHTML = info.ready
+      ? '<span class="ok">✅ Model siap</span> · ' + info.size
+      : '<span class="bad">❌ Belum dimuat</span> · ' + (info.size || "0");
+    $("modelPath").textContent = info.path || "(path kosong)";
+    setModelReady(!!info.ready);
+  } catch (e) {
+    $("modelStatus").textContent = "Gagal baca status: " + e.message;
+  }
+}
+$("btnAuto").onclick = function(){
+  $("modelStatus").textContent = "Memuat…";
+  try { if (bridge) bridge.autoLoadModel(); } catch(e){}
+  setTimeout(refreshModel, 2000);
+};
+$("btnRefresh").onclick = refreshModel;
+
+function loadSettings(){
+  try {
+    if (bridge && bridge.getConfig) {
+      var c = JSON.parse(bridge.getConfig());
+      $("n_ctx").value = c.n_ctx; $("n_batch").value = c.n_batch;
+      $("n_threads").value = c.n_threads; $("temp").value = c.temperature;
+    }
+    if (bridge && bridge.getSystemPrompt) $("sysPrompt").value = bridge.getSystemPrompt();
+  } catch(e){}
+}
+$("btnSaveCfg").onclick = function(){
+  var a = +$("n_ctx").value || 2048, b = +$("n_batch").value || 128, c = +$("n_threads").value || 4;
+  try {
+    if (bridge) {
+      bridge.saveConfig(a, b, c);
+      var ok = bridge.loadModelWithConfig(a, b, c);
+      alert(ok ? "Model dimuat ulang" : "Gagal muat model — cek file GGUF");
+    }
+  } catch(e){ alert(e.message); }
+  refreshModel();
+};
+$("btnSavePrompt").onclick = function(){
+  try { if (bridge) bridge.saveSystemPrompt($("sysPrompt").value || ""); alert("Prompt disimpan"); } catch(e){}
+};
+$("btnResetPrompt").onclick = function(){
+  var d = "You are Xena-AI, a helpful coding assistant powered by Qwen2.5-Coder. You are an expert programmer created by Xena. Answer correctly and clearly in Indonesian. Provide working code when asked. Be concise but correct.";
+  $("sysPrompt").value = d;
+  try { if (bridge) bridge.saveSystemPrompt(d); } catch(e){}
+};
+
+// Initial
+setTimeout(function(){
+  try {
+    if (bridge && bridge.isModelReady && bridge.isModelReady()) setModelReady(true);
+    else setModelReady(false);
+  } catch(e){ setModelReady(false); }
+  refreshModel();
+}, 400);
+</script>
+</body>
+</html>
