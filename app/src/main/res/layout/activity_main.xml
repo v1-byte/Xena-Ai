@@ -9,21 +9,21 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
-    <!-- Kept for code compatibility; hidden -->
     <TextView
         android:id="@+id/topStatus"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:visibility="gone" />
+
     <TextView
         android:id="@+id/txtModelStatus"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:visibility="gone" />
+
     <com.google.android.material.bottomnavigation.BottomNavigationView
         android:id="@+id/bottom_navigation"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:visibility="gone"
-        android:menu="@menu/bottom_nav" />
+        android:visibility="gone" />
 </FrameLayout>
