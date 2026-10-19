@@ -6,6 +6,7 @@ plugins {
 android {
     namespace = "com.xena.ai"
     compileSdk = 34
+    ndkVersion = "26.1.10909125"
 
     defaultConfig {
         applicationId = "com.xena.ai"

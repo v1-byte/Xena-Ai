@@ -5,6 +5,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -52,3 +55,31 @@ jobs:
           name: xena-ai-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.2.0
+          name: Xena-AI v1.2.0
+          body: |
+            ## Xena-AI v1.2.0
+
+            - UI v1.2 full-screen (Chat / Model / Konektor / Atur)
+            - Bridge `Android.chat`, `loadModel`, `stop`, `storageInfo`
+            - Connectors (token lokal)
+            - JNI `libllama` stub (ganti dengan llama.cpp asli untuk inference penuh)
+
+            ### Install
+            Unduh `app-debug.apk`, install di HP (izinkan sumber tidak dikenal).
+
+            ### Model
+            Letakkan `qwen2.5-coder-7b-instruct-q3_k_m.gguf` di Download atau folder app.
+
+            ### Catatan
+            Stub native tidak menjalankan GGUF — untuk chat lokal penuh, bangun `libllama.so` asli.
+          files: app/build/outputs/apk/debug/*.apk
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
