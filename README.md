@@ -1,57 +1,48 @@
 # Xena-AI
 
-Aplikasi Android untuk menjalankan model **GGUF lokal** via `llama.cpp`.  
-UI HTML custom di WebView + bridge Kotlin. Model **tidak** dibundel di APK.
+Aplikasi Android untuk model **GGUF lokal** (target Qwen2.5-Coder 7B Q3_K_M ~3.55 GB).  
+UI HTML v1.2 full-screen WebView + bridge Kotlin `window.Android`.
 
-## Fokus v1.0.8 Connector Edition
-- **Anti-Error** system prompt (tidak pernah kosong)
-- **Auto Mode** — auto load GGUF yang sudah ada di HP
-- Setting aman **RAM 6GB**: ctx 2048, batch 128, threads 4, temp 0.2
-- UI full HTML (`app/src/main/assets/index.html`)
+## Status v1.2.0
+- ✅ UI v1.2 (Chat / Model / Konektor / Atur)
+- ✅ Auto-load model path
+- ✅ Anti-error system prompt
+- ✅ Connectors (token lokal)
+- ✅ JNI library `libllama` (stub aman — ganti dengan llama.cpp asli untuk inference)
+- ⚠️ Inference penuh butuh `libllama.so` hasil build llama.cpp (bukan stub)
 
-## Model
-Target: `qwen2.5-coder-7b-instruct-q3_k_m.gguf` (~3.55 GB)
-
-Lokasi yang dicari `ModelAutoLoader`:
-- `context.filesDir/qwen2.5-coder-7b-instruct-q3_k_m.gguf`
-- `context.filesDir/model.gguf`
-- `/data/data/com.xena.ai/files/...`
-- migrasi `/data/data/com.dte.ai/files/...`
-- `Download/qwen2.5-coder-7b-instruct-q3_k_m.gguf`
-
-## Native library
-Butuh `libllama.so` (arm64-v8a) di:
+## Struktur
 ```
-app/src/main/jniLibs/arm64-v8a/libllama.so
+app/src/main/
+  assets/index.html          # UI utama
+  java/com/xena/ai/          # MainActivity, LlamaBridge, AppPrefs, ModelAutoLoader, Connectors
+  cpp/                       # JNI stub (libllama.so)
+  jniLibs/arm64-v8a/         # Opsional: taruh .so prebuilt di sini (override stub)
 ```
-Tanpa file ini, auto-load akan gagal dengan pesan native/lib.
 
-## Build
+## Build lokal
 ```bash
-git clone https://github.com/v1-byte/Xena-Ai.git
-cd Xena-Ai
+# Butuh JDK 17 + Android SDK + NDK 26 + CMake 3.22
 ./gradlew assembleDebug
+# APK: app/build/outputs/apk/debug/app-debug.apk
 ```
-Output: `app/build/outputs/apk/debug/app-debug.apk`
 
-## Catatan RAM 6+6
-- Matikan Extended RAM (+6GB virtual) jika lag
-- Battery → Unrestricted
-- Sisakan ~10 GB storage
-- Tutup WA/Chrome/game sebelum buka app
+## Model di HP
+Letakkan salah satu:
+- `Android/data/com.xena.ai/files/qwen2.5-coder-7b-instruct-q3_k_m.gguf`
+- `/storage/emulated/0/Download/qwen2.5-coder-7b-instruct-q3_k_m.gguf`
+- Migrasi dari `com.dte.ai/files/...`
+
+## Ganti stub → llama.cpp asli
+1. Build `libllama.so` + JNI bindings untuk package `com.xena.ai.LlamaBridge`
+2. Metode native: `nativeLoadModel`, `nativeGenerate`, `nativeIsLoaded`, `nativeFreeModel`
+3. Taruh di `app/src/main/jniLibs/arm64-v8a/libllama.so` **atau** ganti `app/src/main/cpp/`
+
+## Connectors
+Token disimpan lokal (SharedPreferences). GitHub test mengecek repo & `libllama.so`.
+
+## RAM 6 GB
+Context 2048 · batch 128 · threads 4 · temp 0.2 · mmap on · mlock off
 
 ## Lisensi
 Private project.
-
-
-## Connectors (tab Konektor)
-Token disimpan **lokal** (SharedPreferences + localStorage), tidak ke server Xena.
-
-| ID | Fungsi |
-|----|--------|
-| github | Cek repo, libllama.so, trigger Actions |
-| cloudflare | Deploy / R2 (token + account id) |
-| meta | Ads / insights |
-| huggingface | Cek model GGUF publik |
-
-Bridge: `saveConnectorToken`, `getConnectorToken`, `isConnectorConnected`, `getConnectedConnectors`

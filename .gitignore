@@ -14,3 +14,7 @@
 *.class
 app/src/main/jniLibs/**/*.so
 !app/src/main/jniLibs/**/README.txt
+
+# native build outputs
+.externalNativeBuild/
+.cxx/
