@@ -1,19 +1,15 @@
-# libllama.so
+# libllama.so (v1.2.1+)
 
-Belum ada file `libllama.so` di repo/attachments saat release ini.
+APK sekarang **membangun** `libllama.so` dari [llama.cpp](https://github.com/ggerganov/llama.cpp) saat compile (CMake FetchContent + JNI `jni_bridge.cpp`).
 
-## Cara pasang (dari APK DT-E-AI / Xena lama di HP)
-```bash
-# Di PC, setelah cabut APK dari HP:
-unzip -l app-lama.apk | grep libllama
-unzip app-lama.apk 'lib/arm64-v8a/libllama.so' -d /tmp/extract
-# Salin ke repo:
-mkdir -p app/src/main/jniLibs/arm64-v8a
-cp /tmp/extract/lib/arm64-v8a/libllama.so app/src/main/jniLibs/arm64-v8a/
-# Hapus atau nonaktifkan stub CMake jika .so prebuilt dipakai
-```
+## API native
+- `nativeLoadModel(path, n_ctx, n_batch, n_threads, mmap, mlock)`
+- `nativeGenerate(prompt, temp, topP, repeatPenalty)`
+- `nativeIsLoaded()` / `nativeFreeModel()`
 
-Atau unggah `libllama.so` ke chat / commit ke:
-`app/src/main/jniLibs/arm64-v8a/libllama.so`
+## Model
+Letakkan GGUF di HP, mis.  
+`/storage/emulated/0/Download/qwen2.5-coder-7b-instruct-q3_k_m.gguf`
 
-Saat ini CI membangun **stub** dari `app/src/main/cpp/` agar APK tetap installable.
+## Catatan
+Build CI lebih lama (~10–30 menit) karena compile llama.cpp untuk arm64-v8a.

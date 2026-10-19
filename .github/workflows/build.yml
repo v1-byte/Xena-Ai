@@ -11,7 +11,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
 
@@ -59,15 +59,15 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.2.0
-          name: Xena-AI v1.2.0
+          tag_name: v1.2.1
+          name: Xena-AI v1.2.1
           body: |
-            ## Xena-AI v1.2.0
+            ## Xena-AI v1.2.1 — real llama.cpp JNI
 
             - UI v1.2 full-screen (Chat / Model / Konektor / Atur)
             - Bridge `Android.chat`, `loadModel`, `stop`, `storageInfo`
             - Connectors (token lokal)
-            - JNI `libllama` stub (ganti dengan llama.cpp asli untuk inference penuh)
+            - JNI `libllama.so` built from llama.cpp (CPU arm64) (ganti dengan llama.cpp asli untuk inference penuh)
 
             ### Install
             Unduh `app-debug.apk`, install di HP (izinkan sumber tidak dikenal).
