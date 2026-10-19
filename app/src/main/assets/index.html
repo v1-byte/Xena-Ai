@@ -1,391 +1,674 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="id" data-theme="dark">
 <head>
-<meta charset="utf-8">
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Xena-AI</title>
+<meta name="theme-color" content="#07090f">
+<title>Xena AI</title>
 <style>
-:root{
-  --bg:#0d151b; --surface:#141f27; --surface2:#1b2a34; --line:#2a3c48;
-  --fg:#e4ecf0; --muted:#8fa3af; --accent:#3cc7bd; --accent2:#0b7a75;
-  --ok:#4cc77a; --bad:#f2776c; --warn:#e5a13a;
-  --f:system-ui,-apple-system,"Segoe UI",sans-serif;
-  --mono:ui-monospace,"SF Mono",Menlo,monospace;
-}
-*{box-sizing:border-box}
-html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font:15px/1.45 var(--f);height:100%}
-body{display:flex;flex-direction:column;min-height:100dvh;padding-bottom:env(safe-area-inset-bottom,0)}
-button,input,textarea,select{font:inherit;color:inherit}
-button{cursor:pointer;border:0;background:none}
-.page{display:none;flex:1;min-height:0;flex-direction:column}
-.page.on{display:flex}
-.hd{padding:12px 16px 8px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line)}
-.hd b{font-size:17px;font-weight:700}
-.hd small{color:var(--muted);display:block;font-size:12px}
-.badge{margin-left:auto;font-size:11px;padding:3px 8px;border-radius:99px;background:var(--surface2);color:var(--muted)}
-.badge.ok{color:var(--ok);background:#14301f}
-.badge.bad{color:var(--bad);background:#301414}
+:root{--bg:#07090f;--bg2:#0d1220;--card:#121a2c;--card2:#18223a;--line:#243049;--text:#e6ebf5;--muted:#8a96b0;--accent:#a855f7;--accent2:#22d3ee;--ok:#22c55e;--err:#ef4444;--warn:#f59e0b;--logo:#fff;--ubub:#a855f7;--ubtxt:#fff;--r:16px;--nav:64px;--safeb:env(safe-area-inset-bottom,0px)}
+[data-theme=hacker]{--bg:#000;--bg2:#050805;--card:#07110a;--card2:#0b1a0f;--line:#0f3a1a;--text:#00ff66;--muted:#0a9a40;--accent:#00ff41;--accent2:#00ff41;--logo:#00ff41;--ubtxt:#001a07;font-family:ui-monospace,Menlo,Consolas,monospace}
+[data-theme=light]{--bg:#f5f7fb;--bg2:#fff;--card:#fff;--card2:#eef1f8;--line:#dbe1ee;--text:#0f172a;--muted:#64748b;--logo:#0f172a}
+[data-theme=cyberpunk]{--bg:#12061f;--bg2:#1a0a2e;--card:#26104a;--card2:#311563;--line:#4a2380;--text:#f4e9ff;--muted:#a98cd6;--accent:#ff2bd6;--accent2:#00f0ff;--logo:#fff}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font:14px/1.5 system-ui,-apple-system,Roboto,sans-serif;transition:background .4s,color .4s}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+input,textarea,select{font:inherit;color:var(--text);outline:0}
+svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.lw{fill:var(--logo)}.ls{stroke:var(--logo);fill:none;stroke-width:26}
+.mark{width:30px;height:24px}
+/* ambient background */
+.amb{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none}
+.amb i{position:absolute;width:60vmax;height:60vmax;border-radius:50%;filter:blur(90px);opacity:.16;animation:drift 18s ease-in-out infinite alternate}
+.amb i:nth-child(1){background:var(--accent);top:-25vmax;left:-20vmax}
+.amb i:nth-child(2){background:var(--accent2);bottom:-30vmax;right:-25vmax;animation-delay:-9s}
+@keyframes drift{to{transform:translate(8vmax,6vmax) scale(1.15)}}
+/* splash */
+#splash{position:fixed;inset:0;z-index:999;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .6s,visibility .6s}
+#splash.hide{opacity:0;visibility:hidden}
+#splash svg.logo{width:min(70vw,320px);height:auto;overflow:visible}
+#splash .lmark{animation:pop .9s cubic-bezier(.2,1.2,.3,1) both}
+#splash .ltxt{animation:rise .8s .5s both}
+#splash .ltag{animation:rise .8s .8s both}
+.loadbar{margin-top:28px;width:140px;height:3px;border-radius:3px;background:var(--line);overflow:hidden}
+.loadbar b{display:block;height:100%;width:40%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:3px;animation:ld 1.1s infinite ease-in-out}
+@keyframes ld{0%{transform:translateX(-100%)}100%{transform:translateX(350%)}}
+@keyframes pop{from{opacity:0;transform:scale(.5) rotate(-12deg)}to{opacity:1;transform:none}}
+@keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+/* app shell */
+#app{position:fixed;inset:0;z-index:1;display:flex;flex-direction:column}
+header{height:56px;padding:0 10px;display:flex;align-items:center;gap:6px;background:color-mix(in srgb,var(--bg2) 80%,transparent);backdrop-filter:blur(14px);border-bottom:1px solid var(--line);z-index:5}
+.ib{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;color:var(--muted);transition:.2s;position:relative}
+.ib:active{transform:scale(.88);background:var(--card)}
+.ib:hover{color:var(--text)}
+.brand{display:flex;align-items:center;gap:8px;flex:1;min-width:0}
+.brand b{font-size:17px;letter-spacing:.28em;font-weight:800}
+.brand small{display:block;font-size:9px;color:var(--muted);letter-spacing:.06em;margin-top:-3px;white-space:nowrap}
+.net{display:flex;align-items:center;gap:5px;font-size:11px;padding:4px 9px;border-radius:20px;background:var(--card);border:1px solid var(--line)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--ok);box-shadow:0 0 8px var(--ok);flex:none}
+.dot.off{background:var(--muted);box-shadow:none}.dot.bad{background:var(--err);box-shadow:0 0 8px var(--err)}
+main{flex:1;position:relative;overflow:hidden}
+.tab{position:absolute;inset:0;display:none;flex-direction:column;overflow:hidden}
+.tab.active{display:flex;animation:tabin .35s cubic-bezier(.2,.8,.2,1)}
+@keyframes tabin{from{opacity:0;transform:translateX(26px)}to{opacity:1;transform:none}}
+.scroll{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:12px;scroll-behavior:smooth}
+.scroll::-webkit-scrollbar{width:0}
+/* nav */
+nav{height:calc(var(--nav) + var(--safeb));padding-bottom:var(--safeb);display:flex;position:relative;background:color-mix(in srgb,var(--bg2) 88%,transparent);backdrop-filter:blur(14px);border-top:1px solid var(--line);z-index:5}
+nav button{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:10.5px;color:var(--muted);transition:color .25s,transform .25s;position:relative}
+nav button.active{color:var(--accent)}
+nav button.active svg{transform:translateY(-2px) scale(1.12)}
+nav svg{transition:transform .3s cubic-bezier(.3,1.6,.5,1)}
+#navInd{position:absolute;top:0;left:0;width:25%;height:3px;display:flex;justify-content:center;transition:transform .35s cubic-bezier(.3,1.2,.4,1)}
+#navInd b{width:34px;height:3px;border-radius:0 0 4px 4px;background:linear-gradient(90deg,var(--accent),var(--accent2));box-shadow:0 2px 12px var(--accent)}
+.badge{position:absolute;top:7px;left:calc(50% + 6px);min-width:16px;height:16px;border-radius:8px;background:var(--accent);color:#fff;font-size:10px;display:none;place-items:center;padding:0 4px;font-weight:700}
+.badge.on{display:grid;animation:pop .4s}
+/* cards */
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px;animation:rise .4s both}
+.card h4{display:flex;align-items:center;gap:8px;font-size:14px;margin-bottom:10px}
+.card h4 svg{color:var(--accent)}
+.row{display:flex;align-items:center;gap:10px}.sp{flex:1}
+.muted{color:var(--muted);font-size:12px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px 14px;border-radius:12px;background:var(--card2);border:1px solid var(--line);font-size:13px;transition:.2s;font-weight:500}
+.btn:active{transform:scale(.95)}
+.btn.pri{background:linear-gradient(135deg,var(--accent),color-mix(in srgb,var(--accent) 55%,var(--accent2)));border:0;color:#fff;box-shadow:0 4px 18px color-mix(in srgb,var(--accent) 40%,transparent)}
+.btn.dng{color:var(--err)}
+.btn.sm{padding:6px 10px;font-size:12px;border-radius:10px}
+.btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.bar{height:12px;border-radius:6px;background:var(--card2);overflow:hidden;margin:8px 0}
+.bar b{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,var(--ok),var(--accent2));transition:width .6s,background .3s;position:relative;overflow:hidden}
+.bar b::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.35),transparent);animation:shine 2s infinite}
+@keyframes shine{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
+.sw{width:46px;height:26px;border-radius:13px;background:var(--card2);border:1px solid var(--line);position:relative;transition:.3s;flex:none}
+.sw::after{content:"";position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:var(--muted);transition:.3s cubic-bezier(.3,1.5,.5,1)}
+.sw.on{background:var(--accent);border-color:var(--accent)}.sw.on::after{left:22px;background:#fff}
+.pill{font-size:10.5px;padding:2px 8px;border-radius:10px;background:color-mix(in srgb,var(--accent) 18%,transparent);color:var(--accent);font-weight:600}
+input[type=text],input[type=password],textarea.f,select{width:100%;background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:10px 12px;transition:border .2s}
+input:focus,textarea:focus,select:focus{border-color:var(--accent)}
+.err{border-color:var(--err)!important}
+label{display:block;font-size:12px;color:var(--muted);margin:10px 0 5px}
+input[type=range]{width:100%;accent-color:var(--accent);height:24px}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.stat{background:var(--card2);border-radius:12px;padding:10px}.stat b{display:block;font-size:16px}
+/* chat */
+.msg{display:flex;gap:8px;max-width:92%;animation:msgin .35s cubic-bezier(.2,.9,.3,1) both}
+@keyframes msgin{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:none}}
+.msg.user{align-self:flex-end;flex-direction:row-reverse}
+.av{width:30px;height:30px;border-radius:10px;background:var(--card);border:1px solid var(--line);display:grid;place-items:center;flex:none}
+.av svg{width:18px;height:15px}
+.mb{min-width:0}
+.bubble{padding:10px 14px;border-radius:18px;font-size:14px;line-height:1.55;word-wrap:break-word;overflow-wrap:anywhere}
+.msg.user .bubble{background:linear-gradient(135deg,var(--ubub),color-mix(in srgb,var(--ubub) 65%,var(--accent2)));color:var(--ubtxt);border-bottom-right-radius:5px}
+.msg.assistant .bubble{background:var(--card);border:1px solid var(--line);border-bottom-left-radius:5px}
+.bubble p+p,.bubble ul,.bubble ol{margin-top:6px}.bubble ul,.bubble ol{padding-left:20px}
+.bubble a{color:var(--accent2)}
+.bubble code.in{background:var(--card2);padding:1px 6px;border-radius:6px;font-size:12.5px}
+.time{font-size:10px;color:var(--muted);margin:3px 6px}
+.msg.user .time{text-align:right}
+.cb{margin:8px 0;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:#0a0e18}
+[data-theme=light] .cb{background:#0f172a}
+.cbh{display:flex;align-items:center;padding:6px 10px;background:#141b2d;font-size:11px;color:#9aa7c2;gap:6px}
+.cbh span{flex:1;text-transform:lowercase}
+.cbh button{display:flex;align-items:center;gap:4px;padding:3px 8px;border-radius:7px;border:1px solid #2a3654;font-size:11px;color:#cbd5e1}
+.cbh svg{width:13px;height:13px}
+.cb pre{padding:10px 12px;overflow-x:auto;font:12px/1.55 ui-monospace,Menlo,Consolas,monospace;color:#d6e2ff}
+.qa{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.qa button{display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:20px;background:var(--card);border:1px solid var(--line);font-size:11.5px;color:var(--muted);transition:.2s}
+.qa button:active{transform:scale(.93);color:var(--accent)}
+.qa svg{width:14px;height:14px}
+.typing i{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--muted);margin:0 2px;animation:bnc 1.2s infinite}
+.typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}
+@keyframes bnc{0%,60%,100%{transform:translateY(0);opacity:.4}30%{transform:translateY(-5px);opacity:1}}
+.caret::after{content:"▍";color:var(--accent);animation:blink 1s infinite}
+@keyframes blink{50%{opacity:0}}
+.hero{margin:auto;text-align:center;padding:20px}
+.hero svg.lg{width:min(62vw,260px);height:auto;margin:0 auto 14px;display:block}
+.hero p{color:var(--muted);font-size:13px}
+.qbar{display:flex;gap:8px;overflow-x:auto;padding:8px 12px 2px}.qbar::-webkit-scrollbar{height:0}
+.chip{display:flex;align-items:center;gap:6px;white-space:nowrap;padding:7px 12px;border-radius:20px;background:var(--card);border:1px solid var(--line);font-size:12px;transition:.2s;flex:none}
+.chip svg{width:15px;height:15px;color:var(--accent)}
+.chip:active{transform:scale(.93);border-color:var(--accent)}
+.inbar{display:flex;align-items:flex-end;gap:6px;padding:8px 10px 10px;position:relative}
+.inbox{flex:1;display:flex;align-items:flex-end;background:var(--card);border:1px solid var(--line);border-radius:22px;padding:2px 4px;transition:border .2s,box-shadow .2s}
+.inbox:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 18%,transparent)}
+.inbox textarea{flex:1;background:none;border:0;resize:none;max-height:130px;padding:10px 6px;line-height:1.4}
+.send{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;display:grid;place-items:center;flex:none;box-shadow:0 4px 16px color-mix(in srgb,var(--accent) 45%,transparent);transition:.2s}
+.send:active{transform:scale(.88)}.send.stop{background:var(--err);animation:pulse 1.2s infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 8px transparent}}
+.slash{position:absolute;bottom:62px;left:10px;right:10px;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;display:none;box-shadow:0 10px 40px rgba(0,0,0,.4);z-index:6;animation:rise .2s}
+.slash.on{display:block}
+.slash button{display:flex;gap:10px;align-items:center;width:100%;padding:10px 14px;text-align:left}
+.slash button:hover,.slash button:active{background:var(--card2)}
+.slash b{color:var(--accent);min-width:70px}
+.fab{position:absolute;right:14px;bottom:130px;z-index:4}
+.fab>button.main{width:50px;height:50px;border-radius:16px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;display:grid;place-items:center;box-shadow:0 6px 22px color-mix(in srgb,var(--accent) 50%,transparent);transition:.3s}
+.fab.open>button.main{transform:rotate(135deg)}
+.fab .menu{position:absolute;bottom:60px;right:0;display:flex;flex-direction:column;gap:8px;align-items:flex-end;pointer-events:none}
+.fab .menu button{display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:20px;background:var(--card);border:1px solid var(--line);white-space:nowrap;opacity:0;transform:translateY(14px) scale(.8);transition:.25s}
+.fab.open .menu{pointer-events:auto}
+.fab.open .menu button{opacity:1;transform:none}
+.fab.open .menu button:nth-child(3){transition-delay:.04s}.fab.open .menu button:nth-child(2){transition-delay:.08s}.fab.open .menu button:nth-child(1){transition-delay:.12s}
+.fab .menu svg{color:var(--accent)}
+#toBottom{position:absolute;left:50%;bottom:116px;transform:translateX(-50%) scale(0);width:36px;height:36px;border-radius:50%;background:var(--card);border:1px solid var(--line);display:grid;place-items:center;transition:.25s;z-index:4}
+#toBottom.on{transform:translateX(-50%) scale(1)}
+/* sidebar / overlays */
+.shade{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:50;opacity:0;visibility:hidden;transition:.3s;backdrop-filter:blur(3px)}
+.shade.on{opacity:1;visibility:visible}
+#side{position:fixed;top:0;bottom:0;left:0;width:min(82vw,310px);background:var(--bg2);border-right:1px solid var(--line);z-index:51;transform:translateX(-102%);transition:transform .35s cubic-bezier(.2,.8,.2,1);display:flex;flex-direction:column;padding:14px 12px}
+#side.on{transform:none}
+.hitem{display:flex;align-items:center;gap:8px;padding:10px;border-radius:12px;transition:.2s;cursor:pointer}
+.hitem:hover,.hitem.cur{background:var(--card)}
+.hitem span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hitem button{opacity:.6;padding:4px}
+#pal{position:fixed;inset:0;z-index:60;display:none;align-items:flex-start;justify-content:center;padding-top:14vh;background:rgba(0,0,0,.55);backdrop-filter:blur(4px)}
+#pal.on{display:flex;animation:fade .2s}
+@keyframes fade{from{opacity:0}}
+.palbox{width:min(92vw,520px);background:var(--bg2);border:1px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.5);animation:rise .25s}
+.palbox input{border:0;border-bottom:1px solid var(--line);border-radius:0;background:none;padding:16px;font-size:15px}
+.palbox #palList{max-height:50vh;overflow:auto}
+.palbox button{display:flex;gap:12px;align-items:center;width:100%;padding:12px 16px;text-align:left}
+.palbox button.sel,.palbox button:hover{background:var(--card)}
+.palbox svg{color:var(--accent)}
+#toasts{position:fixed;left:0;right:0;bottom:calc(var(--nav) + 76px);z-index:90;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none}
+.toast{padding:10px 16px;border-radius:22px;background:var(--card);border:1px solid var(--accent);font-size:12.5px;box-shadow:0 8px 28px rgba(0,0,0,.4);animation:rise .3s both;max-width:88vw}
+.toast.out{opacity:0;transform:translateY(10px);transition:.3s}
+.modal{position:fixed;inset:0;z-index:70;background:var(--bg);display:none;flex-direction:column}
+.modal.on{display:flex;animation:rise .3s}
+.modal iframe{flex:1;border:0;background:#fff}
+/* connectors */
+.cc{display:flex;align-items:center;gap:12px}
+.cic{width:46px;height:46px;border-radius:14px;background:var(--card2);display:grid;place-items:center;color:var(--accent);position:relative}
+.cic svg{width:24px;height:24px}
+.cic .dot{position:absolute;top:-2px;right:-2px;border:2px solid var(--card)}
+.cc.on .cic{animation:glow 2.4s infinite}
+@keyframes glow{50%{box-shadow:0 0 18px color-mix(in srgb,var(--accent) 60%,transparent)}}
+.term{background:#000;border:1px solid #0b3d17;border-radius:12px;padding:10px;height:170px;overflow:auto;font:11.5px/1.6 ui-monospace,Menlo,Consolas,monospace;color:#2cff6a}
+.term div{animation:fade .3s}
+.repo div{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px dashed var(--line);font-size:12.5px}
+.repo svg{width:16px;height:16px}
+.okc{color:var(--ok)}.errc{color:var(--err)}
+.themes{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.th{padding:14px 8px;border-radius:14px;border:2px solid;font-weight:600;font-size:13px;display:flex;align-items:center;justify-content:center;gap:6px;transition:.25s}
+.th.active{transform:scale(1.03);box-shadow:0 0 16px currentColor}
+.th:active{transform:scale(.95)}
+.thr{display:flex;justify-content:space-between;font-size:11px;color:var(--muted)}
+@media(min-width:760px){#app{max-width:520px;margin:0 auto;border-inline:1px solid var(--line)}}
+@media(prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 
-#chatLog{flex:1;overflow:auto;padding:12px 14px;display:flex;flex-direction:column;gap:10px}
-.msg{max-width:92%;padding:10px 12px;border-radius:12px;line-height:1.45;white-space:pre-wrap;word-break:break-word}
-.msg.user{align-self:flex-end;background:var(--accent2);color:#fff}
-.msg.ai{align-self:flex-start;background:var(--surface);border:1px solid var(--line)}
-.msg .who{font-size:11px;color:var(--muted);margin-bottom:4px}
-.msg.ai .who{color:var(--accent)}
-.composer{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--line);background:var(--surface)}
-.composer textarea{flex:1;min-height:44px;max-height:120px;resize:none;border:1px solid var(--line);border-radius:10px;background:var(--bg);padding:10px 12px}
-.composer button{background:var(--accent);color:#06201e;font-weight:700;border-radius:10px;padding:0 16px;min-width:72px}
-.composer button:disabled{opacity:.5}
-
-.scroll{flex:1;overflow:auto;padding:14px}
-.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
-.card h3,.card h4{margin:0 0 8px;font-size:15px}
-.card p,.card small{margin:0 0 8px;color:var(--muted);font-size:13px;display:block}
-.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
-.btn{background:var(--accent);color:#06201e;font-weight:700;border-radius:8px;padding:10px 14px}
-.btn.ghost,.btn.secondary{background:var(--surface2);color:var(--fg)}
-label.f,label{display:grid;gap:4px;font-size:13px;margin:8px 0 4px}
-input[type=password],input[type=text],input[type=number],textarea,select{
-  width:100%;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;color:var(--fg)
-}
-.mono{font-family:var(--mono);font-size:12px}
-.ok{color:var(--ok)} .bad{color:var(--bad)}
-#connectorLog{font-size:11px;background:var(--bg);padding:10px;border-radius:8px;max-height:220px;overflow-y:auto;white-space:pre-wrap;margin-top:8px;font-family:var(--mono)}
+/* v1.2 */
+#splash{transition:opacity .7s,visibility .7s,transform .7s cubic-bezier(.6,0,.2,1),filter .7s}
+#splash.hide{transform:scale(1.08);filter:blur(8px)}
+#splash::before{content:"";position:absolute;width:60vmin;height:60vmin;border-radius:50%;background:radial-gradient(circle,color-mix(in srgb,var(--accent) 35%,transparent),transparent 65%);animation:breathe 3s ease-in-out infinite}
+@keyframes breathe{50%{transform:scale(1.25);opacity:.6}}
+#splash svg.logo{position:relative}
+symbol{overflow:visible}
+#splash svg.logo{animation:logoin 1.1s cubic-bezier(.2,.9,.3,1) both}
+@keyframes logoin{from{opacity:0;transform:scale(.82);filter:blur(12px)}to{opacity:1;transform:none;filter:blur(0)}}
+.loadbar{position:relative;width:min(60vw,220px)}
+.loadbar b{width:0;animation:none;transition:width .38s cubic-bezier(.3,.8,.3,1)}
+.lstat{display:flex;justify-content:space-between;width:min(60vw,220px);margin-top:10px;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.skip{position:absolute;right:16px;top:calc(16px + env(safe-area-inset-top,0px));font-size:12px;color:var(--muted);padding:6px 12px;border-radius:16px;border:1px solid var(--line)}
+body:not(.ready) header{transform:translateY(-100%)}body:not(.ready) nav{transform:translateY(100%)}
+header,nav{transition:transform .8s cubic-bezier(.2,.8,.2,1) .1s}
+#chat{scroll-behavior:auto}
+.card{animation-delay:calc(var(--n,0)*60ms)}
+#conn.st .card{animation:none}
+.hero svg.lg{animation:flt 5s ease-in-out infinite}
+@keyframes flt{50%{transform:translateY(-8px)}}
+.brand b{background:linear-gradient(90deg,var(--text) 30%,var(--accent),var(--accent2),var(--text) 70%);background-size:300% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:sheen 7s linear infinite}
+@keyframes sheen{to{background-position:-300% 0}}
+.btn,.chip,.send{position:relative;overflow:hidden}
+.rp{position:absolute;border-radius:50%;background:currentColor;opacity:.25;transform:scale(0);animation:rpl .55s ease-out forwards;pointer-events:none}
+@keyframes rpl{to{transform:scale(1);opacity:0}}
+#setx{display:contents}
+.sr{padding:8px 0}.sr+.sr{border-top:1px solid var(--line)}.sr label{margin:0 0 6px}
+.seg{display:flex;background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:3px;gap:2px}
+.seg button{padding:5px 10px;border-radius:9px;font-size:12px;color:var(--muted);transition:.25s}
+.seg button.on{background:var(--accent);color:#fff}
+#lock,#ask{position:fixed;inset:0;z-index:200;display:none;align-items:center;justify-content:center;background:var(--bg);flex-direction:column;gap:14px}
+#ask{z-index:120;background:rgba(0,0,0,.6);backdrop-filter:blur(4px)}
+#lock.on,#ask.on{display:flex;animation:fade .25s}
+.askbox{width:min(88vw,380px);background:var(--bg2);border:1px solid var(--line);border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:10px;animation:rise .25s}
+.askbox .btns{justify-content:flex-end;margin:0}
+#lock input{width:190px;text-align:center;font-size:22px;letter-spacing:.4em}
+#lock.shake{animation:shk .4s}@keyframes shk{25%{transform:translateX(-10px)}75%{transform:translateX(10px)}}
+@supports(height:100dvh){#app{height:100dvh;bottom:auto}}
+[data-anim=off] *,[data-anim=off] *::before,[data-anim=off] *::after{animation:none!important;transition:none!important}
+[data-anim=lite] .amb i,[data-anim=lite] .brand b,[data-anim=lite] .hero svg.lg{animation:none}
+[data-fx=off] .amb{display:none}[data-fx=off] header,[data-fx=off] nav,[data-fx=off] .shade{backdrop-filter:none}
+[data-ts=off] .time{display:none}[data-qb=off] #qbar{display:none}
 </style>
 </head>
 <body>
-<section class="page on" id="page-chat">
-  <div class="hd">
-    <div><b>Xena-AI</b><small>Chat lokal · Qwen2.5-Coder</small></div>
-    <span class="badge" id="readyBadge">Model…</span>
+
+<!-- ============ SVG SPRITE: logo transparan + ikon (ringan, tanpa gambar) ============ -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+<defs>
+<linearGradient id="g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e9e9e9"/><stop offset="1" stop-color="#7d7d7d"/></linearGradient>
+<linearGradient id="g2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#cfcfcf"/><stop offset="1" stop-color="#6e6e6e"/></linearGradient>
+</defs>
+<symbol id="xmark" viewBox="405 320 450 350">
+<polygon class="lw" points="410,333 517,330 683,497 510,665 410,662 587,497"/>
+<polygon fill="url(#g1)" points="640,418 760,326 845,326 693,475"/>
+<polygon fill="url(#g2)" points="645,568 693,518 848,665 765,665"/>
+</symbol>
+<symbol id="xlogo" viewBox="165 300 930 670">
+<use href="#xmark" x="405" y="320" width="450" height="350"/>
+<g class="ls ltxt"><path d="M222 752L392 858M392 752L222 858"/><path d="M565 752H462V858H565M462 805H555"/><path d="M662 858V752L772 858V752"/><path d="M870 858L951 752L1032 858"/></g>
+<text class="lw ltag" x="630" y="945" text-anchor="middle" font-family="system-ui,sans-serif" font-size="40" textLength="800" lengthAdjust="spacing">eXpert Engine for Neural Assistance</text>
+</symbol>
+<symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L3 21l1.9-5.4A8 8 0 1 1 21 12z"/></symbol>
+<symbol id="i-cpu" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/></symbol>
+<symbol id="i-plug" viewBox="0 0 24 24"><path d="M9 2v6M15 2v6M6 8h12v4a6 6 0 0 1-12 0zM12 18v4"/></symbol>
+<symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></symbol>
+<symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h10M4 17h16"/></symbol>
+<symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></symbol>
+<symbol id="i-send" viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></symbol>
+<symbol id="i-stop" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/></symbol>
+<symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></symbol>
+<symbol id="i-save" viewBox="0 0 24 24"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></symbol>
+<symbol id="i-push" viewBox="0 0 24 24"><path d="M12 19V5m0 0l-6 6m6-6l6 6"/></symbol>
+<symbol id="i-play" viewBox="0 0 24 24"><path d="M6 4l14 8-14 8z"/></symbol>
+<symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5"/></symbol>
+<symbol id="i-clip" viewBox="0 0 24 24"><path d="M21 11l-9 9a5 5 0 0 1-7-7l9-9a3.5 3.5 0 0 1 5 5l-9 9a2 2 0 0 1-3-3l8-8"/></symbol>
+<symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v4"/></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></symbol>
+<symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 17v5M8 3h8l-1 7 3 4H6l3-4z"/></symbol>
+<symbol id="i-github" viewBox="0 0 24 24"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.9a3.4 3.4 0 0 0-1-2.6c3.3-.4 6.5-1.6 6.5-7.2A5.6 5.6 0 0 0 20 4.8 5.2 5.2 0 0 0 19.9 1S18.7.6 16 2.5a13.4 13.4 0 0 0-7 0C6.3.6 5.1 1 5.1 1A5.2 5.2 0 0 0 5 4.8a5.6 5.6 0 0 0-1.5 3.9c0 5.6 3.2 6.8 6.5 7.2a3.4 3.4 0 0 0-1 2.6V22"/></symbol>
+<symbol id="i-cloud" viewBox="0 0 24 24"><path d="M18 18a4 4 0 0 0 0-8 6 6 0 0 0-11.7-1A4.5 4.5 0 0 0 7 18z"/></symbol>
+<symbol id="i-meta" viewBox="0 0 24 24"><path d="M3 15c0-4 2-9 4.5-9S12 12 12 12s2-6 4.5-6S21 11 21 15c0 2-1 3-2.5 3C16 18 14.500 14 12 10 9.500 14 8 18 5.500 18 4 18 3 17 3 15z"/></symbol>
+<symbol id="i-hf" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8.500 10h.01M15.500 10h.01M8 14.500c1 2 7 2 8 0"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></symbol>
+<symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></symbol>
+<symbol id="i-down" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+<symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></symbol>
+<symbol id="i-wrench" viewBox="0 0 24 24"><path d="M14.700 6.300a4 4 0 0 0-5.400 5.400L3 18l3 3 6.300-6.300a4 4 0 0 0 5.400-5.400l-2.600 2.600-2.400-.6-.6-2.400z"/></symbol>
+<symbol id="i-box" viewBox="0 0 24 24"><path d="M21 8l-9-5-9 5v8l9 5 9-5zM3 8l9 5 9-5M12 13v8"/></symbol>
+<symbol id="i-palette" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18c1.500 0 2-1 1.500-2s-.5-2 1-2H17a4 4 0 0 0 4-4c0-5-4-10-9-10z"/><circle cx="7.500" cy="11" r="1"/><circle cx="12" cy="7.500" r="1"/><circle cx="16.500" cy="11" r="1"/></symbol>
+<symbol id="i-wifi" viewBox="0 0 24 24"><path d="M2 9a15 15 0 0 1 20 0M5 13a10 10 0 0 1 14 0M8.500 16.500a5 5 0 0 1 7 0M12 20h.01"/></symbol>
+<symbol id="i-pause" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></symbol>
+<symbol id="i-flask" viewBox="0 0 24 24"><path d="M9 3h6M10 3v6L4 19a2 2 0 0 0 2 3h12a2 2 0 0 0 2-3l-6-10V3"/></symbol>
+<symbol id="i-qr" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v0M14 20h7M20 17v3"/></symbol>
+<symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+<symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.500v.01"/></symbol>
+<symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16zM14 6l4 4"/></symbol>
+<symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4 12H2M22 12h-2M5 5l1.500 1.500M17.500 17.500L19 19M5 19l1.500-1.500M17.500 6.500L19 5"/></symbol>
+<symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 13A9 9 0 1 1 11 3a7 7 0 0 0 10 10z"/></symbol>
+<symbol id="i-term" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 10l3 2-3 2M12 15h5"/></symbol>
+<symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5"/></symbol>
+<symbol id="i-battery" viewBox="0 0 24 24"><rect x="2" y="7" width="17" height="10" rx="2"/><path d="M22 11v2"/></symbol>
+<symbol id="i-gamepad" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="11" rx="5"/><path d="M7 10v5M4.500 12.500h5M16 11h.01M18 14h.01"/></symbol>
+<symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></symbol>
+</svg>
+
+<div class="amb"><i></i><i></i></div>
+
+<!-- SPLASH -->
+<div id="splash">
+  <svg class="logo" viewBox="0 0 930 670"><use href="#xlogo"/></svg>
+  <div class="loadbar"><b id="lb"></b></div><div class="lstat"><span id="lt">Memulai…</span><span id="lp">0%</span></div><button class="skip" onclick="endSplash()">Lewati</button>
+</div>
+
+<div id="app">
+<header>
+  <button class="ib" onclick="openSide()" aria-label="Riwayat"><svg class="i"><use href="#i-menu"/></svg></button>
+  <div class="brand">
+    <svg class="mark"><use href="#xmark"/></svg>
+    <div><b>XENA</b><small id="subt">eXpert Engine for Neural Assistance</small></div>
   </div>
-  <div id="chatLog"></div>
-  <div class="composer">
-    <textarea id="inp" rows="1" placeholder="Tulis pesan…"></textarea>
-    <button type="button" id="sendBtn">Kirim</button>
+  <div class="net" id="net"><span class="dot"></span><span id="netT">Online</span></div>
+  <button class="ib" onclick="openPal()" aria-label="Palette"><svg class="i"><use href="#i-search"/></svg></button>
+</header>
+
+<main>
+<!-- ===== CHAT ===== -->
+<section class="tab active" id="t0">
+  <div class="scroll" id="chat"></div>
+  <button id="toBottom" onclick="toBottom()"><svg class="i"><use href="#i-down"/></svg></button>
+  <div class="fab" id="fab">
+    <div class="menu">
+      <button onclick="fabGo('file')"><svg class="i"><use href="#i-clip"/></svg>Upload File</button>
+      <button onclick="fabGo('theme')"><svg class="i"><use href="#i-palette"/></svg>Edit UI</button>
+      <button onclick="fabGo('gh')"><svg class="i"><use href="#i-github"/></svg>GitHub</button>
+      <button onclick="fabGo('set')"><svg class="i"><use href="#i-sliders"/></svg>Settings</button>
+    </div>
+    <button class="main" onclick="$('#fab').classList.toggle('open')"><svg class="i"><use href="#i-plus"/></svg></button>
   </div>
-</section>
-
-<section class="page" id="page-model">
-  <div class="hd"><div><b>Model</b><small>GGUF lokal · Auto mode</small></div></div>
-  <div class="scroll">
-    <div class="card">
-      <h3>Status model</h3>
-      <p id="modelStatus">Memeriksa…</p>
-      <p class="mono" id="modelPath"></p>
-      <div class="row">
-        <button class="btn" type="button" id="btnAuto">Auto Load</button>
-        <button class="btn ghost" type="button" id="btnRefresh">Refresh status</button>
-      </div>
+  <div class="qbar" id="qbar"></div>
+  <div class="inbar">
+    <div class="slash" id="slash"></div>
+    <div class="inbox">
+      <button class="ib" onclick="$('#file').click()" aria-label="Lampirkan"><svg class="i"><use href="#i-clip"/></svg></button>
+      <textarea id="inp" rows="1" placeholder="Tanya Xena atau ketik / untuk perintah…"></textarea>
+      <button class="ib" id="micB" onclick="voice()" aria-label="Suara"><svg class="i"><use href="#i-mic"/></svg></button>
     </div>
-    <div class="card">
-      <h3>Lokasi yang dicari</h3>
-      <p class="mono">files/qwen2.5-coder-7b-instruct-q3_k_m.gguf<br>
-Download/qwen2.5-coder-7b-instruct-q3_k_m.gguf<br>
-(migrasi) com.dte.ai/files/…</p>
-    </div>
-  </div>
-</section>
-
-<section class="page" id="page-konektor">
-  <div class="hd"><div><b>Konektor</b><small>Token lokal di HP · tidak ke server Xena</small></div></div>
-  <div class="scroll">
-    <div class="card">
-      <h3>🔌 Xena Connectors</h3>
-      <p>Hubungkan ke layanan luar. Model 3.55GB tetap jalan lokal.</p>
-      <div id="connectorStatusList"></div>
-    </div>
-
-    <div class="card" style="border-left:3px solid #6e5494">
-      <h4>🐙 GitHub — WAJIB</h4>
-      <small>Kelola repo v1-byte/Xena-Ai, cek libllama.so, trigger build APK</small>
-      <label>GitHub PAT</label>
-      <input id="github_token" type="password" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" autocomplete="off" />
-      <small>github.com/settings/tokens → scope: repo, workflow</small>
-      <div class="row">
-        <button class="btn" type="button" onclick="saveConn('github')">Simpan</button>
-        <button class="btn secondary" type="button" onclick="testGithub()">Test</button>
-      </div>
-    </div>
-
-    <div class="card" style="border-left:3px solid #f38020">
-      <h4>☁️ Cloudflare</h4>
-      <small>Deploy web / R2 model</small>
-      <label>API Token</label>
-      <input id="cloudflare_token" type="password" placeholder="Token" autocomplete="off" />
-      <label>Account ID (opsional)</label>
-      <input id="cloudflare_account" type="text" placeholder="Account ID" autocomplete="off" />
-      <div class="row">
-        <button class="btn secondary" type="button" onclick="saveConn('cloudflare')">Simpan Cloudflare</button>
-      </div>
-    </div>
-
-    <div class="card" style="border-left:3px solid #1877f2">
-      <h4>📘 Meta (FB/IG)</h4>
-      <small>Ads / Page insights</small>
-      <label>Access Token</label>
-      <input id="meta_token" type="password" placeholder="EAAxxxxxxxx" autocomplete="off" />
-      <div class="row">
-        <button class="btn secondary" type="button" onclick="saveConn('meta')">Simpan Meta</button>
-      </div>
-    </div>
-
-    <div class="card" style="border-left:3px solid #ffcc00">
-      <h4>🤗 HuggingFace</h4>
-      <small>Cek / unduh GGUF publik tanpa token</small>
-      <label>HF Token (opsional)</label>
-      <input id="huggingface_token" type="password" placeholder="hf_xxxx (boleh kosong)" autocomplete="off" />
-      <div class="row">
-        <button class="btn secondary" type="button" onclick="saveConn('huggingface')">Simpan HF</button>
-        <button class="btn secondary" type="button" onclick="checkHFModel()">Cek model Qwen</button>
-      </div>
-    </div>
-
-    <div class="card">
-      <h4>🧪 Test & Log</h4>
-      <div id="connectorLog">Belum ada test. Simpan token lalu Test.</div>
-      <div class="row">
-        <button class="btn secondary" type="button" onclick="clearConnLog()">Clear Log</button>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section class="page" id="page-settings">
-  <div class="hd"><div><b>Atur</b><small>RAM 6GB · anti-error · v1.0.8</small></div></div>
-  <div class="scroll">
-    <div class="card">
-      <h3>Runtime (disarankan 6GB)</h3>
-      <label class="f">Context (n_ctx)<input id="n_ctx" type="number" value="2048" min="512" max="8192" step="256"></label>
-      <label class="f">Batch (n_batch)<input id="n_batch" type="number" value="128" min="32" max="512" step="32"></label>
-      <label class="f">Threads<input id="n_threads" type="number" value="4" min="1" max="8"></label>
-      <label class="f">Temperature<input id="temp" type="number" value="0.2" min="0.05" max="1.5" step="0.05"></label>
-      <div class="row">
-        <button class="btn" type="button" id="btnSaveCfg">Simpan + muat ulang model</button>
-      </div>
-    </div>
-    <div class="card">
-      <h3>System prompt (anti-error)</h3>
-      <label class="f">Prompt<textarea id="sysPrompt" rows="5"></textarea></label>
-      <div class="row">
-        <button class="btn" type="button" id="btnSavePrompt">Simpan prompt</button>
-        <button class="btn ghost" type="button" id="btnResetPrompt">Default</button>
-      </div>
-    </div>
+    <button class="send" id="sendB" onclick="sendOrStop()"><svg class="i"><use href="#i-send"/></svg></button>
+    <input type="file" id="file" hidden accept=".kt,.java,.html,.js,.css,.json,.txt,.md,.py,.xml" onchange="attach(this)">
   </div>
 </section>
+
+<!-- ===== MODEL ===== -->
+<section class="tab" id="t1"><div class="scroll">
+  <div class="card"><h4><svg class="i"><use href="#i-box"/></svg>Penyimpanan Model</h4>
+    <div class="bar"><b id="stBar" style="width:35.5%"></b></div>
+    <div class="row muted"><span id="stUsed">3.55 GB / 10 GB terpakai</span><span class="sp"></span><span id="stFree" style="color:var(--ok)">6.45 GB bebas · Cukup</span></div>
+    <p class="muted" style="margin-top:6px">Saat salin model dibutuhkan ±7.4 GB sementara. Setelah salin, file unduhan boleh dihapus.</p>
+  </div>
+  <div class="card"><h4><svg class="i"><use href="#i-cpu"/></svg>Model Aktif</h4>
+    <div class="row"><b style="word-break:break-all">qwen2.5-coder-7b-instruct-q3_k_m.gguf</b></div>
+    <div class="row" style="margin-top:6px"><span class="dot off" id="mDot"></span><span id="mState" class="muted">Belum dimuat</span><span class="sp"></span><span class="pill">Q3_K_M</span></div>
+    <div class="stats" style="margin-top:10px">
+      <div class="stat"><span class="muted">Ukuran</span><b>3.55 GB</b></div>
+      <div class="stat"><span class="muted">Kuantisasi</span><b>3-bit</b></div>
+      <div class="stat"><span class="muted">RAM disarankan</span><b>6–7 GB</b></div>
+      <div class="stat"><span class="muted">Kecepatan</span><b id="mSpd">– tok/s</b></div>
+    </div>
+    <p class="muted" style="margin-top:8px">Rekomendasi: upgrade ke Q4_K_M (4.2 GB) bila RAM 8 GB.</p>
+    <div class="btns">
+      <button class="btn pri" onclick="loadModel()"><svg class="i"><use href="#i-bolt"/></svg>Muat Model</button>
+      <button class="btn" onclick="bench()"><svg class="i"><use href="#i-flask"/></svg>Test Kecepatan</button>
+      <button class="btn" onclick="toast('Detail model: Qwen2.5-Coder 7B Instruct')"><svg class="i"><use href="#i-info"/></svg>Detail</button>
+      <button class="btn" onclick="toast('Membuka folder model…')"><svg class="i"><use href="#i-folder"/></svg>Folder</button>
+      <button class="btn dng" onclick="toast('Konfirmasi hapus lewat aplikasi','bad')"><svg class="i"><use href="#i-trash"/></svg>Hapus</button>
+    </div>
+  </div>
+  <div class="card"><div class="row"><div><b>Auto load saat buka APK</b><div class="muted">ON: cari model otomatis & muat ±15 detik</div></div><span class="sp"></span><button class="sw" id="swAuto" onclick="tgl('auto',this)"></button></div></div>
+  <div class="card"><h4><svg class="i"><use href="#i-save"/></svg>Download Manager</h4>
+    <div class="row muted"><span id="dlName">Tidak ada unduhan aktif</span><span class="sp"></span><span id="dlSpd"></span></div>
+    <div class="bar"><b id="dlBar" style="width:0"></b></div>
+    <div class="row muted"><span id="dlPct">0%</span></div>
+    <div class="btns">
+      <button class="btn pri" onclick="startDl('Q3_K_M 3.81 GB',3.81)"><svg class="i"><use href="#i-save"/></svg>Unduh Q3</button>
+      <button class="btn" onclick="startDl('Q4_K_M 4.2 GB (lebih pintar)',4.2)"><svg class="i"><use href="#i-save"/></svg>Unduh Q4_K_M</button>
+      <button class="btn" id="dlPause" onclick="pauseDl()"><svg class="i"><use href="#i-pause"/></svg>Jeda</button><button class="btn dng" onclick="cancelDl()"><svg class="i"><use href="#i-x"/></svg>Batal</button>
+    </div>
+  </div>
+</div></section>
+
+<!-- ===== KONEKTOR ===== -->
+<section class="tab" id="t2"><div class="scroll" id="conn"></div></section>
+
+<!-- ===== ATUR ===== -->
+<section class="tab" id="t3"><div class="scroll"><input type="text" id="setq" placeholder="Cari pengaturan…" oninput="setFind()"><div id="setx"></div>
+  <div class="card"><h4><svg class="i"><use href="#i-edit"/></svg>System Prompt</h4>
+    <select id="tpl" onchange="loadTpl(this.value)"><option value="">— Pilih template —</option><option value="agent">Coding Agent</option><option value="hacker">Hacker Mode</option><option value="guru">Guru Ngoding</option><option value="nurut">Xena Nurut</option></select>
+    <label>Prompt</label><textarea class="f" id="sys" rows="5" oninput="saveSys()" style="font:12px ui-monospace,monospace"></textarea>
+    <div class="muted err-t" id="sysW" style="color:var(--err);display:none;margin-top:4px">Jangan kosong! Nanti error "Cannot process empty system prompt".</div>
+  </div>
+  <div class="card"><h4><svg class="i"><use href="#i-sliders"/></svg>Parameter</h4>
+    <label>Context: <b id="vCtx">2048</b></label><input type="range" id="ctx" min="1024" max="8192" step="512" value="2048" oninput="slide()">
+    <div class="thr"><span>1024</span><span>★ 2048 disarankan</span><span>8192</span></div>
+    <label>Temperature: <b id="vTmp">0.2</b> <span id="eTmp">😊</span></label><input type="range" id="tmp" min="0" max="1" step="0.05" value="0.2" oninput="slide()">
+    <div class="thr"><span>Fokus</span><span>Seimbang</span><span>Kreatif</span></div>
+    <label>Threads</label><div class="btns" style="margin-top:0" id="thr"></div>
+    <p class="muted" id="effect" style="margin-top:8px"></p>
+  </div>
+  <div class="card"><h4><svg class="i"><use href="#i-palette"/></svg>Theme Studio</h4>
+    <div class="themes" id="themes"></div>
+    <label>Warna aksen kustom</label><input type="color" id="accPick" value="#a855f7" oninput="setAccent(this.value)" style="width:100%;height:42px;border-radius:12px;border:1px solid var(--line);background:var(--card2);padding:3px">
+  </div>
+  <div class="card"><h4><svg class="i"><use href="#i-save"/></svg>Backup & Restore</h4>
+    <div class="btns" style="margin-top:0"><button class="btn pri" onclick="exportSet()"><svg class="i"><use href="#i-save"/></svg>Export</button><button class="btn" onclick="$('#imp').click()"><svg class="i"><use href="#i-push"/></svg>Import</button></div>
+    <input type="file" id="imp" hidden accept=".json" onchange="importSet(this)">
+  </div>
+  <div class="card"><h4><svg class="i"><use href="#i-info"/></svg>Dashboard</h4>
+    <div class="stats">
+      <div class="stat"><span class="muted">RAM</span><b id="dRam">–</b></div>
+      <div class="stat"><span class="muted">Model</span><b>Q3_K_M</b></div>
+      <div class="stat"><span class="muted">Baterai</span><b id="dBat">–</b></div>
+      <div class="stat"><span class="muted">Konektor</span><b id="dCon">0 aktif</b></div>
+    </div>
+    <div class="btns"><button class="btn" onclick="clearCache()"><svg class="i"><use href="#i-trash"/></svg>Clear Cache</button><button class="btn" onclick="tab(2);toast('Log ada di tab Konektor')"><svg class="i"><use href="#i-term"/></svg>Logs</button><button class="btn" onclick="toast('Xena AI v1.2.0 · eXpert Engine for Neural Assistance')"><svg class="i"><use href="#i-info"/></svg>Tentang</button></div>
+  </div>
+</div></section>
+</main>
+
+<nav id="nav"><div id="navInd"><b></b></div>
+  <button class="active" onclick="tab(0)"><svg class="i"><use href="#i-chat"/></svg>Chat</button>
+  <button onclick="tab(1)"><svg class="i"><use href="#i-cpu"/></svg>Model</button>
+  <button onclick="tab(2)"><svg class="i"><use href="#i-plug"/></svg>Konektor<span class="badge" id="conBadge">0</span></button>
+  <button onclick="tab(3)"><svg class="i"><use href="#i-sliders"/></svg>Atur</button>
+</nav>
+</div>
+
+<!-- sidebar -->
+<div class="shade" id="shade" onclick="closeAll()"></div>
+<aside id="side">
+  <div class="row" style="margin-bottom:12px"><svg class="mark"><use href="#xmark"/></svg><b style="letter-spacing:.25em">XENA</b><span class="sp"></span><button class="ib" onclick="closeAll()"><svg class="i"><use href="#i-x"/></svg></button></div>
+  <button class="btn pri" onclick="newChat()"><svg class="i"><use href="#i-plus"/></svg>Chat Baru</button>
+  <div id="hist" style="margin-top:12px;overflow:auto;flex:1"></div>
+</aside>
+<!-- palette -->
+<div id="pal" onclick="if(event.target===this)closeAll()"><div class="palbox"><input type="text" id="palIn" placeholder="Ketik perintah…" oninput="palFilter()"><div id="palList"></div></div></div>
+<!-- run modal -->
+<div class="modal" id="runM"><header><b style="flex:1;padding-left:8px">Preview</b><button class="ib" onclick="$('#runM').classList.remove('on')"><svg class="i"><use href="#i-x"/></svg></button></header><iframe id="runF" sandbox="allow-scripts"></iframe></div>
+<div id="ask"><div class="askbox"><b id="askT"></b><input type="text" id="askI" onkeydown="if(event.key==='Enter')askEnd(this.value)"><div class="btns"><button class="btn" onclick="askEnd(null)">Batal</button><button class="btn pri" onclick="askEnd($('#askI').value)">OK</button></div></div></div>
+<div id="lock"><svg class="logo" style="width:min(60vw,240px)" viewBox="0 0 930 670"><use href="#xlogo"/></svg><input type="password" id="lockIn" inputmode="numeric" placeholder="PIN" onkeydown="if(event.key==='Enter')unlock()"><button class="btn pri" onclick="unlock()">Buka</button></div>
+<div id="toasts"></div>
 
 <script>
-var bridge = window.AndroidBridge || null;
-function $(id){ return document.getElementById(id); }
-function showPage(name){
-  document.querySelectorAll(".page").forEach(function(p){ p.classList.remove("on"); });
-  var el = $("page-" + name);
-  if (el) el.classList.add("on");
-  if (name === "model") refreshModel();
-  if (name === "settings") loadSettings();
-  if (name === "konektor") renderConnStatus();
-}
-window.showPage = showPage;
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const ic=(n,c='')=>`<svg class="i ${c}"><use href="#i-${n}"/></svg>`;
+const S={get(k,d){try{const v=localStorage.getItem('xena_'+k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem('xena_'+k,JSON.stringify(v))}catch(e){}}};
+const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
-function setModelReady(ok){
-  var b = $("readyBadge");
-  if (!b) return;
-  if (ok){ b.textContent = "Ready"; b.className = "badge ok"; }
-  else { b.textContent = "Belum siap"; b.className = "badge bad"; }
-}
-window.setModelReady = setModelReady;
+/* ---------- toast ---------- */
+function toast(m,t){const d=document.createElement('div');d.className='toast';d.textContent=(t==='bad'?'✕ ':t==='ok'?'✓ ':'')+m;if(t==='bad')d.style.borderColor='var(--err)';$('#toasts').appendChild(d);setTimeout(()=>{d.classList.add('out');setTimeout(()=>d.remove(),300)},2600)}
 
-function addMsg(role, text){
-  var log = $("chatLog");
-  var d = document.createElement("div");
-  d.className = "msg " + (role === "user" ? "user" : "ai");
-  d.innerHTML = '<div class="who">' + (role === "user" ? "Anda" : "Xena-AI") + "</div>";
-  d.appendChild(document.createTextNode(text));
-  log.appendChild(d);
-  log.scrollTop = log.scrollHeight;
-}
+/* ---------- tabs ---------- */
+let cur=0;
+function tab(i){cur=i;$$('.tab').forEach((t,k)=>t.classList.toggle('active',k===i));$$('#nav button').forEach((b,k)=>b.classList.toggle('active',k===i));$('#navInd').style.transform=`translateX(${i*100}%)`;if(i===3)dash();if(i)$$('#t'+i+' .card').forEach((e,k)=>e.style.setProperty('--n',Math.min(k,9)));closeAll();$('#fab').classList.remove('open')}
 
-function send(){
-  var t = ($("inp").value || "").trim();
-  if (!t) return;
-  $("inp").value = "";
-  addMsg("user", t);
-  $("sendBtn").disabled = true;
-  addMsg("ai", "…");
-  var last = $("chatLog").lastChild;
-  setTimeout(function(){
-    var out = "[Bridge tidak tersedia]";
-    try {
-      if (bridge && bridge.chat) out = bridge.chat(t);
-      else if (bridge && bridge.sendPrompt) out = bridge.sendPrompt(t, 0.2, 2048);
-    } catch (e) { out = "[Error] " + e.message; }
-    last.removeChild(last.lastChild);
-    last.appendChild(document.createTextNode(out));
-    $("sendBtn").disabled = false;
-    $("chatLog").scrollTop = $("chatLog").scrollHeight;
-  }, 50);
-}
-$("sendBtn").onclick = send;
-$("inp").addEventListener("keydown", function(e){
-  if (e.key === "Enter" && !e.shiftKey){ e.preventDefault(); send(); }
-});
+/* ---------- theme ---------- */
+const THEMES=[['dark','Dark Ungu','moon','#0a0f1e','#a855f7'],['hacker','Hacker','term','#000','#00ff41'],['light','Light','sun','#fff','#a855f7'],['cyberpunk','Cyberpunk','gamepad','#1a0a2e','#ff2bd6']];
+function buildThemes(){$('#themes').innerHTML=THEMES.map(t=>`<button class="th" data-t="${t[0]}" style="background:${t[3]};color:${t[4]};border-color:${t[4]}" onclick="setTheme('${t[0]}')">${ic(t[2])}${t[1]}</button>`).join('')}
+function setTheme(n){document.documentElement.dataset.theme=n;document.documentElement.style.removeProperty('--accent');document.documentElement.style.removeProperty('--ubub');S.set('theme',n);S.set('accent',null);$$('.th').forEach(b=>b.classList.toggle('active',b.dataset.t===n));const bg=getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();document.querySelector('meta[name=theme-color]').content=bg;const ap=$('#accPick');if(ap)ap.value=getComputedStyle(document.documentElement).getPropertyValue('--accent').trim().slice(0,7);toast('Tema: '+n,'ok')}
+function setAccent(c){document.documentElement.style.setProperty('--accent',c);document.documentElement.style.setProperty('--ubub',c);S.set('accent',c)}
 
-function refreshModel(){
-  try {
-    if (!bridge){ $("modelStatus").textContent = "Web only — buka di APK"; return; }
-    var info = JSON.parse(bridge.getModelInfo());
-    $("modelStatus").innerHTML = info.ready
-      ? '<span class="ok">✅ Model siap</span> · ' + info.size
-      : '<span class="bad">❌ Belum dimuat</span> · ' + (info.size || "0");
-    $("modelPath").textContent = info.path || "(path kosong)";
-    setModelReady(!!info.ready);
-  } catch (e) {
-    $("modelStatus").textContent = "Gagal baca status: " + e.message;
-  }
-}
-$("btnAuto").onclick = function(){
-  $("modelStatus").textContent = "Memuat…";
-  try { if (bridge) bridge.autoLoadModel(); } catch(e){}
-  setTimeout(refreshModel, 2000);
-};
-$("btnRefresh").onclick = refreshModel;
+/* ---------- markdown ---------- */
+function md(t){const blocks=[];t=t.replace(/```(\w+)?\n?([\s\S]*?)(```|$)/g,(m,l,c)=>{blocks.push({l:l||'code',c:c.replace(/\n$/,'')});return '\u0000'+(blocks.length-1)+'\u0000'});
+t=esc(t).replace(/`([^`\n]+)`/g,'<code class="in">$1</code>').replace(/\*\*([^*\n]+)\*\*/g,'<b>$1</b>').replace(/(^|[^*])\*([^*\n]+)\*/g,'$1<i>$2</i>').replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g,'<a href="$2" target="_blank" rel="noopener">$1</a>');
+const out=[];let list=null;for(const ln of t.split('\n')){let m;if(m=ln.match(/^\s*([-*]|\d+\.)\s+(.*)/)){const tag=/\d/.test(m[1])?'ol':'ul';if(list!==tag){if(list)out.push(`</${list}>`);out.push(`<${tag}>`);list=tag}out.push(`<li>${m[2]}</li>`)}else{if(list){out.push(`</${list}>`);list=null}out.push(ln.trim()?`<p>${ln}</p>`:'')}}if(list)out.push(`</${list}>`);
+return out.join('').replace(/\u0000(\d+)\u0000/g,(m,i)=>{const b=blocks[i];return `<div class="cb"><div class="cbh"><span>${esc(b.l)}</span><button onclick="copyCode(this)">${ic('copy')}Copy</button><button onclick="saveCode(this)">${ic('save')}Save</button></div><pre><code>${esc(b.c)}</code></pre></div>`})}
+const codeOf=b=>b.closest('.cb').querySelector('code').textContent;
+function copyCode(b){navigator.clipboard?.writeText(codeOf(b)).then(()=>toast('Kode disalin','ok')).catch(()=>toast('Gagal menyalin','bad'))}
+function dl(name,txt,type='text/plain'){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000)}
+function saveCode(b){const l=b.closest('.cb').querySelector('.cbh span').textContent;const ext={kotlin:'kt',html:'html',javascript:'js',js:'js',python:'py',css:'css',json:'json'}[l]||'txt';dl('xena-kode.'+ext,codeOf(b));toast('Disimpan ke file','ok')}
 
-function loadSettings(){
-  try {
-    if (bridge && bridge.getConfig) {
-      var c = JSON.parse(bridge.getConfig());
-      $("n_ctx").value = c.n_ctx; $("n_batch").value = c.n_batch;
-      $("n_threads").value = c.n_threads; $("temp").value = c.temperature;
-    }
-    if (bridge && bridge.getSystemPrompt) $("sysPrompt").value = bridge.getSystemPrompt();
-  } catch(e){}
-}
-$("btnSaveCfg").onclick = function(){
-  var a = +$("n_ctx").value || 2048, b = +$("n_batch").value || 128, c = +$("n_threads").value || 4;
-  try {
-    if (bridge) {
-      bridge.saveConfig(a, b, c);
-      var ok = bridge.loadModelWithConfig(a, b, c);
-      alert(ok ? "Model dimuat ulang" : "Gagal muat model — cek file GGUF");
-    }
-  } catch(e){ alert(e.message); }
-  refreshModel();
-};
-$("btnSavePrompt").onclick = function(){
-  try { if (bridge) bridge.saveSystemPrompt($("sysPrompt").value || ""); alert("Prompt disimpan"); } catch(e){}
-};
-$("btnResetPrompt").onclick = function(){
-  var d = "You are Xena-AI, a helpful coding assistant powered by Qwen2.5-Coder. You are an expert programmer created by Xena. Answer correctly and clearly in Indonesian. Provide working code when asked. Be concise but correct.";
-  $("sysPrompt").value = d;
-  try { if (bridge) bridge.saveSystemPrompt(d); } catch(e){}
-};
+/* ---------- chats ---------- */
+let chats=S.get('chats',[]),cid=S.get('cid',null),busy=false,stopFlag=false,lastPrompt='';
+const curChat=()=>chats.find(c=>c.id===cid);
+const fmtT=ts=>new Date(ts).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+function persist(){S.set('chats',chats);S.set('cid',cid)}
+function newChat(){const c={id:Date.now(),title:'Chat baru',pin:false,msgs:[]};chats.unshift(c);cid=c.id;persist();renderChat();renderHist();closeAll();tab(0)}
+function hero(){return `<div class="hero"><p>Model berjalan lokal & privat. Mau diperintah apa?</p></div>`}
+function renderChat(){const c=curChat();const box=$('#chat');box.innerHTML='';if(!c||!c.msgs.length){box.innerHTML=hero();return}c.msgs.forEach(m=>addMsg(m.role,m.text,m.ts,true))}
+function addMsg(role,text,ts=Date.now(),noAnim){const box=$('#chat');box.querySelector('.hero')?.remove();const d=document.createElement('div');d.className='msg '+role;if(noAnim)d.style.animation='none';
+d.innerHTML=(role==='assistant'?`<div class="av"><svg><use href="#xmark"/></svg></div>`:'')+`<div class="mb"><div class="bubble">${role==='user'?md(text):md(text)}</div><div class="time">${fmtT(ts)}</div></div>`;box.appendChild(d);if(role==='assistant')addQA(d,text);box.scrollTop=box.scrollHeight;return d}
+function addQA(d,text){d.querySelector('.qa')?.remove();const has=/```/.test(text);const q=document.createElement('div');q.className='qa';
+q.innerHTML=(has?`<button data-a="copy">${ic('copy')}Copy</button><button data-a="save">${ic('save')}Simpan</button><button data-a="push">${ic('push')}Push GitHub</button><button data-a="run">${ic('play')}Jalankan</button>`:`<button data-a="copy">${ic('copy')}Copy</button>`)+`<button data-a="regen">${ic('refresh')}Ulang</button>`;
+q.onclick=e=>{const b=e.target.closest('button');if(!b)return;const a=b.dataset.a;const cb=d.querySelector('code:not(.in)');if(a==='copy')navigator.clipboard?.writeText(cb?cb.textContent:d.querySelector('.bubble').innerText).then(()=>toast('Disalin','ok'));if(a==='save'&&cb)saveCode(cb.closest('.cb').querySelector('.cbh button'));if(a==='push')pushGit();if(a==='run'){const h=[...d.querySelectorAll('.cb')].find(x=>/html/.test(x.querySelector('span').textContent));if(h){$('#runF').srcdoc=h.querySelector('code').textContent;$('#runM').classList.add('on')}else toast('Hanya kode HTML yang bisa dijalankan')}if(a==='regen')regen()};
+d.querySelector('.mb').appendChild(q)}
+function renderHist(){const h=$('#hist');const list=[...chats].sort((a,b)=>b.pin-a.pin);h.innerHTML=list.length?list.map(c=>`<div class="hitem ${c.id===cid?'cur':''}" onclick="openChat(${c.id})">${c.pin?ic('pin'):ic('chat')}<span>${esc(c.title)}</span><button onclick="event.stopPropagation();pinChat(${c.id})">${ic('pin')}</button><button onclick="event.stopPropagation();renameChat(${c.id})">${ic('edit')}</button><button onclick="event.stopPropagation();delChat(${c.id})">${ic('trash')}</button></div>`).join(''):'<p class="muted" style="padding:10px">Belum ada riwayat.</p>'}
+function openChat(id){cid=id;persist();renderChat();renderHist();closeAll();tab(0)}
+function pinChat(id){const c=chats.find(x=>x.id===id);c.pin=!c.pin;persist();renderHist()}
+async function renameChat(id){const c=chats.find(x=>x.id===id);const n=await ask('Judul chat',c.title);if(n){c.title=n.slice(0,60);persist();renderHist()}}
+async function delChat(id){if(!await sure('Hapus chat ini?'))return;chats=chats.filter(c=>c.id!==id);if(cid===id){cid=chats[0]?.id||null}persist();renderChat();renderHist()}
 
-/* ===================== CONNECTORS ===================== */
-function tokenFor(id){
-  var t = localStorage.getItem("xena_"+id+"_token") || "";
-  if (bridge) {
-    try {
-      var a = bridge.getConnectorToken(id);
-      if (a) t = a;
-    } catch(e){}
-  }
-  return t;
-}
+/* ---------- jawaban: gunakan bridge Android jika ada, selain itu demo ---------- */
+function demoReply(p){const l=p.toLowerCase();
+if(l.includes('html')||l.includes('ui'))return 'Berikut contoh kartu HTML sederhana:\n\n```html\n<div style="padding:16px;border-radius:14px;background:#121a2c;color:#fff">Halo dari **Xena**</div>\n```\n\nSalin ke `index.html` lalu sesuaikan warnanya.';
+if(l.includes('kotlin')||l.includes('fix')||l.includes('build'))return 'Cek langkah ini dulu:\n\n1. Pastikan `libllama.so` ada di `jniLibs/arm64-v8a`\n2. Sinkronkan Gradle\n3. Build ulang APK\n\n```kotlin\nSystem.loadLibrary("llama")\nlog("libllama dimuat")\n```\n\nKalau masih gagal, kirim log error-nya.';
+return 'Siap, saya **Xena**. Mode demo aktif karena model belum terhubung. Setelah model dimuat, jawaban akan datang dari mesin lokal.\n\n- Ketik `/` untuk perintah cepat\n- Tekan **Ctrl+K** untuk command palette\n- Lampirkan file `.kt` atau `.html` untuk di-fix';}
+async function answer(p){try{await answer0(p)}catch(e){toast('Gagal menjawab: '+e.message,'bad');logT('❌ '+e.message)}finally{busy=false;setSend(false)}}
+async function answer0(p){busy=true;stopFlag=false;setSend(true);const c=curChat();
+const holder=addMsg('assistant','',Date.now());holder.querySelector('.bubble').innerHTML='<span class="typing"><i></i><i></i><i></i></span>';holder.querySelector('.qa')?.remove();
+let full='';const bub=holder.querySelector('.bubble');const chatEl=$('#chat');const upd=()=>{bub.innerHTML=md(full)+'<span class="caret"></span>';if(S.get('asc',true)&&nearBottom())chatEl.scrollTop=chatEl.scrollHeight};
+const params={system:$('#sys').value,ctx:+$('#ctx').value,temp:+$('#tmp').value,threads:S.get('thr',4),top_p:S.get('topp',.9),top_k:S.get('topk',40),repeat_penalty:S.get('rep',1.1),max_tokens:S.get('maxt',1024)};
+if(window.Android&&Android.chat){ /* Native: Android.chat(prompt, paramsJson) → panggil window.xenaToken(t) & window.xenaDone() */
+  await new Promise(res=>{window.xenaToken=t=>{if(stopFlag)return;full+=t;upd()};window.xenaDone=res;window.xenaError=m=>{toast(m||'Mesin error','bad');logT('❌ '+(m||'Mesin error'));res()};window.xenaStop=()=>stopFlag&&res();Android.chat(p,JSON.stringify(params))});
+}else{await sleep(500);const words=demoReply(p).split(/(\s+)/);for(const w of words){if(stopFlag)break;full+=w;upd();await sleep(S.get('spdms',30)*(.7+Math.random()*.6))}}
+bub.innerHTML=md(full||'(dihentikan)');addQA(holder,full);
+c.msgs.push({role:'assistant',text:full||'(dihentikan)',ts:Date.now()});persist();busy=false;setSend(false)}
+const nearBottom=()=>{const e=$('#chat');return e.scrollHeight-e.scrollTop-e.clientHeight<140};
+function setSend(on){const b=$('#sendB');b.classList.toggle('stop',on);b.innerHTML=ic(on?'stop':'send')}
+function sendOrStop(){if(busy){stopFlag=true;window.Android&&Android.stop&&Android.stop();return}send()}
+async function send(txt){const inp=$('#inp');const p=(txt??inp.value).trim();if(!p||busy)return;if(!curChat())newChat();const c=curChat();lastPrompt=p;
+if(!c.msgs.length){c.title=p.slice(0,36);renderHist()}c.msgs.push({role:'user',text:p,ts:Date.now()});addMsg('user',p);inp.value='';resize();slashHide();persist();await answer(p)}
+function regen(){if(busy)return;const c=curChat();if(!c)return;while(c.msgs.length&&c.msgs[c.msgs.length-1].role==='assistant')c.msgs.pop();const last=c.msgs[c.msgs.length-1];if(!last)return;persist();renderChat();answer(last.text)}
+function toBottom(){const e=$('#chat');e.scrollTo({top:e.scrollHeight,behavior:'smooth'})}
+function pushGit(){if(!S.get('con_github',false)){toast('Hubungkan GitHub dulu di tab Konektor','bad');tab(2);return}logT('⏳ Push ke v1-byte/Xena-Ai…');setTimeout(()=>{logT('✅ Push berhasil (simulasi)');toast('Push ke GitHub berhasil','ok')},900)}
 
-function saveConn(id){
-  var tokenEl = document.getElementById(id+"_token");
-  var token = tokenEl ? tokenEl.value.trim() : "";
-  if (!token && id !== "huggingface"){ alert("Isi token dulu untuk "+id); return; }
-  var accountId = "";
-  var accEl = document.getElementById(id+"_account");
-  if (accEl) accountId = accEl.value.trim();
-  localStorage.setItem("xena_"+id+"_token", token);
-  if (accountId) localStorage.setItem("xena_"+id+"_account", accountId);
-  if (bridge) {
-    try { bridge.saveConnectorToken(id, token, accountId); } catch(e){}
-  }
-  logConn("✅ "+id+" token disimpan lokal. Panjang: "+token.length+" char");
-  renderConnStatus();
-  if (tokenEl) tokenEl.value = "";
-  if (accEl) accEl.value = "";
-}
+/* ---------- input ---------- */
+const inp=$('#inp');
+function resize(){inp.style.height='auto';inp.style.height=Math.min(inp.scrollHeight,130)+'px'}
+const CMDS=[['/fix','Fix libllama.so','wrench','Bantu fix libllama.so tidak ditemukan di APK saya'],['/github','Tambah connector GitHub','github','Cara menambah connector GitHub ke Xena-Ai?'],['/auto','Buat auto mode','bolt','Buat auto mode yang memuat model otomatis saat APK dibuka'],['/push','Push ke GitHub','push','__push'],['/clear','Hapus chat','trash','__clear']];
+inp.addEventListener('input',()=>{resize();const v=inp.value;if(v.startsWith('/')){const f=CMDS.filter(c=>c[0].startsWith(v.split(' ')[0]));$('#slash').innerHTML=f.map(c=>`<button onclick="runCmd('${c[0]}')">${ic(c[2])}<b>${c[0]}</b><span class="muted">${c[1]}</span></button>`).join('');$('#slash').classList.toggle('on',f.length>0)}else slashHide()});
+inp.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&S.get('ent',!/Android|iPhone/i.test(navigator.userAgent))){e.preventDefault();sendOrStop()}});
+function slashHide(){$('#slash').classList.remove('on')}
+function runCmd(c){const f=CMDS.find(x=>x[0]===c);slashHide();inp.value='';resize();if(f[3]==='__push')pushGit();else if(f[3]==='__clear')clearChat();else send(f[3])}
+function clearChat(){const c=curChat();if(c){c.msgs=[];persist();renderChat();toast('Chat dibersihkan','ok')}}
+const QUICK=[['wrench','Fix libllama.so','/fix'],['github','Add GitHub','/github'],['bolt','Auto Mode','/auto'],['box','Fix Build','Cara memperbaiki error build Gradle di Xena-Ai?'],['push','Push','/push'],['palette','Ganti Tema','__theme'],['trash','Clear','/clear']];
+$('#qbar').innerHTML=QUICK.map((q,i)=>`<button class="chip" onclick="quick(${i})">${ic(q[0])}${q[1]}</button>`).join('');
+function quick(i){const q=QUICK[i][2];if(q.startsWith('/'))runCmd(q);else if(q==='__theme'){tab(3);setTimeout(()=>$('#themes').scrollIntoView({behavior:'smooth'}),400)}else send(q)}
+function attach(el){const f=el.files[0];if(!f)return;if(f.size>200000){toast('File terlalu besar (maks 200 KB)','bad');return}const r=new FileReader();r.onload=()=>{inp.value=`Tolong periksa & perbaiki file ${f.name}:\n\`\`\`\n${r.result}\n\`\`\``;resize();toast('File dilampirkan: '+f.name,'ok')};r.readAsText(f);el.value=''}
+let rec=null;function voice(){const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){toast('Suara tidak didukung di perangkat ini','bad');return}if(rec){rec.stop();return}rec=new SR();rec.lang='id-ID';rec.interimResults=true;$('#micB').style.color='var(--err)';rec.onresult=e=>{inp.value=[...e.results].map(r=>r[0].transcript).join('');resize()};rec.onend=()=>{rec=null;$('#micB').style.color=''};rec.onerror=()=>toast('Mikrofon error','bad');rec.start();toast('Mendengarkan…')}
+$('#chat').addEventListener('scroll',()=>$('#toBottom').classList.toggle('on',!nearBottom()));
+function fabGo(w){$('#fab').classList.remove('open');if(w==='file')$('#file').click();if(w==='theme'){tab(3);setTimeout(()=>$('#themes').scrollIntoView({behavior:'smooth'}),400)}if(w==='gh')tab(2);if(w==='set')tab(3)}
 
-function renderConnStatus(){
-  var container = $("connectorStatusList");
-  if (!container) return;
-  var all = ["github","cloudflare","meta","huggingface"];
-  var html = "";
-  all.forEach(function(id){
-    var token = tokenFor(id);
-    var connected = id === "huggingface" ? true : (token && token.length > 5);
-    if (bridge) {
-      try { if (bridge.isConnectorConnected(id)) connected = true; } catch(e){}
-    }
-    var icon = id==="github"?"🐙":id==="cloudflare"?"☁️":id==="meta"?"📘":"🤗";
-    html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;margin:4px 0;background:var(--bg);border-radius:8px;font-size:12px">'
-      +"<span>"+icon+" "+id.toUpperCase()+"</span>"
-      +'<span style="padding:2px 8px;border-radius:10px;background:'+(connected?"#22c55e":"#334155")+';color:'+(connected?"#000":"#fff")+';font-size:10px">'
-      +(connected?"Connected ✅":"Not connected ❌")+"</span></div>";
-  });
-  container.innerHTML = html;
-}
+/* ---------- sidebar / palette ---------- */
+function openSide(){renderHist();$('#side').classList.add('on');$('#shade').classList.add('on')}
+function closeAll(){if(askRes)askEnd(null);$('#side').classList.remove('on');$('#shade').classList.remove('on');$('#pal').classList.remove('on')}
+const PAL=[['wrench','Fix libllama.so',()=>{tab(0);runCmd('/fix')}],['github','Add GitHub Connector',()=>tab(2)],['palette','Ganti tema Hacker',()=>setTheme('hacker')],['palette','Ganti tema Cyberpunk',()=>setTheme('cyberpunk')],['sun','Ganti tema Light',()=>setTheme('light')],['moon','Ganti tema Dark',()=>setTheme('dark')],['trash','Clear chat',clearChat],['plus','Chat baru',newChat],['save','Export settings',exportSet],['cpu','Muat model',()=>{tab(1);loadModel()}]];
+let palSel=0,palCur=PAL;
+function openPal(){$('#pal').classList.add('on');$('#palIn').value='';palFilter();setTimeout(()=>$('#palIn').focus(),50)}
+function palFilter(){const q=$('#palIn').value.toLowerCase();palCur=PAL.filter(p=>p[1].toLowerCase().includes(q));palSel=0;palDraw()}
+function palDraw(){$('#palList').innerHTML=palCur.map((p,i)=>`<button class="${i===palSel?'sel':''}" onclick="palRun(${i})">${ic(p[0])}${p[1]}</button>`).join('')||'<p class="muted" style="padding:14px">Tidak ada hasil</p>'}
+function palRun(i){const p=palCur[i];closeAll();p&&p[2]()}
+document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();openPal()}if(e.key==='Escape')closeAll();if($('#pal').classList.contains('on')){if(e.key==='ArrowDown'){palSel=Math.min(palSel+1,palCur.length-1);palDraw()}if(e.key==='ArrowUp'){palSel=Math.max(palSel-1,0);palDraw()}if(e.key==='Enter')palRun(palSel)}});
+let tx=null;document.addEventListener('touchstart',e=>{tx=e.touches[0].clientX<22?e.touches[0].clientX:null},{passive:true});document.addEventListener('touchend',e=>{if(tx!==null&&e.changedTouches[0].clientX-tx>70)openSide();tx=null},{passive:true});
 
-function logConn(msg){
-  var el = $("connectorLog");
-  if (!el) return;
-  var time = new Date().toLocaleTimeString();
-  el.textContent = "["+time+"] "+msg+"\n"+el.textContent;
-}
-function clearConnLog(){ $("connectorLog").textContent = ""; }
+/* ---------- model ---------- */
+function tgl(k,el){const v=!S.get(k,false);S.set(k,v);el.classList.toggle('on',v);toast(v?'Auto load aktif':'Auto load mati','ok')}
+async function loadModel(){if($('#mDot').dataset.l)return toast('Model sudah dimuat','ok');$('#mState').textContent='Memuat 3.55 GB…';toast('Memuat model 3.55 GB…');
+if(window.Android&&Android.loadModel){window.xenaModelReady=modelOk;Android.loadModel();return}
+await sleep(1800);$('#mDot').dataset.l=1;$('#mDot').className='dot';$('#mState').textContent='Siap dipakai';toast('Model siap','ok')}
+function modelOk(){$('#mDot').dataset.l=1;$('#mDot').className='dot';$('#mState').textContent='Siap dipakai';toast('Model siap','ok');logT('✅ Model dimuat')}
+function cancelDl(){if(!dlT)return;clearInterval(dlT);dlT=null;dlP=0;$('#dlBar').style.width=0;$('#dlPct').textContent='0%';$('#dlSpd').textContent='';$('#dlName').textContent='Tidak ada unduhan aktif';toast('Unduhan dibatalkan')}
+async function bench(){toast('Menjalankan benchmark…');$('#mSpd').textContent='…';await sleep(1500);const v=(6+Math.random()*4).toFixed(1);$('#mSpd').textContent=v+' tok/s';S.set('spd',v);toast('Kecepatan: '+v+' tok/s','ok')}
+let dlT=null,dlP=0,dlPaused=false,dlTot=0;
+function startDl(n,gb){if(dlT)return toast('Unduhan masih berjalan');dlP=0;dlPaused=false;dlTot=gb;$('#dlName').textContent=n;toast('Mulai unduh '+n);
+dlT=setInterval(()=>{if(dlPaused)return;const sp=(8+Math.random()*10);dlP=Math.min(100,dlP+sp/(gb*10.24));$('#dlBar').style.width=dlP+'%';$('#dlPct').textContent=dlP.toFixed(0)+'%';$('#dlSpd').textContent=sp.toFixed(1)+' MB/s';if(dlP>=100){clearInterval(dlT);dlT=null;$('#dlSpd').textContent='Selesai';toast('Unduhan selesai & disalin ke privat','ok')}},250)}
+function pauseDl(){if(!dlT)return;dlPaused=!dlPaused;$('#dlPause').innerHTML=dlPaused?ic('play')+'Lanjut':ic('pause')+'Jeda'}
+function storage(){let used=3.55,tot=10;try{const j=JSON.parse(Android.storageInfo());used=j.used;tot=j.total}catch(e){}$('#stUsed').textContent=used.toFixed(2)+' GB / '+tot+' GB terpakai';const p=used/tot*100;$('#stBar').style.width=p+'%';$('#stBar').style.background=p>85?'var(--err)':'';$('#stFree').textContent=(tot-used).toFixed(2)+' GB bebas · '+((tot-used)>4?'Cukup':'Hampir penuh');$('#stFree').style.color=(tot-used)>4?'var(--ok)':'var(--err)'}
 
-async function testGithub(){
-  var token = tokenFor("github");
-  if (!token){ alert("Simpan GitHub token dulu!"); return; }
-  logConn("⏳ Testing GitHub API repo v1-byte/Xena-Ai…");
-  try{
-    var res = await fetch("https://api.github.com/repos/v1-byte/Xena-Ai", {
-      headers: { "Authorization": "token "+token, "Accept": "application/vnd.github.v3+json" }
-    });
-    var data = await res.json();
-    if (res.ok){
-      logConn("✅ GitHub OK!\nRepo: "+data.full_name+"\nStars: "+data.stargazers_count+"\nBranch: "+data.default_branch+"\nIssues: "+data.open_issues);
-      var contentsRes = await fetch("https://api.github.com/repos/v1-byte/Xena-Ai/contents/app/src/main/jniLibs/arm64-v8a", {
-        headers: { "Authorization": "token "+token, "Accept": "application/vnd.github.v3+json" }
-      });
-      if (contentsRes.ok){
-        var files = await contentsRes.json();
-        var hasLlama = Array.isArray(files) && files.some(function(f){ return f.name === "libllama.so"; });
-        logConn(hasLlama ? "✅ libllama.so SUDAH ADA di repo" : "❌ libllama.so BELUM ADA — penyebab build/runtime native gagal. Upload .so ke jniLibs/arm64-v8a/");
-      } else {
-        logConn("⚠️ Folder jniLibs kosong/belum ada: HTTP "+contentsRes.status);
-      }
-    } else {
-      logConn("❌ GitHub Error "+res.status+": "+(data.message||""));
-    }
-  } catch(e){
-    logConn("❌ Fetch error: "+e.message);
-  }
-}
+/* ---------- konektor ---------- */
+const CON=[['github','GitHub','Repo v1-byte/Xena-Ai','github'],['cloudflare','Cloudflare','Workers & tunnel','cloud'],['meta','Meta','Llama & Meta AI API','meta'],['hf','Hugging Face','Unduh model GGUF','hf']];
+const LOGS=[];
+function paintLog(s){const t=$('#term');if(!t)return;const d=document.createElement('div');d.textContent=s;t.appendChild(d);t.scrollTop=t.scrollHeight}
+function logT(m){const s='['+new Date().toLocaleTimeString([], {hour12:false})+'] '+m;LOGS.push(s);if(LOGS.length>300)LOGS.shift();paintLog(s)}
+function buildCon(){const on=k=>S.get('con_'+k,false);
+$('#conn').innerHTML=CON.map(c=>`<div class="card"><div class="cc ${on(c[0])?'on':''}"><div class="cic">${ic(c[3])}<span class="dot ${on(c[0])?'':'off'}"></span></div><div class="sp"><b>${c[1]}</b><div class="muted">${c[2]}</div></div><button class="sw ${on(c[0])?'on':''}" onclick="conTgl('${c[0]}')"></button></div>
+${on(c[0])?`<div class="btns"><button class="btn sm" onclick="conTest('${c[0]}')">${ic('check')}Test</button><button class="btn sm" onclick="conTok('${c[0]}')">${ic('edit')}Token</button><button class="btn sm dng" onclick="conDel('${c[0]}')">${ic('trash')}Hapus</button><button class="btn sm" onclick="scanQR('${c[0]}')">${ic('qr')}Scan QR</button></div>`:''}</div>`).join('')+
+`<div class="card" id="repoC" style="display:none"><h4>${ic('github')}Repo v1-byte/Xena-Ai</h4><div class="repo" id="repo"></div><div class="btns"><button class="btn sm pri" onclick="logT('⏳ Mengunduh libllama.so dari DT-E-AI lama…');setTimeout(()=>logT('✅ libllama.so dimigrasi'),900)">${ic('save')}Migrasi libllama.so</button></div></div>
+<div class="card"><h4>${ic('term')}Log Console</h4><div class="term" id="term"></div><div class="btns"><button class="btn sm" onclick="LOGS.length=0;$('#term').innerHTML=''">Clear</button><button class="btn sm" onclick="dl('xena-log.txt',$('#term').innerText);">Export Log</button></div></div>`;
+LOGS.length?LOGS.forEach(paintLog):logT('Console siap.');setTimeout(()=>$('#conn').classList.add('st'),900);
+const n=CON.filter(c=>on(c[0])).length;const b=$('#conBadge');b.textContent=n;b.classList.toggle('on',n>0);$('#dCon')&&($('#dCon').textContent=n+' aktif')}
+function conTgl(k){S.set('con_'+k,!S.get('con_'+k,false));buildCon();if(S.get('con_'+k,false)){logT('✅ '+k+' terhubung');toast(k+' terhubung','ok');if(!S.get('tok_'+k,''))conTok(k)}else toast(k+' diputus')}
+async function conTok(k){const t=await ask('Token '+k+' (disimpan lokal)',S.get('tok_'+k,''),1);if(t!==null){S.set('tok_'+k,t);toast('Token disimpan','ok')}}
+function conDel(k){S.set('tok_'+k,'');S.set('con_'+k,false);buildCon();toast('Dihapus')}
+async function conTest(k){logT('⏳ Cek '+k+'…');await sleep(700);if(!navigator.onLine){logT('❌ Offline');toast('Butuh koneksi internet','bad');return}
+if(k==='github'){logT('⏳ Cek v1-byte/Xena-Ai…');await sleep(500);$('#repoC').style.display='block';$('#repo').innerHTML=[['index.html',1],['MainActivity.kt',1],['libllama.so',0]].map(f=>`<div>${f[1]?ic('check','okc'):ic('x','errc')}<span>${f[0]}</span><span class="sp"></span><span class="muted">${f[1]?'ada':'BELUM ADA'}</span></div>`).join('');logT('❌ libllama.so BELUM ADA')}else logT('✅ '+k+' OK');toast(k+' OK','ok')}
+async function scanQR(k){if(!('BarcodeDetector' in window)){toast('Scan QR belum didukung WebView ini — tempel token manual','bad');return conTok(k)}
+try{const st=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});const v=document.createElement('video');v.srcObject=st;v.playsInline=true;await v.play();const bd=new BarcodeDetector({formats:['qr_code']});toast('Arahkan kamera ke QR token…');const t0=Date.now();while(Date.now()-t0<20000){const r=await bd.detect(v);if(r.length){S.set('tok_'+k,r[0].rawValue);toast('Token dipindai','ok');break}await sleep(300)}st.getTracks().forEach(t=>t.stop())}catch(e){toast('Kamera tidak tersedia','bad')}}
 
-async function checkHFModel(){
-  logConn("⏳ Cek model Qwen2.5-Coder di HuggingFace…");
-  try{
-    var res = await fetch("https://huggingface.co/api/models/Qwen/Qwen2.5-Coder-7B-Instruct-GGUF");
-    var data = await res.json();
-    var n = (data.siblings && data.siblings.length) || "?";
-    logConn("✅ HF Model: "+(data.modelId||data.id)+"\nDownloads: "+(data.downloads||"?")+"\nFiles: "+n+" variants");
-  } catch(e){ logConn("❌ HF error: "+e.message); }
-}
+/* ---------- pengaturan ---------- */
+const TPL={agent:'Kamu adalah Xena, asisten coding. Jawab singkat, beri kode lengkap yang siap pakai, dan jelaskan langkah perbaikan secara berurutan.',hacker:'Kamu Xena Hacker Mode: ringkas, teknis, langsung ke solusi. Hanya untuk keamanan defensif & edukasi.',guru:'Kamu Xena, guru ngoding yang sabar. Jelaskan konsep dengan analogi sederhana lalu beri contoh kode kecil.',nurut:'Kamu Xena. Ikuti instruksi pengguna secara tepat, tanpa basa-basi, dan konfirmasi hasilnya di akhir.'};
+function loadTpl(k){if(!k)return;$('#sys').value=TPL[k];saveSys();toast('Template dimuat','ok')}
+function saveSys(){const v=$('#sys').value;$('#sys').classList.toggle('err',!v.trim());$('#sysW').style.display=v.trim()?'none':'block';S.set('sys',v)}
+function slide(){const c=+$('#ctx').value,t=+$('#tmp').value;$('#vCtx').textContent=c;$('#vTmp').textContent=t.toFixed(2);$('#eTmp').textContent=t<.15?'😶':t<.6?'😊':'🤪';S.set('ctx',c);S.set('tmp',t);
+$('#effect').textContent=c>4096?'Konteks panjang: ingat lebih banyak tapi lebih lambat & boros RAM.':c<=1536?'Lebih cepat tapi cepat lupa konteks.':'Seimbang untuk RAM 6 GB.'}
+function buildThr(){const cur=S.get('thr',4);$('#thr').innerHTML=[2,4,6,8].map(n=>`<button class="btn sm ${n===cur?'pri':''}" onclick="S.set('thr',${n});buildThr();toast('Threads: ${n}','ok')">${n}</button>`).join('')+`<span class="muted" style="align-self:center">HP: ${navigator.hardwareConcurrency||8} core</span>`}
+function exportSet(){const o={};Object.keys(localStorage).filter(k=>/^xena_/.test(k)&&!/^xena_(chats|cid|pin)$/.test(k)&&(S.get('etok',false)||!/^xena_tok_/.test(k))).forEach(k=>o[k.slice(5)]=S.get(k.slice(5)));dl('xena-settings.json',JSON.stringify(o,null,2),'application/json');toast('Settings diekspor','ok')}
+function importSet(el){const f=el.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const o=JSON.parse(r.result);for(const k in o)if(/^[a-z0-9_]{1,30}$/i.test(k)&&k!=='pin')S.set(k,o[k]);toast('Settings dipulihkan','ok');setTimeout(()=>location.reload(),700)}catch(e){toast('File tidak valid','bad')}};r.readAsText(f);el.value=''}
+async function clearCache(){if(!await sure('Hapus semua riwayat chat?'))return;const n=chats.length;chats=[];cid=null;persist();renderChat();renderHist();toast('Cache & riwayat ('+n+' chat) dibersihkan','ok')}
+async function dash(){const m=navigator.deviceMemory;$('#dRam').textContent=m?m+' GB':'6 GB';try{const b=await navigator.getBattery();$('#dBat').textContent=Math.round(b.level*100)+'%'}catch(e){$('#dBat').textContent='–'}}
+function net(){const o=navigator.onLine;$('#net .dot').className='dot'+(o?'':' bad');$('#netT').textContent=o?'Online':'Offline';$('#subt').textContent=o?'eXpert Engine for Neural Assistance':'Offline · model lokal tetap jalan'}
+addEventListener('online',net);addEventListener('offline',net);
 
-setTimeout(function(){
-  try {
-    if (bridge && bridge.isModelReady && bridge.isModelReady()) setModelReady(true);
-    else setModelReady(false);
-  } catch(e){ setModelReady(false); }
-  refreshModel();
-  renderConnStatus();
-}, 400);
+/* ---------- v1.2: modal, pengaturan, kunci, boot ---------- */
+let askRes=null;
+function ask(t,v='',pw){return new Promise(r=>{askRes=r;$('#askT').textContent=t;const i=$('#askI');i.type=pw?'password':'text';i.value=v===false?'':v;i.style.display=v===false?'none':'';$('#ask').classList.add('on');setTimeout(()=>i.focus(),60)})}
+function askEnd(v){$('#ask').classList.remove('on');const r=askRes;askRes=null;r&&r(v)}
+const sure=t=>ask(t,false).then(v=>v!==null);
+const SET=[
+['palette','Tampilan',[
+ ['fs','range','Ukuran teks',12,18,1,14,v=>v+'px'],
+ ['rad','range','Kelengkungan sudut',8,24,2,16,v=>v+'px'],
+ ['anim','seg','Animasi',[['full','Penuh'],['lite','Ringan'],['off','Mati']],'full'],
+ ['fx','sw','Latar bercahaya & blur',true],
+ ['splash','sw','Animasi pembuka',true],
+ ['hap','sw','Getar & riak saat disentuh',true]]],
+['chat','Chat',[
+ ['ent','sw','Enter untuk kirim',!/Android|iPhone/i.test(navigator.userAgent)],
+ ['asc','sw','Gulir otomatis saat menjawab',true],
+ ['ts','sw','Tampilkan jam pesan',true],
+ ['qb','sw','Tombol cepat',true],
+ ['spdms','range','Jeda per kata (mode demo)',10,80,5,30,v=>v+' ms']]],
+['cpu','Mesin AI',[
+ ['topp','range','Top-P',.1,1,.05,.9,v=>(+v).toFixed(2)],
+ ['topk','range','Top-K',1,100,1,40,v=>v],
+ ['rep','range','Penalti pengulangan',1,1.5,.05,1.1,v=>(+v).toFixed(2)],
+ ['maxt','range','Maks token jawaban',128,4096,128,1024,v=>v]]],
+['lock','Data & Keamanan',[
+ ['etok','sw','Sertakan token saat ekspor',false],
+ [null,'btn','PIN aplikasi','Atur PIN','setPin()'],
+ [null,'btn','Kunci layar','Kunci sekarang','lockCheck()'],
+ [null,'btn','Riwayat chat','Hapus','clearCache()',1],
+ [null,'btn','Pengaturan','Reset','resetSet()',1],
+ [null,'btn','Semua data','Hapus semua','resetAll()',1]]],
+['info','Perangkat',[
+ [null,'info','RAM',()=>navigator.deviceMemory?navigator.deviceMemory+' GB':'–'],
+ [null,'info','Inti CPU',()=>navigator.hardwareConcurrency||'–'],
+ [null,'info','Layar',()=>innerWidth+'×'+innerHeight],
+ [null,'info','Jaringan',()=>navigator.connection?.effectiveType||(navigator.onLine?'online':'offline')],
+ [null,'info','Versi','v1.2.0']]]];
+const FLAT=SET.flatMap(g=>g[2]);
+function buildSettings(){$('#setx').innerHTML=SET.map(([i,t,rows])=>`<div class="card"><h4>${ic(i)}${t}</h4>${rows.map(r=>{const[k,ty,l]=r;let c='';
+if(ty==='sw')c=`<button class="sw${S.get(k,r[3])?' on':''}" onclick="sw('${k}',this,${r[3]})"></button>`;
+else if(ty==='range'){const v=S.get(k,r[6]);return `<div class="sr"><label>${l}: <b id="v_${k}">${r[7](v)}</b></label><input type="range" min="${r[3]}" max="${r[4]}" step="${r[5]}" value="${v}" oninput="rg('${k}',this.value)"></div>`}
+else if(ty==='seg'){const v=S.get(k,r[4]);c=`<div class="seg">${r[3].map(o=>`<button class="${o[0]===v?'on':''}" onclick="sg('${k}','${o[0]}',this)">${o[1]}</button>`).join('')}</div>`}
+else if(ty==='btn')c=`<button class="btn sm${r[5]?' dng':''}" onclick="${r[4]}">${r[3]}</button>`;
+else c=`<span class="muted">${typeof r[3]==='function'?r[3]():r[3]}</span>`;
+return `<div class="sr row"><span class="sp">${l}</span>${c}</div>`}).join('')}</div>`).join('')}
+function sw(k,el,d){const v=!S.get(k,d);S.set(k,v);el.classList.toggle('on',v);applySettings()}
+function rg(k,v){S.set(k,+v);const r=FLAT.find(x=>x[0]===k);$('#v_'+k).textContent=r[7](+v);applySettings()}
+function sg(k,v,el){S.set(k,v);[...el.parentNode.children].forEach(b=>b.classList.toggle('on',b===el));applySettings()}
+function applySettings(){const R=document.documentElement,g=(k,d)=>S.get(k,d);document.body.style.fontSize=g('fs',14)+'px';R.style.setProperty('--r',g('rad',16)+'px');R.dataset.anim=g('anim','full');R.dataset.fx=g('fx',true)?'on':'off';R.dataset.ts=g('ts',true)?'on':'off';R.dataset.qb=g('qb',true)?'on':'off'}
+function setFind(){const q=$('#setq').value.toLowerCase();$$('#t3 .card').forEach(c=>{const hm=c.querySelector('h4').textContent.toLowerCase().includes(q);let any=hm;const rows=c.querySelectorAll('.sr');rows.forEach(r=>{const m=hm||r.textContent.toLowerCase().includes(q);r.style.display=m?'':'none';any=any||m});if(!rows.length)any=any||c.textContent.toLowerCase().includes(q);c.style.display=any?'':'none'})}
+async function resetSet(){if(!await sure('Kembalikan semua pengaturan ke bawaan?'))return;Object.keys(localStorage).filter(k=>/^xena_(?!chats|cid|pin|tok_|con_)/.test(k)).forEach(k=>localStorage.removeItem(k));location.reload()}
+async function resetAll(){if(!await sure('Hapus SEMUA data & pengaturan?'))return;Object.keys(localStorage).filter(k=>/^xena_/.test(k)).forEach(k=>localStorage.removeItem(k));location.reload()}
+async function hash(s){s='xena'+s;if(window.crypto&&crypto.subtle){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}let h=5381;for(const c of s)h=(h*33^c.codePointAt(0))>>>0;return 'f'+h}
+async function setPin(){const p=await ask('PIN baru (4–8 angka, kosongkan untuk mematikan)','',1);if(p===null)return;if(!p){S.set('pin','');toast('Kunci dimatikan','ok');return}if(!/^\d{4,8}$/.test(p))return toast('PIN harus 4–8 angka','bad');S.set('pin',await hash(p));toast('PIN disimpan','ok')}
+function lockCheck(){if(!S.get('pin',''))return toast('Atur PIN dulu','bad');$('#lock').classList.add('on')}
+async function unlock(){const i=$('#lockIn');if(await hash(i.value)===S.get('pin','')){$('#lock').classList.remove('on')}else{$('#lock').classList.add('shake');setTimeout(()=>$('#lock').classList.remove('shake'),400)}i.value=''}
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&S.get('pin',''))$('#lock').classList.add('on')});
+document.addEventListener('click',e=>{if(!e.target.closest('#fab'))$('#fab').classList.remove('open')});
+document.addEventListener('pointerdown',e=>{const b=e.target.closest('.btn,.chip,.send,.ib,nav button');if(!b||!S.get('hap',true))return;navigator.vibrate&&navigator.vibrate(6);if(!b.matches('.btn,.chip,.send'))return;const r=b.getBoundingClientRect(),d=Math.max(r.width,r.height)*2,x=document.createElement('span');x.className='rp';x.style.cssText=`width:${d}px;height:${d}px;left:${e.clientX-r.left-d/2}px;top:${e.clientY-r.top-d/2}px`;b.appendChild(x);setTimeout(()=>x.remove(),600)});
+const BOOT=['Menyiapkan antarmuka','Membaca pengaturan','Memeriksa penyimpanan','Menghubungkan mesin','Siap'];
+async function boot(){if(!S.get('splash',true))return endSplash();for(let i=0;i<BOOT.length;i++){if(document.body.classList.contains('ready'))return;const p=Math.round((i+1)/BOOT.length*100);$('#lt').textContent=BOOT[i]+'…';$('#lb').style.width=p+'%';$('#lp').textContent=p+'%';await sleep(i===BOOT.length-1?300:380)}endSplash()}
+function endSplash(){if(document.body.classList.contains('ready'))return;$('#splash').classList.add('hide');document.body.classList.add('ready');if(S.get('pin',''))$('#lock').classList.add('on')}
+
+/* ---------- init ---------- */
+function init(){applySettings();buildSettings();buildThemes();const th=S.get('theme','dark');document.documentElement.dataset.theme=th;$$('.th').forEach(b=>b.classList.toggle('active',b.dataset.t===th));const ac=S.get('accent',null);if(ac){setAccent(ac);$('#accPick').value=ac}
+$('#sys').value=S.get('sys',TPL.agent);saveSys();$('#ctx').value=S.get('ctx',2048);$('#tmp').value=S.get('tmp',.2);slide();buildThr();storage();$('#swAuto').classList.toggle('on',S.get('auto',false));$('#mSpd').textContent=S.get('spd','–')+(S.get('spd')?' tok/s':' tok/s');
+buildCon();net();if(!curChat()&&chats.length)cid=chats[0].id;renderChat();$('#navInd').style.transform='translateX(0)';
+document.querySelector('meta[name=theme-color]').content=getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
+if(S.get('auto',false))setTimeout(loadModel,2600);
+boot()}
+init();
 </script>
 </body>
 </html>

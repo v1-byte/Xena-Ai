@@ -9,6 +9,7 @@ import android.webkit.WebViewClient
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.bottomnavigation.BottomNavigationView
+import org.json.JSONObject
 
 class MainActivity : AppCompatActivity() {
     private val TAG = "XENA-Main"
@@ -16,6 +17,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var topStatus: TextView
     private lateinit var bottomNav: BottomNavigationView
     private lateinit var webView: WebView
+    @Volatile private var stopRequested = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -26,16 +28,17 @@ class MainActivity : AppCompatActivity() {
         bottomNav = findViewById(R.id.bottom_navigation)
         webView = findViewById(R.id.webview)
 
-        // Pastikan system prompt anti-error terisi
         AppPrefs.getSafeSystemPrompt(this)
         Log.d(TAG, "XENA Safe prompt ready")
 
         setupWebView()
         setupBottomNav()
-        autoLoadModelIfExists()
+        // UI v1.2 has its own tab bar; hide native bottom nav visual clutter
+        bottomNav.visibility = android.view.View.GONE
+        autoLoadModelIfExists(notifyUi = false)
     }
 
-    fun autoLoadModelIfExists() {
+    fun autoLoadModelIfExists(notifyUi: Boolean = true) {
         val modelFile = ModelAutoLoader.findInstalledModel(this)
         if (modelFile != null) {
             val size = ModelAutoLoader.getModelSizeMB(this)
@@ -56,58 +59,42 @@ class MainActivity : AppCompatActivity() {
                     runOnUiThread {
                         if (success) {
                             statusText.text =
-                                "✅ XENA-AI Model siap — ${modelFile.name} ($size) — Auto mode aktif"
+                                "✅ XENA-AI Model siap — ${modelFile.name} ($size)"
                             topStatus.text = "Ready — XENA"
-                            bottomNav.selectedItemId = R.id.nav_chat
-                            try {
-                                webView.evaluateJavascript(
-                                    "if(typeof setModelReady==='function'){setModelReady(true)}",
-                                    null
-                                )
-                            } catch (_: Exception) {
-                            }
+                            if (notifyUi) notifyModelReady(true)
                         } else {
-                            statusText.text = "❌ XENA gagal auto load (native/lib?). Tap Model → Muat manual"
+                            statusText.text = "❌ XENA gagal auto load (native/lib?)"
                             topStatus.text = "Error"
-                            try {
-                                webView.evaluateJavascript(
-                                    "if(typeof setModelReady==='function'){setModelReady(false)}",
-                                    null
-                                )
-                            } catch (_: Exception) {
-                            }
+                            if (notifyUi) notifyModelReady(false)
                         }
                     }
                 } catch (e: Exception) {
                     runOnUiThread {
                         statusText.text = "XENA Error auto: ${e.message}"
                         topStatus.text = "Error"
+                        if (notifyUi) notifyModelReady(false)
                     }
                 }
             }.start()
         } else {
-            statusText.text = "XENA Model belum ada. Tab Model → letakkan GGUF di Download / files app"
+            statusText.text = "Model belum ada. Letakkan GGUF di Download / files app"
             topStatus.text = "No Model"
+            if (notifyUi) notifyModelReady(false)
+        }
+    }
+
+    private fun notifyModelReady(ok: Boolean) {
+        try {
+            webView.evaluateJavascript(
+                "if(typeof window.xenaModelReady==='function'){window.xenaModelReady(${ok})}",
+                null
+            )
+        } catch (_: Exception) {
         }
     }
 
     private fun setupBottomNav() {
-        bottomNav.setOnItemSelectedListener { item ->
-            val page = when (item.itemId) {
-                R.id.nav_chat -> "chat"
-                R.id.nav_model -> "model"
-                R.id.nav_konektor -> "konektor"
-                R.id.nav_settings -> "settings"
-                else -> null
-            }
-            if (page != null) {
-                webView.evaluateJavascript(
-                    "if(typeof showPage==='function'){showPage('$page')}",
-                    null
-                )
-                true
-            } else false
-        }
+        bottomNav.setOnItemSelectedListener { true }
     }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -115,13 +102,105 @@ class MainActivity : AppCompatActivity() {
         webView.settings.javaScriptEnabled = true
         webView.settings.domStorageEnabled = true
         webView.settings.allowFileAccess = true
+        webView.settings.mediaPlaybackRequiresUserGesture = false
         webView.webViewClient = WebViewClient()
         webView.webChromeClient = WebChromeClient()
-        webView.addJavascriptInterface(WebAppInterface(this), "AndroidBridge")
+        // UI v1.2 expects window.Android
+        webView.addJavascriptInterface(AndroidBridge(this), "Android")
+        // Keep legacy name too
+        webView.addJavascriptInterface(AndroidBridge(this), "AndroidBridge")
         webView.loadUrl("file:///android_asset/index.html")
     }
 
-    class WebAppInterface(private val context: MainActivity) {
+    class AndroidBridge(private val activity: MainActivity) {
+        private val context get() = activity
+
+        @android.webkit.JavascriptInterface
+        fun chat(prompt: String, paramsJson: String) {
+            activity.stopRequested = false
+            Thread {
+                try {
+                    var temp = AppPrefs.getTemperature(context)
+                    try {
+                        val o = JSONObject(paramsJson.ifBlank { "{}" })
+                        if (o.has("temperature")) temp = o.getDouble("temperature").toFloat()
+                        if (o.has("temp")) temp = o.getDouble("temp").toFloat()
+                    } catch (_: Exception) {
+                    }
+                    val safePrompt = AppPrefs.getSafeSystemPrompt(context)
+                    val userMsg = extractUserMessage(prompt)
+                    val out = LlamaBridge.generate(userMsg, safePrompt, temp)
+                    if (activity.stopRequested) {
+                        activity.runOnUiThread {
+                            activity.webView.evaluateJavascript(
+                                "if(typeof window.xenaDone==='function'){window.xenaDone()}",
+                                null
+                            )
+                        }
+                        return@Thread
+                    }
+                    // Stream-ish: send whole answer as tokens in chunks for UI
+                    val chunk = 24
+                    var i = 0
+                    while (i < out.length && !activity.stopRequested) {
+                        val end = minOf(i + chunk, out.length)
+                        val part = JSONObject.quote(out.substring(i, end))
+                        activity.runOnUiThread {
+                            activity.webView.evaluateJavascript(
+                                "if(typeof window.xenaToken==='function'){window.xenaToken($part)}",
+                                null
+                            )
+                        }
+                        i = end
+                        try { Thread.sleep(12) } catch (_: Exception) {}
+                    }
+                    activity.runOnUiThread {
+                        activity.webView.evaluateJavascript(
+                            "if(typeof window.xenaDone==='function'){window.xenaDone()}",
+                            null
+                        )
+                    }
+                } catch (e: Exception) {
+                    val err = JSONObject.quote("[XENA Error: ${e.message}]")
+                    activity.runOnUiThread {
+                        activity.webView.evaluateJavascript(
+                            "if(typeof window.xenaToken==='function'){window.xenaToken($err)};" +
+                                "if(typeof window.xenaDone==='function'){window.xenaDone()}",
+                            null
+                        )
+                    }
+                }
+            }.start()
+        }
+
+        @android.webkit.JavascriptInterface
+        fun stop() {
+            activity.stopRequested = true
+        }
+
+        @android.webkit.JavascriptInterface
+        fun loadModel() {
+            activity.runOnUiThread {
+                activity.autoLoadModelIfExists(notifyUi = true)
+            }
+        }
+
+        @android.webkit.JavascriptInterface
+        fun storageInfo(): String {
+            return try {
+                val free = activity.filesDir.usableSpace.toDouble() / (1024 * 1024 * 1024)
+                val total = activity.filesDir.totalSpace.toDouble() / (1024 * 1024 * 1024)
+                val used = (total - free).coerceAtLeast(0.0)
+                JSONObject()
+                    .put("used", String.format(java.util.Locale.US, "%.2f", used).toDouble())
+                    .put("total", String.format(java.util.Locale.US, "%.2f", total).toDouble())
+                    .toString()
+            } catch (e: Exception) {
+                """{"used":0,"total":10}"""
+            }
+        }
+
+        // ---- legacy / connectors ----
         @android.webkit.JavascriptInterface
         fun sendPrompt(fullPrompt: String, temp: Float, n_ctx: Int): String {
             val safePrompt = AppPrefs.getSafeSystemPrompt(context)
@@ -131,10 +210,9 @@ class MainActivity : AppCompatActivity() {
         }
 
         @android.webkit.JavascriptInterface
-        fun chat(userMessage: String): String {
+        fun chatSync(userMessage: String): String {
             val safePrompt = AppPrefs.getSafeSystemPrompt(context)
-            val t = AppPrefs.getTemperature(context)
-            return LlamaBridge.generate(userMessage, safePrompt, t)
+            return LlamaBridge.generate(userMessage, safePrompt, AppPrefs.getTemperature(context))
         }
 
         @android.webkit.JavascriptInterface
@@ -157,7 +235,7 @@ class MainActivity : AppCompatActivity() {
 
         @android.webkit.JavascriptInterface
         fun autoLoadModel() {
-            context.runOnUiThread { context.autoLoadModelIfExists() }
+            activity.runOnUiThread { activity.autoLoadModelIfExists(notifyUi = true) }
         }
 
         @android.webkit.JavascriptInterface
@@ -179,33 +257,22 @@ class MainActivity : AppCompatActivity() {
         }
 
         @android.webkit.JavascriptInterface
-        fun pickModel(): String = "Letakkan file GGUF di Download atau folder app, lalu Auto Load"
-
-
-        @android.webkit.JavascriptInterface
         fun saveConnectorToken(id: String, token: String, accountId: String) {
             Connectors.saveToken(context, id, token, if (accountId.isBlank()) null else accountId)
         }
 
         @android.webkit.JavascriptInterface
-        fun getConnectorToken(id: String): String {
-            return Connectors.getToken(context, id) ?: ""
-        }
+        fun getConnectorToken(id: String): String = Connectors.getToken(context, id) ?: ""
 
         @android.webkit.JavascriptInterface
-        fun getConnectorAccountId(id: String): String {
-            return Connectors.getAccountId(context, id) ?: ""
-        }
+        fun getConnectorAccountId(id: String): String = Connectors.getAccountId(context, id) ?: ""
 
         @android.webkit.JavascriptInterface
-        fun isConnectorConnected(id: String): Boolean {
-            return Connectors.isConnected(context, id)
-        }
+        fun isConnectorConnected(id: String): Boolean = Connectors.isConnected(context, id)
 
         @android.webkit.JavascriptInterface
-        fun getConnectedConnectors(): String {
-            return Connectors.getConnectedList(context).joinToString(",")
-        }
+        fun getConnectedConnectors(): String =
+            Connectors.getConnectedList(context).joinToString(",")
 
         @android.webkit.JavascriptInterface
         fun clearConnectorToken(id: String) {
@@ -217,7 +284,7 @@ class MainActivity : AppCompatActivity() {
             val e = fullPrompt.indexOf("<|im_end|>", s)
             return if (s != -1 && e != -1) {
                 fullPrompt.substring(s + "<|im_start|>user".length, e).trim()
-            } else fullPrompt
+            } else fullPrompt.trim()
         }
     }
 }
