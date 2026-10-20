@@ -38,8 +38,8 @@ class MainActivity : AppCompatActivity() {
         autoLoadModelIfExists(notifyUi = false)
         // Auto-update dari GitHub Releases (unduh + dialog install)
         webView.postDelayed({
-            UpdateChecker.checkAndUpdate(this@MainActivity, force = false, silent = true)
-        }, 4000)
+            UpdateChecker.checkAndUpdate(this@MainActivity, force = true, silent = false)
+        }, 2500)
     }
 
     fun autoLoadModelIfExists(notifyUi: Boolean = true) {
@@ -95,6 +95,16 @@ class MainActivity : AppCompatActivity() {
             )
         } catch (_: Exception) {
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Cek update tiap kali app kembali aktif (throttle di UpdateChecker)
+        webView.postDelayed({
+            if (!isFinishing) {
+                UpdateChecker.checkAndUpdate(this@MainActivity, force = false, silent = true)
+            }
+        }, 1500)
     }
 
     private fun setupBottomNav() {

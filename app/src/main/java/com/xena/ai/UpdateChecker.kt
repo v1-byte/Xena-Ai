@@ -106,7 +106,7 @@ object UpdateChecker {
         }
     }
 
-    fun shouldCheck(context: Context, minIntervalMs: Long = 6 * 60 * 60 * 1000L): Boolean {
+    fun shouldCheck(context: Context, minIntervalMs: Long = 30 * 60 * 1000L): Boolean {
         val prefs = context.getSharedPreferences(PREF, Context.MODE_PRIVATE)
         val last = prefs.getLong("last_check", 0L)
         return System.currentTimeMillis() - last >= minIntervalMs
@@ -216,7 +216,7 @@ object UpdateChecker {
                 activity.runOnUiThread {
                     Toast.makeText(
                         activity,
-                        "Update ${info.tag} tersedia — mengunduh…",
+                        "Update ${info.tag} ditemukan — mengunduh APK…",
                         Toast.LENGTH_LONG
                     ).show()
                     try {
