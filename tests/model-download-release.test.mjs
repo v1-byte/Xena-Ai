@@ -62,6 +62,21 @@ test('model downloads use resumable byte ranges and validate partials before act
   assert.doesNotMatch(transfer, /Math\.random|setInterval/);
 });
 
+test('download UI has explicit resume, pause, verification, and searchable local model paths', () => {
+  for (const id of ['dlResume', 'dlPause', 'dlVerify', 'modelFileSearch', 'modelFiles']) assert.ok(html.includes(`id="${id}"`));
+  assert.match(html, /Lanjut Download/);
+  assert.match(html, /Jeda Download/);
+  assert.match(html, /Verifikasi Download/);
+  assert.match(modelUi, /window\.resumeDl/);
+  assert.match(modelUi, /window\.pauseDl/);
+  assert.match(modelUi, /window\.verifyDl/);
+  assert.match(modelUi, /Android\.getLocalModelFiles/);
+  assert.match(activity, /fun getLocalModelFiles\(\)/);
+  assert.match(activity, /fun verifyModelDownload\(modelId: String\)/);
+  assert.match(transfer, /fun verifyDownload\(modelId: String\? = null\)/);
+  assert.match(transfer, /parsial tetap disimpan, tidak diunduh ulang/);
+});
+
 test('Downloads import is SAF-first/fallback and GGUF validation prevents loading temporary files', () => {
   assert.match(activity, /ActivityResultContracts\.OpenDocument\(\)/);
   assert.match(activity, /DocumentsContract\.deleteDocument\(contentResolver, uri\)/);
@@ -93,8 +108,8 @@ test('force update still refuses same or older versions', () => {
 });
 
 test('APK release is version-driven and verifies native llama library packaging', () => {
-  assert.match(gradle, /versionCode = 136/);
-  assert.match(gradle, /versionName = "1\.3\.6"/);
+  assert.match(gradle, /versionCode = 137/);
+  assert.match(gradle, /versionName = "1\.3\.7"/);
   assert.match(gradle, /signingConfig = signingConfigs\.getByName\("release"\)/);
   assert.match(workflow, /steps\.release_meta\.outputs\.tag/);
   assert.match(workflow, /gradle assembleRelease/);

@@ -94,6 +94,42 @@
     }
   }
 
+  function renderLocalFiles() {
+    const host = $('#modelFiles');
+    if (!host) return;
+    if (!window.Android || !Android.getLocalModelFiles) {
+      host.innerHTML = '<div class="muted">Pencarian lokasi file tersedia di APK Android.</div>';
+      return;
+    }
+    try {
+      const query = ($('#modelFileSearch')?.value || '').trim().toLowerCase();
+      const files = JSON.parse(Android.getLocalModelFiles() || '[]');
+      const matches = files.filter((file) => [file.fileName, file.title, file.path, file.status, file.quantization]
+        .some((value) => String(value || '').toLowerCase().includes(query)));
+      host.innerHTML = matches.map((file) => {
+        const partial = file.kind === 'partial';
+        const sizeLabel = partial
+          ? `${fmtBytes(file.bytes)} / ${fmtBytes(file.expectedBytes)}`
+          : fmtBytes(file.bytes);
+        const detail = partial
+          ? (file.hasResumeValidator ? 'Berkas parsial siap dilanjutkan dengan HTTP Range.' : 'Berkas parsial dipertahankan; server belum memberi validator resume.')
+          : (file.headerValid ? 'Header GGUF terdeteksi.' : 'Header GGUF perlu diperiksa.');
+        const actions = partial
+          ? `<div class="btns" style="margin-top:8px"><button class="btn sm pri" onclick="startDl('${esc(file.id)}')">Lanjut Download</button><button class="btn sm" onclick="verifyDl('${esc(file.id)}')">Verifikasi Download</button></div>`
+          : '';
+        return `<details style="border:1px solid var(--line);border-radius:12px;padding:10px;margin-top:8px;background:var(--card2)">
+          <summary style="cursor:pointer"><b>${esc(file.fileName)}</b> · <span class="pill">${esc(file.status)}</span></summary>
+          <div class="muted" style="font-size:12px;word-break:break-all;margin-top:8px">Model: ${esc(file.title)} · ${esc(file.quantization)}<br>Ukuran: ${esc(sizeLabel)}<br>Lokasi: ${esc(file.path)}<br>${esc(detail)}</div>
+          <div class="muted" style="font-size:12px;margin-top:6px">GGUF berisi bobot model biner, bukan source code; verifikasi ini mengecek ukuran dan header, bukan checksum kriptografis.</div>
+          ${actions}
+        </details>`;
+      }).join('') || `<div class="muted" style="margin-top:8px">${query ? 'Tidak ada file yang cocok.' : 'Belum ada model tersimpan atau unduhan parsial.'} Gunakan Pilih GGUF untuk mencari file di penyimpanan Android.</div>`;
+    } catch (error) {
+      host.innerHTML = '<div class="muted">Daftar file model tidak dapat dibaca.</div>';
+      if (typeof logT === 'function') logT(`Daftar file model: ${error.message}`);
+    }
+  }
+
   function onTransfer(snapshot) {
     if (!snapshot) return;
     const previous = transferStatus;
@@ -107,7 +143,9 @@
     const bar = $('#dlBar');
     const percent = $('#dlPct');
     const speed = $('#dlSpd');
+    const resume = $('#dlResume');
     const pause = $('#dlPause');
+    const verify = $('#dlVerify');
     const cancel = $('#dlCancel');
     if (name) name.textContent = snapshot.fileName || snapshot.message || 'Tidak ada unduhan aktif';
     if (bar) {
@@ -119,10 +157,9 @@
       : (snapshot.message || snapshot.state || '0%');
     if (speed) speed.textContent = snapshot.state === 'downloading' && Number(snapshot.bytesPerSecond) > 0
       ? fmtRate(snapshot.bytesPerSecond) : '';
-    if (pause) {
-      pause.innerHTML = snapshot.state === 'paused' ? `${typeof ic === 'function' ? ic('play') : ''}Lanjut` : `${typeof ic === 'function' ? ic('pause') : ''}Jeda`;
-      pause.disabled = !['downloading', 'paused'].includes(snapshot.state);
-    }
+    if (resume) resume.disabled = !(['paused', 'failed'].includes(snapshot.state) && bytes > 0 && Boolean(snapshot.modelId));
+    if (pause) pause.disabled = snapshot.state !== 'downloading';
+    if (verify) verify.disabled = !((bytes > 0 && snapshot.state !== 'downloading') || snapshot.state === 'ready');
     if (cancel) cancel.disabled = !['downloading', 'paused', 'failed'].includes(snapshot.state);
 
     const logKey = `${snapshot.state}:${pct >= 0 ? Math.floor(pct / 10) : ''}`;
@@ -136,8 +173,10 @@
     if (['ready', 'failed', 'cancelled'].includes(snapshot.state)) {
       storage();
       renderCatalog();
+      renderLocalFiles();
     } else if (previous.modelId !== snapshot.modelId || previous.state !== snapshot.state) {
       renderCatalog();
+      renderLocalFiles();
     }
   }
 
@@ -163,12 +202,31 @@
     if (typeof toast === 'function') toast('Unduhan dimulai atau dilanjutkan', 'ok');
     renderCatalog();
   };
+  window.resumeDl = function () {
+    if (!window.Android || !Android.resumeModelDownload || !Android.resumeModelDownload()) {
+      if (typeof toast === 'function') toast('Tidak ada unduhan parsial yang bisa dilanjutkan', 'bad');
+      return;
+    }
+    if (typeof toast === 'function') toast('Melanjutkan dari data yang sudah tersimpan', 'ok');
+  };
   window.pauseDl = function () {
-    if (!window.Android) return;
-    const result = transferStatus.state === 'paused'
-      ? Android.resumeModelDownload()
-      : Android.pauseModelDownload();
-    if (!result && typeof toast === 'function') toast('Tidak ada unduhan yang bisa dijeda atau dilanjutkan');
+    if (!window.Android || !Android.pauseModelDownload || !Android.pauseModelDownload()) {
+      if (typeof toast === 'function') toast('Tidak ada unduhan aktif untuk dijeda', 'bad');
+      return;
+    }
+    if (typeof toast === 'function') toast('Unduhan dijeda; data parsial tetap disimpan', 'ok');
+  };
+  window.verifyDl = function (modelId) {
+    if (!window.Android || !Android.verifyModelDownload) {
+      if (typeof toast === 'function') toast('Verifikasi unduhan hanya tersedia di APK Android', 'bad');
+      return;
+    }
+    const ok = Android.verifyModelDownload(modelId || transferStatus.modelId || '');
+    if (!ok && typeof toast === 'function') toast('Jeda unduhan terlebih dahulu atau periksa file parsial', 'bad');
+    else if (typeof toast === 'function') toast('Verifikasi selesai; lihat status ukuran dan GGUF di Download Manager', 'ok');
+  };
+  window.searchLocalModels = function () {
+    renderLocalFiles();
   };
   window.cancelDl = function () {
     if (!window.Android || !Android.cancelModelDownload || !Android.cancelModelDownload()) {
@@ -212,6 +270,7 @@
   // Replace the old hard-coded 3.55 GB display with the installed model metadata.
   storage();
   renderCatalog();
+  renderLocalFiles();
   try {
     if (window.Android && Android.getModelTransferState) onTransfer(JSON.parse(Android.getModelTransferState() || '{}'));
   } catch (_) {}

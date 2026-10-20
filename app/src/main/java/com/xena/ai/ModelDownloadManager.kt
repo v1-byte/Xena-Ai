@@ -2,6 +2,7 @@ package com.xena.ai
 
 import android.content.Context
 import android.util.Log
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
@@ -79,8 +80,10 @@ class ModelDownloadManager(context: Context) {
                 return false
             }
             val part = partFile(model)
-            if (part.length() >= model.sizeBytes) {
-                if (part.length() == model.sizeBytes && ModelAutoLoader.isValidGguf(part)) {
+            val partMeta = readMeta(model)
+            val expectedBytes = partMeta.getProperty("total")?.toLongOrNull()?.takeIf { it > 0L } ?: model.sizeBytes
+            if (part.length() >= expectedBytes) {
+                if (part.length() == expectedBytes && ModelAutoLoader.isValidGguf(part)) {
                     if (finalFile.exists() && !ModelAutoLoader.isValidGguf(finalFile)) finalFile.delete()
                     if (part.renameTo(finalFile) && ModelAutoLoader.isValidGguf(finalFile)) {
                         AppPrefs.saveLastModelPath(appContext, finalFile.absolutePath)
@@ -90,10 +93,11 @@ class ModelDownloadManager(context: Context) {
                         return true
                     }
                 }
-                part.delete()
-                metaFile(model).delete()
+                publish(Snapshot("failed", model.id, model.fileName, part.length(), expectedBytes, 0L,
+                    "Berkas parsial sudah mencapai ukuran target tetapi verifikasi GGUF gagal. File dipertahankan; tekan Batal hanya jika ingin menghapus dan mengunduh ulang."))
+                return false
             }
-            val remaining = max(0L, model.sizeBytes - part.length())
+            val remaining = max(0L, expectedBytes - part.length())
             if (ModelAutoLoader.modelDirectory(appContext).usableSpace < remaining + 64L * 1024 * 1024) {
                 publish(Snapshot("failed", model.id, model.fileName, part.length(), model.sizeBytes, 0L, "Ruang penyimpanan tidak cukup. Hapus berkas atau pilih model lebih kecil."))
                 return false
@@ -182,7 +186,11 @@ class ModelDownloadManager(context: Context) {
                 return Snapshot("ready", model.id, model.fileName, final.length(), final.length(), 0L, "Model siap digunakan")
             }
             val partial = partFile(model).length()
-            if (partial > 0L) return Snapshot("paused", model.id, model.fileName, partial, model.sizeBytes, 0L, "Unduhan parsial tersimpan; tekan Lanjut")
+            if (partial > 0L) {
+                val meta = readMeta(model)
+                val total = meta.getProperty("total")?.toLongOrNull()?.takeIf { it > 0L } ?: model.sizeBytes
+                return Snapshot("paused", model.id, model.fileName, partial, total, 0L, "Unduhan parsial tersimpan; tekan Lanjut")
+            }
         }
         val installed = ModelAutoLoader.installedModels(appContext)
         return if (installed.isNotEmpty()) {
@@ -192,22 +200,139 @@ class ModelDownloadManager(context: Context) {
         } else Snapshot("idle", "", "", 0L, 0L, 0L, "Tidak ada unduhan aktif")
     }
 
+    fun localFilesJson(): String {
+        val files = JSONArray()
+        val seen = hashSetOf<String>()
+        ModelAutoLoader.installedModels(appContext).forEach { file ->
+            if (!seen.add(file.absolutePath)) return@forEach
+            val spec = ModelCatalog.byFileName(file.name)
+            files.put(
+                JSONObject()
+                    .put("id", spec?.id ?: file.name)
+                    .put("title", spec?.title ?: file.name)
+                    .put("fileName", file.name)
+                    .put("path", file.absolutePath)
+                    .put("kind", "installed")
+                    .put("status", "Tersimpan")
+                    .put("bytes", file.length())
+                    .put("expectedBytes", file.length())
+                    .put("quantization", spec?.quantization ?: "GGUF")
+                    .put("modifiedAt", file.lastModified())
+                    .put("headerValid", ModelAutoLoader.isValidGguf(file))
+            )
+        }
+        ModelCatalog.all().forEach { model ->
+            val partial = partFile(model)
+            if (!partial.isFile || !seen.add(partial.absolutePath)) return@forEach
+            val meta = readMeta(model)
+            val expected = meta.getProperty("total")?.toLongOrNull()?.takeIf { it > 0L } ?: model.sizeBytes
+            val status = when {
+                worker?.isAlive == true && activeModelId == model.id && !paused -> "Sedang diunduh"
+                (paused || latest.state == "paused") && latest.modelId == model.id -> "Dijeda"
+                partial.length() >= expected -> "Siap diverifikasi"
+                else -> "Parsial · bisa dilanjutkan"
+            }
+            files.put(
+                JSONObject()
+                    .put("id", model.id)
+                    .put("title", model.title)
+                    .put("fileName", "${model.fileName}.part")
+                    .put("path", partial.absolutePath)
+                    .put("kind", "partial")
+                    .put("status", status)
+                    .put("bytes", partial.length())
+                    .put("expectedBytes", expected)
+                    .put("quantization", model.quantization)
+                    .put("modifiedAt", partial.lastModified())
+                    .put("hasResumeValidator", !meta.getProperty("etag").isNullOrBlank() || !meta.getProperty("lastModified").isNullOrBlank())
+            )
+        }
+        return files.toString()
+    }
+
+    /** Verify completeness and GGUF header without discarding an incomplete part file. */
+    fun verifyDownload(modelId: String? = null): Boolean {
+        val prefs = appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val pendingId = prefs.getString(KEY_PENDING_MODEL, null)
+        val requestedId = modelId?.takeIf { it.isNotBlank() }
+        val model = requestedId?.let(ModelCatalog::get)
+            ?: activeModelId.takeIf { it.isNotBlank() }?.let(ModelCatalog::get)
+            ?: pendingId?.let(ModelCatalog::get)
+            ?: ModelCatalog.all().firstOrNull { partFile(it).isFile || modelFile(it).isFile }
+        if (model == null) {
+            publish(Snapshot("failed", "", "", 0L, 0L, 0L, "Tidak ada file model/unduhan parsial untuk diverifikasi"))
+            return false
+        }
+        if (worker?.isAlive == true) {
+            publish(latest.copy(message = "Jeda unduhan terlebih dahulu, lalu tekan Verifikasi Download"))
+            return false
+        }
+
+        val finalFile = modelFile(model)
+        if (ModelAutoLoader.isValidGguf(finalFile)) {
+            prefs.edit().remove(KEY_PENDING_MODEL).apply()
+            metaFile(model).delete()
+            publish(Snapshot("ready", model.id, model.fileName, finalFile.length(), finalFile.length(), 0L,
+                "Verifikasi berhasil: file tersimpan dan header GGUF valid"))
+            return true
+        }
+
+        val part = partFile(model)
+        if (!part.isFile || part.length() <= 0L) {
+            publish(Snapshot("failed", model.id, model.fileName, 0L, model.sizeBytes, 0L,
+                "File unduhan parsial tidak ditemukan; file model yang terpasang tidak diubah"))
+            return false
+        }
+        val meta = readMeta(model)
+        val total = meta.getProperty("total")?.toLongOrNull()?.takeIf { it > 0L } ?: model.sizeBytes
+        val size = part.length()
+        if (size < total) {
+            val canResume = !meta.getProperty("etag").isNullOrBlank() || !meta.getProperty("lastModified").isNullOrBlank()
+            val message = if (canResume) {
+                "Parsial tersimpan ($size dari $total byte); Lanjut Download akan meminta sisa byte"
+            } else {
+                "Parsial tersimpan ($size dari $total byte), tetapi server tidak memberi validator resume; file tidak dihapus"
+            }
+            publish(Snapshot("paused", model.id, model.fileName, size, total, 0L, message))
+            return true
+        }
+        if (size > total) {
+            publish(Snapshot("failed", model.id, model.fileName, size, total, 0L,
+                "Ukuran parsial melebihi ukuran target; file dipertahankan untuk pemeriksaan"))
+            return false
+        }
+        if (!ModelAutoLoader.isValidGguf(part)) {
+            publish(Snapshot("failed", model.id, model.fileName, size, total, 0L,
+                "Ukuran cocok tetapi header GGUF tidak valid; file dipertahankan. Tekan Batal hanya jika ingin menghapus dan mengunduh ulang"))
+            return false
+        }
+        if (finalFile.exists() && !finalFile.delete()) {
+            publish(Snapshot("failed", model.id, model.fileName, size, total, 0L, "Model lama tidak dapat diganti; file parsial tetap disimpan"))
+            return false
+        }
+        if (!part.renameTo(finalFile)) {
+            publish(Snapshot("failed", model.id, model.fileName, size, total, 0L, "Verifikasi berhasil, tetapi file tidak dapat dipindahkan; file parsial tetap disimpan"))
+            return false
+        }
+        metaFile(model).delete()
+        AppPrefs.saveLastModelPath(appContext, finalFile.absolutePath)
+        prefs.edit().remove(KEY_PENDING_MODEL).apply()
+        publish(Snapshot("ready", model.id, model.fileName, size, total, 0L,
+            "Verifikasi berhasil: ukuran lengkap dan header GGUF valid"))
+        return true
+    }
+
     private fun runDownload(model: ModelCatalog.Model) {
         val part = partFile(model)
         val meta = readMeta(model)
         var offset = part.length()
-        if (offset > 0L && meta.getProperty("etag").isNullOrBlank() && meta.getProperty("lastModified").isNullOrBlank()) {
-            // Without an HTTP validator a partial from an earlier file revision is not safe to append.
-            part.delete()
-            metaFile(model).delete()
-            meta.clear()
-            offset = 0L
-        }
-        var restartedWithoutRange = false
         var lastReportAt = System.currentTimeMillis()
         var lastReportBytes = offset
         var speed = 0L
         try {
+            if (offset > 0L && meta.getProperty("etag").isNullOrBlank() && meta.getProperty("lastModified").isNullOrBlank()) {
+                throw IOException("Server tidak memberi validator resume; file parsial dipertahankan dan unduhan tidak dimulai ulang otomatis")
+            }
             while (true) {
                 waitIfPaused(model)
                 checkCancelled()
@@ -215,7 +340,7 @@ class ModelDownloadManager(context: Context) {
                     connectTimeout = 30_000
                     readTimeout = 45_000
                     instanceFollowRedirects = true
-                    setRequestProperty("User-Agent", "Xena-AI-Android/1.3.6")
+                    setRequestProperty("User-Agent", "Xena-AI-Android/1.3.7")
                     setRequestProperty("Accept", "application/octet-stream")
                     if (offset > 0L) {
                         setRequestProperty("Range", "bytes=$offset-")
@@ -226,16 +351,10 @@ class ModelDownloadManager(context: Context) {
                 activeConnection = connection
                 val status = connection.responseCode
                 if (offset > 0L && status == HttpURLConnection.HTTP_OK) {
-                    // Range was ignored or the validator changed: never append a full 200 response.
+                    // Do not append a full response or silently delete/restart the saved partial.
                     connection.disconnect()
                     activeConnection = null
-                    if (restartedWithoutRange) throw IOException("Server tidak menerima unduhan lanjutan")
-                    part.delete()
-                    metaFile(model).delete()
-                    meta.clear()
-                    offset = 0L
-                    restartedWithoutRange = true
-                    continue
+                    throw IOException("Server menolak HTTP Range atau file sumber berubah; berkas parsial tetap disimpan, tidak diunduh ulang")
                 }
                 if (offset > 0L && status != HttpURLConnection.HTTP_PARTIAL) {
                     throw IOException("HTTP $status saat melanjutkan unduhan")
