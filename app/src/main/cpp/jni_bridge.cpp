@@ -110,7 +110,7 @@ Java_com_xena_ai_LlamaBridge_nativeGenerate(
     tokens.resize((size_t)n);
 
     // Clear KV cache (API b4604)
-    llama_kv_self_clear(g_ctx);
+    llama_kv_cache_clear(g_ctx);
 
     int32_t n_batch = (int32_t)llama_n_batch(g_ctx);
     if (n_batch < 1) n_batch = 128;
