@@ -72,7 +72,7 @@ object LlamaBridge {
         if (!isModelLoaded) {
             try {
                 if (!nativeIsLoaded()) {
-                    return "[XENA Model belum dimuat. Tab Model → Muat model yang sudah ada]"
+                    return "[XENA Engine belum siap. Tab Model → Muat Model, tunggu 30–60 dtk. Pastikan GGUF di files app / Download dan RAM cukup.]"
                 }
             } catch (_: Throwable) {
                 return "[XENA Model belum dimuat / native lib belum tersedia]"

@@ -504,6 +504,16 @@ if(l.includes('kotlin')||l.includes('fix')||l.includes('build'))return 'Cek lang
 return 'Siap, saya **Xena**. Mode demo aktif karena model belum terhubung. Setelah model dimuat, jawaban akan datang dari mesin lokal.\n\n- Ketik `/` untuk perintah cepat\n- Tekan **Ctrl+K** untuk command palette\n- Lampirkan file `.kt` atau `.html` untuk di-fix';}
 async function answer(p){try{await answer0(p)}catch(e){toast('Gagal menjawab: '+e.message,'bad');logT('❌ '+e.message)}finally{busy=false;setSend(false)}}
 async function answer0(p){busy=true;stopFlag=false;setSend(true);const c=curChat();
+// Pastikan engine ready sebelum chat
+try{
+  let ready=false;
+  if(window.Android&&Android.isModelReady) ready=!!Android.isModelReady();
+  if(!ready && window.Android&&Android.loadModel){
+    toast('Memuat engine dulu…','ok');
+    await new Promise(res=>{window.xenaModelReady=function(ok){modelOk(ok);res();};Android.loadModel();setTimeout(res,90000);});
+  }
+}catch(e){}
+
 const holder=addMsg('assistant','',Date.now());holder.querySelector('.bubble').innerHTML='<span class="typing"><i></i><i></i><i></i></span>';holder.querySelector('.qa')?.remove();
 let full='';const bub=holder.querySelector('.bubble');const chatEl=$('#chat');const upd=()=>{bub.innerHTML=md(full)+'<span class="caret"></span>';if(S.get('asc',true)&&nearBottom())chatEl.scrollTop=chatEl.scrollHeight};
 const params={system:$('#sys').value,ctx:+$('#ctx').value,temp:+$('#tmp').value,threads:S.get('thr',4),top_p:S.get('topp',.9),top_k:S.get('topk',40),repeat_penalty:S.get('rep',1.1),max_tokens:S.get('maxt',1024)};

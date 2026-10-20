@@ -39,7 +39,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun autoLoadModelIfExists(notifyUi: Boolean = true) {
-        val modelFile = ModelAutoLoader.findInstalledModel(this)
+        val modelFile = ModelAutoLoader.ensurePrivateModel(this)
         if (modelFile != null) {
             val size = ModelAutoLoader.getModelSizeMB(this)
             statusText.text = "Auto memuat XENA model $size…"
@@ -120,6 +120,20 @@ class MainActivity : AppCompatActivity() {
             activity.stopRequested = false
             Thread {
                 try {
+                    // Auto-load engine if file exists but native not ready
+                    if (!LlamaBridge.isReady()) {
+                        val f = ModelAutoLoader.ensurePrivateModel(context)
+                        if (f != null) {
+                            LlamaBridge.loadModel(
+                                f.absolutePath,
+                                AppPrefs.getNctx(context),
+                                AppPrefs.getNBatch(context),
+                                AppPrefs.getNThreads(context),
+                                true,
+                                false
+                            )
+                        }
+                    }
                     var temp = AppPrefs.getTemperature(context)
                     try {
                         val o = JSONObject(paramsJson.ifBlank { "{}" })
@@ -241,7 +255,7 @@ class MainActivity : AppCompatActivity() {
         @android.webkit.JavascriptInterface
         fun loadModelWithConfig(n_ctx: Int, n_batch: Int, n_threads: Int): Boolean {
             AppPrefs.saveConfig(context, n_ctx, n_batch, n_threads)
-            val f = ModelAutoLoader.findInstalledModel(context) ?: return false
+            val f = ModelAutoLoader.ensurePrivateModel(context) ?: return false
             return LlamaBridge.loadModel(f.absolutePath, n_ctx, n_batch, n_threads, true, false)
         }
 
