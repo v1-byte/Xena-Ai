@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <mutex>
+#include <algorithm>
 #include <cstring>
 
 #include "llama.h"
@@ -30,8 +31,8 @@ Java_com_xena_ai_LlamaBridge_nativeLoadModel(
         jboolean useMmap, jboolean useMlock) {
     std::lock_guard<std::mutex> lock(g_mu);
     const char *path = env->GetStringUTFChars(modelPath, nullptr);
-    LOGI("loadModel path=%s ctx=%d batch=%d thr=%d mmap=%d mlock=%d",
-         path, (int)n_ctx, (int)n_batch, (int)n_threads, (int)useMmap, (int)useMlock);
+    LOGI("loadModel path=%s ctx=%d batch=%d thr=%d",
+         path, (int)n_ctx, (int)n_batch, (int)n_threads);
 
     if (!g_backend) {
         llama_backend_init();
@@ -40,12 +41,11 @@ Java_com_xena_ai_LlamaBridge_nativeLoadModel(
     free_all_locked();
 
     llama_model_params mparams = llama_model_default_params();
-    mparams.use_mmap = useMmap == JNI_TRUE;
-    mparams.use_mlock = useMlock == JNI_TRUE;
+    mparams.use_mmap = (useMmap == JNI_TRUE);
+    mparams.use_mlock = (useMlock == JNI_TRUE);
 
     g_model = llama_model_load_from_file(path, mparams);
     env->ReleaseStringUTFChars(modelPath, path);
-
     if (!g_model) {
         LOGE("failed to load model");
         return JNI_FALSE;
@@ -78,7 +78,6 @@ JNIEXPORT void JNICALL
 Java_com_xena_ai_LlamaBridge_nativeFreeModel(JNIEnv *, jclass) {
     std::lock_guard<std::mutex> lock(g_mu);
     free_all_locked();
-    LOGI("model freed");
 }
 
 JNIEXPORT jstring JNICALL
@@ -95,28 +94,24 @@ Java_com_xena_ai_LlamaBridge_nativeGenerate(
     env->ReleaseStringUTFChars(jprompt, prompt);
 
     const llama_vocab *vocab = llama_model_get_vocab(g_model);
-    // tokenize
+
     std::vector<llama_token> tokens;
-    tokens.resize(prompt_str.size() + 32);
+    tokens.resize(prompt_str.size() + 64);
     int n = llama_tokenize(vocab, prompt_str.c_str(), (int32_t)prompt_str.size(),
                            tokens.data(), (int32_t)tokens.size(), true, true);
     if (n < 0) {
-        tokens.resize(-n);
+        tokens.resize((size_t)(-n));
         n = llama_tokenize(vocab, prompt_str.c_str(), (int32_t)prompt_str.size(),
                            tokens.data(), (int32_t)tokens.size(), true, true);
     }
     if (n < 0) {
         return env->NewStringUTF("[XENA] Gagal tokenize prompt");
     }
-    tokens.resize(n);
+    tokens.resize((size_t)n);
 
-    // clear memory / kv
-    llama_memory_t mem = llama_get_memory(g_ctx);
-    if (mem) {
-        llama_memory_clear(mem, true);
-    }
+    // Clear KV cache (API b4604)
+    llama_kv_self_clear(g_ctx);
 
-    // eval prompt in batches
     int32_t n_batch = (int32_t)llama_n_batch(g_ctx);
     if (n_batch < 1) n_batch = 128;
 
@@ -128,16 +123,14 @@ Java_com_xena_ai_LlamaBridge_nativeGenerate(
         }
     }
 
-    // sampler chain
     auto sparams = llama_sampler_chain_default_params();
     llama_sampler *smpl = llama_sampler_chain_init(sparams);
-    llama_sampler_chain_add(smpl, llama_sampler_init_penalties(
-        /*n_vocab*/ 0, /*special*/ LLAMA_TOKEN_NULL, /*linefeed*/ LLAMA_TOKEN_NULL,
-        /*penalty_last_n*/ 64, /*penalty_repeat*/ repeatPenalty > 0 ? repeatPenalty : 1.1f,
-        /*penalty_freq*/ 0.0f, /*penalty_present*/ 0.0f, false, false));
-    llama_sampler_chain_add(smpl, llama_sampler_init_top_p(topP > 0 ? topP : 0.9f, 1));
-    llama_sampler_chain_add(smpl, llama_sampler_init_temp(temp > 0 ? temp : 0.2f));
+    // Compatible sampler chain for b4604-era API
+    llama_sampler_chain_add(smpl, llama_sampler_init_top_k(40));
+    llama_sampler_chain_add(smpl, llama_sampler_init_top_p(topP > 0.f ? topP : 0.9f, 1));
+    llama_sampler_chain_add(smpl, llama_sampler_init_temp(temp > 0.f ? temp : 0.2f));
     llama_sampler_chain_add(smpl, llama_sampler_init_dist(LLAMA_DEFAULT_SEED));
+    (void)repeatPenalty;
 
     std::string out;
     out.reserve(1024);
@@ -147,8 +140,8 @@ Java_com_xena_ai_LlamaBridge_nativeGenerate(
         if (llama_vocab_is_eog(vocab, id)) break;
 
         char buf[256];
-        int npiece = llama_token_to_piece(vocab, id, buf, sizeof(buf), 0, true);
-        if (npiece > 0) out.append(buf, npiece);
+        int npiece = llama_token_to_piece(vocab, id, buf, (int32_t)sizeof(buf), 0, true);
+        if (npiece > 0) out.append(buf, (size_t)npiece);
 
         llama_batch batch = llama_batch_get_one(&id, 1);
         if (llama_decode(g_ctx, batch) != 0) break;
@@ -157,7 +150,7 @@ Java_com_xena_ai_LlamaBridge_nativeGenerate(
     llama_sampler_free(smpl);
 
     if (out.empty()) {
-        return env->NewStringUTF("[XENA] Output kosong — coba context 2048 / model Q3");
+        return env->NewStringUTF("[XENA] Output kosong — coba context 2048");
     }
     return env->NewStringUTF(out.c_str());
 }
