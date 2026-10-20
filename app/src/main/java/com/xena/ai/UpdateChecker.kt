@@ -12,6 +12,7 @@ import androidx.core.content.FileProvider
 import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
+import java.security.MessageDigest
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -32,7 +33,8 @@ object UpdateChecker {
         val body: String,
         val apkUrl: String,
         val apkName: String,
-        val versionCodeHint: Int
+        val versionCodeHint: Int,
+        val sha256: String
     )
 
     fun currentVersionName(context: Context): String {
@@ -88,18 +90,20 @@ object UpdateChecker {
             val assets = json.optJSONArray("assets") ?: return null
             var apkUrl = ""
             var apkName = "xena-update.apk"
+            var sha256 = ""
             for (i in 0 until assets.length()) {
                 val a = assets.getJSONObject(i)
                 val n = a.optString("name", "")
                 if (n.endsWith(".apk", ignoreCase = true)) {
                     apkUrl = a.optString("browser_download_url", "")
                     apkName = n
+                    sha256 = a.optString("digest", "").removePrefix("sha256:")
                     break
                 }
             }
             if (apkUrl.isBlank() || tag.isBlank()) return null
             val codeHint = tag.removePrefix("v").replace(".", "").toIntOrNull() ?: 0
-            ReleaseInfo(tag, name, notes, apkUrl, apkName, codeHint)
+            ReleaseInfo(tag, name, notes, apkUrl, apkName, codeHint, sha256)
         } catch (e: Exception) {
             Log.e(TAG, "fetchLatest: ${e.message}")
             null
@@ -128,25 +132,41 @@ object UpdateChecker {
                 setRequestProperty("User-Agent", "Xena-AI-Updater")
                 instanceFollowRedirects = true
             }
+            if (conn.responseCode !in 200..299) {
+                conn.disconnect()
+                return null
+            }
             val total = conn.contentLengthLong
+            val digest = MessageDigest.getInstance("SHA-256")
+            var downloaded = 0L
             conn.inputStream.use { input ->
                 FileOutputStream(out).use { output ->
                     val buf = ByteArray(64 * 1024)
-                    var read = 0L
                     while (true) {
                         val n = input.read(buf)
                         if (n <= 0) break
                         output.write(buf, 0, n)
-                        read += n
+                        digest.update(buf, 0, n)
+                        downloaded += n
                         if (total > 0 && onProgress != null) {
-                            onProgress(((read * 100) / total).toInt().coerceIn(0, 100))
+                            onProgress(((downloaded * 100) / total).toInt().coerceIn(0, 100))
                         }
                     }
                     output.fd.sync()
                 }
             }
             conn.disconnect()
-            if (out.exists() && out.length() > 100_000L) out else null
+            if (!out.exists() || out.length() <= 100_000L || (total > 0L && downloaded != total)) {
+                out.delete()
+                return null
+            }
+            val actualDigest = digest.digest().joinToString("") { "%02x".format(it.toInt() and 0xff) }
+            if (info.sha256.isNotBlank() && !actualDigest.equals(info.sha256, ignoreCase = true)) {
+                Log.e(TAG, "download digest mismatch")
+                out.delete()
+                return null
+            }
+            out
         } catch (e: Exception) {
             Log.e(TAG, "download: ${e.message}")
             null
@@ -189,6 +209,16 @@ object UpdateChecker {
         }
     }
 
+    fun resumePendingInstall(activity: Activity) {
+        if (!canRequestInstall(activity)) return
+        val prefs = activity.getSharedPreferences(PREF, Context.MODE_PRIVATE)
+        val pending = prefs.getString("pending_install", null) ?: return
+        prefs.edit().remove("pending_install").apply()
+        val apk = File(pending)
+        if (apk.exists()) installApk(activity, apk)
+        else Toast.makeText(activity, "File update tidak ditemukan; cek update lagi", Toast.LENGTH_LONG).show()
+    }
+
     /**
      * Cek update di background. Jika ada, unduh lalu tampilkan dialog install.
      * @param silent Jika true, hanya toast saat ada update / selesai unduh.
@@ -204,7 +234,7 @@ object UpdateChecker {
                     Log.d(TAG, "no release info")
                     return@Thread
                 }
-                if (!isNewer(info.tag, local) && !force) {
+                if (!isNewer(info.tag, local)) {
                     Log.d(TAG, "up to date local=$local remote=${info.tag}")
                     if (!silent) {
                         activity.runOnUiThread {
@@ -247,14 +277,17 @@ object UpdateChecker {
                 activity.runOnUiThread {
                     Toast.makeText(activity, "Unduhan selesai — pasang update", Toast.LENGTH_LONG).show()
                     if (!canRequestInstall(activity)) {
+                        activity.getSharedPreferences(PREF, Context.MODE_PRIVATE)
+                            .edit().putString("pending_install", file.absolutePath).apply()
                         Toast.makeText(
                             activity,
-                            "Izinkan install dari sumber ini di Settings",
+                            "Izinkan pemasangan dari Xena-AI, lalu APK akan dibuka kembali",
                             Toast.LENGTH_LONG
                         ).show()
                         openInstallPermissionSettings(activity)
+                    } else {
+                        installApk(activity, file)
                     }
-                    installApk(activity, file)
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "checkAndUpdate: ${e.message}")

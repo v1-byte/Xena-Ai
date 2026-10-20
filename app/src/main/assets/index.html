@@ -414,37 +414,34 @@ header,nav{transition:transform .8s cubic-bezier(.2,.8,.2,1) .1s}
   <div class="card"><h4><svg class="i"><use href="#i-box"/></svg>Penyimpanan Model</h4>
     <div class="bar"><b id="stBar" style="width:35.5%"></b></div>
     <div class="row muted"><span id="stUsed">3.55 GB / 10 GB terpakai</span><span class="sp"></span><span id="stFree" style="color:var(--ok)">6.45 GB bebas · Cukup</span></div>
-    <p class="muted" style="margin-top:6px">Saat salin model dibutuhkan ±7.4 GB sementara. Setelah salin, file unduhan boleh dihapus.</p>
+    <p class="muted" style="margin-top:6px">Model yang diunduh dari aplikasi langsung masuk ke folder app. Untuk file dari Download, pilih file GGUF; setelah impor selesai, Anda bisa menghapus file sumber.</p>
   </div>
   <div class="card"><h4><svg class="i"><use href="#i-cpu"/></svg>Model Aktif</h4>
-    <div class="row"><b style="word-break:break-all">qwen2.5-coder-7b-instruct-q3_k_m.gguf</b></div>
-    <div class="row" style="margin-top:6px"><span class="dot off" id="mDot"></span><span id="mState" class="muted">Belum dimuat</span><span class="sp"></span><span class="pill">Q3_K_M</span></div>
+    <div class="row"><b id="mName" style="word-break:break-all">Belum ada model</b></div>
+    <div class="row" style="margin-top:6px"><span class="dot off" id="mDot"></span><span id="mState" class="muted">Belum dimuat</span><span class="sp"></span><span class="pill" id="mQuantPill">–</span></div>
     <div class="stats" style="margin-top:10px">
-      <div class="stat"><span class="muted">Ukuran</span><b>3.55 GB</b></div>
-      <div class="stat"><span class="muted">Kuantisasi</span><b>3-bit</b></div>
-      <div class="stat"><span class="muted">RAM disarankan</span><b>6–7 GB</b></div>
+      <div class="stat"><span class="muted">Ukuran</span><b id="mSize">–</b></div>
+      <div class="stat"><span class="muted">Kuantisasi</span><b id="mQuant">–</b></div>
+      <div class="stat"><span class="muted">RAM disarankan</span><b>6 GB+</b></div>
       <div class="stat"><span class="muted">Kecepatan</span><b id="mSpd">– tok/s</b></div>
     </div>
-    <p class="muted" style="margin-top:8px">Rekomendasi: upgrade ke Q4_K_M (4.2 GB) bila RAM 8 GB.</p>
+    <p class="muted" style="margin-top:8px">Untuk perangkat 6 GB, mulai dari model 1.5B atau 3B. Model 7B tetap dapat gagal dimuat tergantung RAM yang tersedia dan beban sistem.</p>
     <div class="btns">
       <button class="btn pri" onclick="loadModel()"><svg class="i"><use href="#i-bolt"/></svg>Muat Model</button>
+      <button class="btn" onclick="pickModelFile()"><svg class="i"><use href="#i-folder"/></svg>Pilih GGUF dari Download</button>
       <button class="btn" onclick="bench()"><svg class="i"><use href="#i-flask"/></svg>Test Kecepatan</button>
       <button class="btn" onclick="toast('Detail model: Qwen2.5-Coder 7B Instruct')"><svg class="i"><use href="#i-info"/></svg>Detail</button>
-      <button class="btn" onclick="toast('Membuka folder model…')"><svg class="i"><use href="#i-folder"/></svg>Folder</button>
       <button class="btn dng" onclick="toast('Konfirmasi hapus lewat aplikasi','bad')"><svg class="i"><use href="#i-trash"/></svg>Hapus</button>
     </div>
   </div>
-  <div class="card"><div class="row"><div><b>Auto load saat buka APK</b><div class="muted">ON: cari model otomatis & muat ±15 detik</div></div><span class="sp"></span><button class="sw" id="swAuto" onclick="tgl('auto',this)"></button></div></div>
-  <div class="card"><h4><svg class="i"><use href="#i-save"/></svg>Download Manager</h4>
-    <div class="row muted"><span id="dlName">Tidak ada unduhan aktif</span><span class="sp"></span><span id="dlSpd"></span></div>
+  <div class="card"><h4><svg class="i"><use href="#i-save"/></svg>Model rekomendasi untuk RAM 6 GB</h4>
+    <p class="muted" style="margin-bottom:10px">Unduhan disimpan langsung ke folder privat aplikasi. Ukuran perkiraan; perlu koneksi internet dan ruang penyimpanan.</p>
+    <div id="modelCatalog"><span class="muted">Memuat daftar model…</span></div>
+    <div class="row muted" style="margin-top:10px"><span id="dlName">Tidak ada unduhan aktif</span><span class="sp"></span><span id="dlSpd"></span></div>
     <div class="bar"><b id="dlBar" style="width:0"></b></div>
-    <div class="row muted"><span id="dlPct">0%</span></div>
-    <div class="btns">
-      <button class="btn pri" onclick="startDl('Q3_K_M 3.81 GB',3.81)"><svg class="i"><use href="#i-save"/></svg>Unduh Q3</button>
-      <button class="btn" onclick="startDl('Q4_K_M 4.2 GB (lebih pintar)',4.2)"><svg class="i"><use href="#i-save"/></svg>Unduh Q4_K_M</button>
-      <button class="btn" id="dlPause" onclick="pauseDl()"><svg class="i"><use href="#i-pause"/></svg>Jeda</button><button class="btn dng" onclick="cancelDl()"><svg class="i"><use href="#i-x"/></svg>Batal</button>
-    </div>
+    <div class="row muted"><span id="dlPct">0%</span><span class="sp"></span><button class="btn dng sm" id="dlCancel" style="display:none" onclick="cancelModelDownload()">Batal</button></div>
   </div>
+  <div class="card"><div class="row"><div><b>Auto load saat buka APK</b><div class="muted">ON: cari model otomatis & muat ±15 detik</div></div><span class="sp"></span><button class="sw" id="swAuto" onclick="tgl('auto',this)"></button></div></div>
 </div></section>
 
 <!-- ===== KONEKTOR ===== -->
@@ -458,8 +455,8 @@ header,nav{transition:transform .8s cubic-bezier(.2,.8,.2,1) .1s}
     <div class="muted err-t" id="sysW" style="color:var(--err);display:none;margin-top:4px">Jangan kosong! Nanti error "Cannot process empty system prompt".</div>
   </div>
   <div class="card"><h4><svg class="i"><use href="#i-sliders"/></svg>Parameter</h4>
-    <label>Context: <b id="vCtx">2048</b></label><input type="range" id="ctx" min="1024" max="8192" step="512" value="2048" oninput="slide()">
-    <div class="thr"><span>1024</span><span>★ 2048 disarankan</span><span>8192</span></div>
+    <label>Context: <b id="vCtx">1024</b></label><input type="range" id="ctx" min="512" max="8192" step="512" value="1024" oninput="slide()">
+    <div class="thr"><span>512</span><span>★ 1024 disarankan untuk RAM 6 GB</span><span>8192</span></div>
     <label>Temperature: <b id="vTmp">0.2</b> <span id="eTmp">😊</span></label><input type="range" id="tmp" min="0" max="1" step="0.05" value="0.2" oninput="slide()">
     <div class="thr"><span>Fokus</span><span>Seimbang</span><span>Kreatif</span></div>
     <label>Threads</label><div class="btns" style="margin-top:0" id="thr"></div>
@@ -476,7 +473,7 @@ header,nav{transition:transform .8s cubic-bezier(.2,.8,.2,1) .1s}
   <div class="card"><h4><svg class="i"><use href="#i-info"/></svg>Dashboard</h4>
     <div class="stats">
       <div class="stat"><span class="muted">RAM</span><b id="dRam">–</b></div>
-      <div class="stat"><span class="muted">Model</span><b>Q3_K_M</b></div>
+      <div class="stat"><span class="muted">Model</span><b id="dashModel">–</b></div>
       <div class="stat"><span class="muted">Baterai</span><b id="dBat">–</b></div>
       <div class="stat"><span class="muted">Konektor</span><b id="dCon">0 aktif</b></div>
     </div>
@@ -578,7 +575,7 @@ try{
 const holder=addMsg('assistant','',Date.now());holder.querySelector('.bubble').innerHTML=`<div class="think-wrap"><div class="think-orb"></div><div class="think-label">Xena sedang berpikir…</div><div class="think-bar"><b></b></div><div class="think-steps" id="thSteps"><span class="on">baca</span><span>analisis</span><span>kode</span><span>jawab</span></div></div>`;
 (function cycleThink(){const steps=holder.querySelectorAll('#thSteps span');if(!steps.length||!busy)return;let i=0;const t=setInterval(()=>{if(!busy||!holder.isConnected){clearInterval(t);return}steps.forEach((s,k)=>s.classList.toggle('on',k===i));i=(i+1)%steps.length},700);holder._thinkT=t})();holder.querySelector('.qa')?.remove();
 let full='';const bub=holder.querySelector('.bubble');const chatEl=$('#chat');const upd=()=>{bub.innerHTML=md(full)+'<span class="caret"></span>';if(S.get('asc',true)&&nearBottom())chatEl.scrollTop=chatEl.scrollHeight};
-const params={system:$('#sys').value,ctx:+$('#ctx').value,temp:+$('#tmp').value,threads:S.get('thr',4),top_p:S.get('topp',.9),top_k:S.get('topk',40),repeat_penalty:S.get('rep',1.1),max_tokens:S.get('maxt',1024)};
+const params={system:$('#sys').value,ctx:+$('#ctx').value,temp:+$('#tmp').value,threads:S.get('thr',2),top_p:S.get('topp',.9),top_k:S.get('topk',40),repeat_penalty:S.get('rep',1.1),max_tokens:S.get('maxt',1024)};
 if(window.Android&&Android.chat){ /* Native: Android.chat(prompt, paramsJson) → panggil window.xenaToken(t) & window.xenaDone() */
   await new Promise(res=>{window.xenaToken=t=>{if(stopFlag)return;full+=t;upd()};window.xenaDone=res;window.xenaError=m=>{toast(m||'Mesin error','bad');logT('❌ '+(m||'Mesin error'));res()};window.xenaStop=()=>stopFlag&&res();Android.chat(p,JSON.stringify(params))});
 }else{await sleep(500);const words=demoReply(p).split(/(\s+)/);for(const w of words){if(stopFlag)break;full+=w;upd();await sleep(S.get('spdms',30)*(.7+Math.random()*.6))}}
@@ -745,15 +742,86 @@ function modelOk(ok,err){
   $('#mDot').className='dot';
   $('#mState').textContent='Siap dipakai (engine)';
   toast('Model siap di engine','ok');
+  refreshModelInfo();
+  renderModelCatalog();
   logT('✅ Model dimuat di native engine');
 }
-function cancelDl(){if(!dlT)return;clearInterval(dlT);dlT=null;dlP=0;$('#dlBar').style.width=0;$('#dlPct').textContent='0%';$('#dlSpd').textContent='';$('#dlName').textContent='Tidak ada unduhan aktif';toast('Unduhan dibatalkan')}
 async function bench(){toast('Menjalankan benchmark…');$('#mSpd').textContent='…';await sleep(1500);const v=(6+Math.random()*4).toFixed(1);$('#mSpd').textContent=v+' tok/s';S.set('spd',v);toast('Kecepatan: '+v+' tok/s','ok')}
-let dlT=null,dlP=0,dlPaused=false,dlTot=0;
-function startDl(n,gb){if(dlT)return toast('Unduhan masih berjalan');dlP=0;dlPaused=false;dlTot=gb;$('#dlName').textContent=n;toast('Mulai unduh '+n);
-dlT=setInterval(()=>{if(dlPaused)return;const sp=(8+Math.random()*10);dlP=Math.min(100,dlP+sp/(gb*10.24));$('#dlBar').style.width=dlP+'%';$('#dlPct').textContent=dlP.toFixed(0)+'%';$('#dlSpd').textContent=sp.toFixed(1)+' MB/s';if(dlP>=100){clearInterval(dlT);dlT=null;$('#dlSpd').textContent='Selesai';toast('Unduhan selesai & disalin ke privat','ok')}},250)}
-function pauseDl(){if(!dlT)return;dlPaused=!dlPaused;$('#dlPause').innerHTML=dlPaused?ic('play')+'Lanjut':ic('pause')+'Jeda'}
-function storage(){let used=3.55,tot=10;try{const j=JSON.parse(Android.storageInfo());used=j.used;tot=j.total}catch(e){}$('#stUsed').textContent=used.toFixed(2)+' GB / '+tot+' GB terpakai';const p=used/tot*100;$('#stBar').style.width=p+'%';$('#stBar').style.background=p>85?'var(--err)':'';$('#stFree').textContent=(tot-used).toFixed(2)+' GB bebas · '+((tot-used)>4?'Cukup':'Hampir penuh');$('#stFree').style.color=(tot-used)>4?'var(--ok)':'var(--err)'}
+let activeModelDownload='';
+function renderModelCatalog(){
+  let models=[];
+  try{if(window.Android&&Android.getRecommendedModels)models=JSON.parse(Android.getRecommendedModels())}catch(e){}
+  const host=$('#modelCatalog');
+  if(!models.length){host.innerHTML='<span class="muted">Daftar model tersedia di APK Xena-AI.</span>';return}
+  host.innerHTML=models.map(m=>`<div class="card" style="margin:10px 0 0">
+    <div class="row"><b>${esc(m.name)}</b><span class="sp"></span><span class="pill">${esc(m.size)}</span></div>
+    <p class="muted" style="margin:6px 0">${esc(m.note)}</p>
+    <div class="row muted"><span>${m.active?'Model aktif':m.installed?'Sudah tersedia':'Belum diunduh'}</span><span class="sp"></span>
+      <button class="btn sm ${m.installed?'pri':''}" onclick="${m.installed?`useRecommendedModel('${esc(m.id)}')`:`downloadRecommendedModel('${esc(m.id)}')`}">${m.installed?'Gunakan':'Unduh'}</button>
+    </div>
+  </div>`).join('');
+}
+function downloadRecommendedModel(id){
+  if(!window.Android||!Android.downloadModel)return toast('Fitur unduh hanya tersedia di APK Xena-AI','bad');
+  if(activeModelDownload)return toast('Tunggu unduhan yang sedang berjalan selesai dulu','bad');
+  activeModelDownload=id;
+  $('#dlName').textContent='Menyiapkan unduhan…';
+  $('#dlPct').textContent='0%';
+  $('#dlBar').style.width='0%';
+  $('#dlCancel').style.display='';
+  try{Android.downloadModel(id)}catch(e){window.xenaModelDownloadComplete(id,false,e.message||'Gagal memulai unduhan')}
+}
+function useRecommendedModel(id){
+  if(!window.Android||!Android.useModel)return toast('Fitur model hanya tersedia di APK Xena-AI','bad');
+  $('#mState').textContent='Memuat model ke engine…';
+  try{Android.useModel(id)}catch(e){modelOk(false,e.message)}
+}
+function cancelModelDownload(){
+  if(!activeModelDownload||!window.Android||!Android.cancelModelDownload)return;
+  try{Android.cancelModelDownload(activeModelDownload)}catch(e){}
+  $('#dlName').textContent='Unduhan dibatalkan';
+  $('#dlCancel').style.display='none';
+  activeModelDownload='';
+  renderModelCatalog();
+}
+function pickModelFile(){
+  if(!window.Android||!Android.pickModelFile)return toast('Pemilih file hanya tersedia di APK Xena-AI','bad');
+  try{Android.pickModelFile()}catch(e){toast('Tidak bisa membuka pemilih file','bad')}
+}
+function refreshModelInfo(){
+  try{
+    if(!window.Android||!Android.getModelInfo)return;
+    const m=JSON.parse(Android.getModelInfo());
+    const name=(m.path||'').split(/[\\/]/).pop();
+    if(name){const q=(name.match(/q[2345]_[a-z0-9_]+/i)||[])[0]||'GGUF';$('#mName').textContent=name;$('#mSize').textContent=m.size||'–';$('#mQuant').textContent=q;$('#mQuantPill').textContent=q;$('#dashModel').textContent=q}
+  }catch(e){}
+}
+window.xenaModelDownloadProgress=function(id,pct,speed){
+  if(id!==activeModelDownload)return;
+  $('#dlName').textContent='Mengunduh model…';
+  $('#dlBar').style.width=pct+'%';
+  $('#dlPct').textContent=pct+'%';
+  $('#dlSpd').textContent=speed>0?speed.toFixed(1)+' MB/s':'';
+};
+window.xenaModelDownloadComplete=function(id,ok,message){
+  if(id===activeModelDownload){$('#dlCancel').style.display='none';$('#dlSpd').textContent='';$('#dlName').textContent=message||'';activeModelDownload=''}
+  renderModelCatalog();
+  if(ok){$('#dlBar').style.width='100%';$('#dlPct').textContent='100%';toast(message||'Unduhan selesai. Tekan Gunakan untuk memuat model','ok')}
+  else toast(message||'Unduhan gagal','bad');
+};
+window.xenaModelImportProgress=function(pct){
+  $('#dlName').textContent='Menyalin model ke folder aplikasi…';
+  $('#dlBar').style.width=pct+'%';
+  $('#dlPct').textContent=pct+'%';
+};
+window.xenaModelImportFinished=function(fileName){
+  $('#dlName').textContent='Model tersimpan: '+fileName;
+  $('#dlBar').style.width='100%';
+  $('#dlPct').textContent='100%';
+  refreshModelInfo();
+  renderModelCatalog();
+};
+function storage(){let used=0,tot=0;try{const j=JSON.parse(Android.storageInfo());used=j.used;tot=j.total}catch(e){}if(!tot)return;$('#stUsed').textContent=used.toFixed(2)+' GB / '+tot.toFixed(2)+' GB terpakai';const p=tot?used/tot*100:0;$('#stBar').style.width=p+'%';$('#stBar').style.background=p>85?'var(--err)':'';$('#stFree').textContent=(tot-used).toFixed(2)+' GB bebas · '+((tot-used)>4?'Cukup':'Hampir penuh');$('#stFree').style.color=(tot-used)>4?'var(--ok)':'var(--err)'}
 
 /* ---------- konektor ---------- */
 const CON=[['github','GitHub','Repo v1-byte/Xena-Ai','github'],['cloudflare','Cloudflare','Workers & tunnel','cloud'],['meta','Meta','Llama & Meta AI API','meta'],['hf','Hugging Face','Unduh model GGUF','hf']];
@@ -819,7 +887,7 @@ function loadTpl(k){if(!k)return;$('#sys').value=TPL[k];saveSys();toast('Templat
 function saveSys(){const v=$('#sys').value;$('#sys').classList.toggle('err',!v.trim());$('#sysW').style.display=v.trim()?'none':'block';S.set('sys',v)}
 function slide(){const c=+$('#ctx').value,t=+$('#tmp').value;$('#vCtx').textContent=c;$('#vTmp').textContent=t.toFixed(2);$('#eTmp').textContent=t<.15?'😶':t<.6?'😊':'🤪';S.set('ctx',c);S.set('tmp',t);
 $('#effect').textContent=c>4096?'Konteks panjang: ingat lebih banyak tapi lebih lambat & boros RAM.':c<=1536?'Lebih cepat tapi cepat lupa konteks.':'Seimbang untuk RAM 6 GB.'}
-function buildThr(){const cur=S.get('thr',4);$('#thr').innerHTML=[2,4,6,8].map(n=>`<button class="btn sm ${n===cur?'pri':''}" onclick="S.set('thr',${n});buildThr();toast('Threads: ${n}','ok')">${n}</button>`).join('')+`<span class="muted" style="align-self:center">HP: ${navigator.hardwareConcurrency||8} core</span>`}
+function buildThr(){const cur=S.get('thr',2);$('#thr').innerHTML=[2,4,6,8].map(n=>`<button class="btn sm ${n===cur?'pri':''}" onclick="S.set('thr',${n});buildThr();toast('Threads: ${n}','ok')">${n}</button>`).join('')+`<span class="muted" style="align-self:center">HP: ${navigator.hardwareConcurrency||8} core</span>`}
 function exportSet(){const o={};Object.keys(localStorage).filter(k=>/^xena_/.test(k)&&!/^xena_(chats|cid|pin)$/.test(k)&&(S.get('etok',false)||!/^xena_tok_/.test(k))).forEach(k=>o[k.slice(5)]=S.get(k.slice(5)));dl('xena-settings.json',JSON.stringify(o,null,2),'application/json');toast('Settings diekspor','ok')}
 function importSet(el){const f=el.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const o=JSON.parse(r.result);for(const k in o)if(/^[a-z0-9_]{1,30}$/i.test(k)&&k!=='pin')S.set(k,o[k]);toast('Settings dipulihkan','ok');setTimeout(()=>location.reload(),700)}catch(e){toast('File tidak valid','bad')}};r.readAsText(f);el.value=''}
 async function clearCache(){if(!await sure('Hapus semua riwayat chat?'))return;const n=chats.length;chats=[];cid=null;persist();renderChat();renderHist();toast('Cache & riwayat ('+n+' chat) dibersihkan','ok')}
@@ -863,7 +931,7 @@ const SET=[
  [null,'info','Inti CPU',()=>navigator.hardwareConcurrency||'–'],
  [null,'info','Layar',()=>innerWidth+'×'+innerHeight],
  [null,'info','Jaringan',()=>navigator.connection?.effectiveType||(navigator.onLine?'online':'offline')],
- [null,'info','Versi','v1.3.0']]]];
+ [null,'info','Versi','v1.3.6']]]];
 const FLAT=SET.flatMap(g=>g[2]);
 function buildSettings(){$('#setx').innerHTML=SET.map(([i,t,rows])=>`<div class="card"><h4>${ic(i)}${t}</h4>${rows.map(r=>{const[k,ty,l]=r;let c='';
 if(ty==='sw')c=`<button class="sw${S.get(k,r[3])?' on':''}" onclick="sw('${k}',this,${r[3]})"></button>`;
@@ -934,13 +1002,13 @@ async function boot(){
   }
   endSplash()
 }
-function endSplashfunction endSplash(){if(document.body.classList.contains('ready'))return;$('#splash').classList.add('hide');document.body.classList.add('ready');if(S.get('pin',''))$('#lock').classList.add('on')}
+function endSplash(){if(document.body.classList.contains('ready'))return;$('#splash').classList.add('hide');document.body.classList.add('ready');if(S.get('pin',''))$('#lock').classList.add('on')}
 
 /* ---------- init ---------- */
 
 window.xenaUpdateProgress=function(pct,msg){try{if(typeof toast==='function')toast(msg||('Update '+pct+'%'),'ok');logT&&logT('⬆ '+(msg||pct));}catch(e){}};
 function init(){applySettings();buildSettings();buildThemes();const th=S.get('theme','dark');document.documentElement.dataset.theme=th;$$('.th').forEach(b=>b.classList.toggle('active',b.dataset.t===th));const ac=S.get('accent',null);if(ac){setAccent(ac);$('#accPick').value=ac}
-$('#sys').value=S.get('sys',TPL.agent);saveSys();$('#ctx').value=S.get('ctx',2048);$('#tmp').value=S.get('tmp',.2);slide();buildThr();storage();$('#swAuto').classList.toggle('on',S.get('auto',false));$('#mSpd').textContent=S.get('spd','–')+(S.get('spd')?' tok/s':' tok/s');
+$('#sys').value=S.get('sys',TPL.agent);saveSys();$('#ctx').value=S.get('ctx',1024);$('#tmp').value=S.get('tmp',.2);slide();buildThr();storage();refreshModelInfo();renderModelCatalog();$('#swAuto').classList.toggle('on',S.get('auto',false));$('#mSpd').textContent=S.get('spd','–')+(S.get('spd')?' tok/s':' tok/s');
 buildCon();net();if(!curChat()&&chats.length)cid=chats[0].id;renderChat();$('#navInd').style.transform='translateX(0)';
 document.querySelector('meta[name=theme-color]').content=getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
 if(S.get('auto',false))setTimeout(loadModel,2600);

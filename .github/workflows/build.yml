@@ -3,13 +3,15 @@ name: Build Android APK
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  build:
+  validate:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
@@ -20,8 +22,7 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
+      - uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: "8.2.1"
 
@@ -41,11 +42,10 @@ jobs:
           echo "ANDROID_SDK_ROOT=$SDK" >> $GITHUB_ENV
           echo "PATH=$SDK/cmdline-tools/latest/bin:$SDK/platform-tools:$PATH" >> $GITHUB_ENV
 
-      - name: local.properties
+      - name: Configure Android SDK paths
         run: |
           echo "sdk.dir=$ANDROID_HOME" > local.properties
           echo "ndk.dir=$ANDROID_HOME/ndk/26.1.10909125" >> local.properties
-          cat local.properties
 
       - name: Build debug APK
         run: gradle assembleDebug --stacktrace
@@ -56,28 +56,105 @@ jobs:
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
 
+  release:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: "8.2.1"
+
+      - name: Install Android SDK (cmdline-tools)
+        run: |
+          SDK=$HOME/android-sdk
+          mkdir -p "$SDK/cmdline-tools"
+          curl -fsSL https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -o /tmp/cmdtools.zip
+          rm -rf "$SDK/cmdline-tools/latest"
+          unzip -q /tmp/cmdtools.zip -d "$SDK/cmdline-tools"
+          mv "$SDK/cmdline-tools/cmdline-tools" "$SDK/cmdline-tools/latest"
+          export ANDROID_HOME=$SDK
+          export PATH=$SDK/cmdline-tools/latest/bin:$SDK/platform-tools:$PATH
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0" "ndk;26.1.10909125" "cmake;3.22.1"
+          echo "ANDROID_HOME=$SDK" >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=$SDK" >> $GITHUB_ENV
+          echo "PATH=$SDK/cmdline-tools/latest/bin:$SDK/platform-tools:$PATH" >> $GITHUB_ENV
+
+      - name: Configure Android SDK paths
+        run: |
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          echo "ndk.dir=$ANDROID_HOME/ndk/26.1.10909125" >> local.properties
+
+      - name: Check release signing configuration
+        id: signing
+        run: |
+          if [[ -n "$ANDROID_KEYSTORE_BASE64" && -n "$ANDROID_KEYSTORE_PASSWORD" && -n "$ANDROID_KEY_ALIAS" && -n "$ANDROID_KEY_PASSWORD" ]]; then
+            printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/xena-release.keystore"
+            chmod 600 "$RUNNER_TEMP/xena-release.keystore"
+            echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/xena-release.keystore" >> "$GITHUB_ENV"
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+
+      - name: Read app version
+        id: app_version
+        run: |
+          VERSION_NAME=$(sed -nE 's/^[[:space:]]*versionName = "([^"]+)".*/\1/p' app/build.gradle.kts | head -n 1)
+          test -n "$VERSION_NAME"
+          echo "name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Build signed release APK
+        if: steps.signing.outputs.configured == 'true'
+        run: gradle assembleRelease --stacktrace
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+
+      - uses: actions/upload-artifact@v4
+        if: steps.signing.outputs.configured == 'true'
+        with:
+          name: xena-ai-release-apk
+          path: app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+
+      - name: Skip publishing without signing key
+        if: steps.signing.outputs.configured != 'true'
+        run: echo "::notice title=Release skipped::Configure the existing Android signing key in GitHub Actions secrets to publish an updateable APK."
+
       - name: Create GitHub Release
+        if: steps.signing.outputs.configured == 'true'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.3.5
-          name: Xena-AI v1.3.5
+          tag_name: v${{ steps.app_version.outputs.name }}
+          name: Xena-AI v${{ steps.app_version.outputs.name }}
           body: |
-            ## Xena-AI v1.3.5 — real llama.cpp JNI
+            ## Xena-AI v${{ steps.app_version.outputs.name }}
 
-            - UI v1.2 full-screen (Chat / Model / Konektor / Atur)
-            - Bridge `Android.chat`, `loadModel`, `stop`, `storageInfo`
-            - Connectors (token lokal)
-            - JNI `libllama.so` built from llama.cpp (CPU arm64) (ganti dengan llama.cpp asli untuk inference penuh)
+            - Auto-import and download recommended GGUF models
+            - Lower-memory defaults for 6 GB devices
+            - Safer in-app update checks with APK digest verification
 
-            ### Install
-            Unduh `app-debug.apk`, install di HP (izinkan sumber tidak dikenal).
-
-            ### Model
-            Letakkan `qwen2.5-coder-7b-instruct-q3_k_m.gguf` di Download atau folder app.
-
-            ### Catatan
-            Stub native tidak menjalankan GGUF — untuk chat lokal penuh, bangun `libllama.so` asli.
-          files: app/build/outputs/apk/debug/*.apk
+            Android requires the user to confirm APK installation.
+          files: app/build/outputs/apk/release/app-release.apk
+          fail_on_unmatched_files: true
           draft: false
           prerelease: false
           generate_release_notes: true

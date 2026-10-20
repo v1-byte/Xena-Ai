@@ -1,18 +1,25 @@
 package com.xena.ai
 
 import android.annotation.SuppressLint
+import android.app.AlertDialog
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import android.provider.DocumentsContract
 import android.util.Log
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import org.json.JSONObject
+import java.io.File
 
 class MainActivity : AppCompatActivity() {
     private val TAG = "XENA-Main"
+    private val PICK_MODEL_REQUEST = 9421
     private lateinit var statusText: TextView
     private lateinit var topStatus: TextView
     private lateinit var bottomNav: BottomNavigationView
@@ -36,55 +43,172 @@ class MainActivity : AppCompatActivity() {
         // UI v1.2 has its own tab bar; hide native bottom nav visual clutter
         bottomNav.visibility = android.view.View.GONE
         autoLoadModelIfExists(notifyUi = false)
-        // Auto-update dari GitHub Releases (unduh + dialog install)
+        // Cek update saat startup; pemasangan tetap dikonfirmasi Android.
         webView.postDelayed({
-            UpdateChecker.checkAndUpdate(this@MainActivity, force = true, silent = false)
+            UpdateChecker.checkAndUpdate(this@MainActivity, force = false, silent = true)
         }, 2500)
     }
 
     fun autoLoadModelIfExists(notifyUi: Boolean = true) {
         val modelFile = ModelAutoLoader.ensurePrivateModel(this)
         if (modelFile != null) {
-            val size = ModelAutoLoader.getModelSizeMB(this)
-            statusText.text = "Auto memuat XENA model $size…"
-            topStatus.text = "Loading XENA…"
-            AppPrefs.saveLastModelPath(this, modelFile.absolutePath)
-            Log.d(TAG, "XENA Auto loading: ${modelFile.absolutePath}")
-            Thread {
-                try {
-                    val success = LlamaBridge.loadModel(
-                        modelFile.absolutePath,
-                        AppPrefs.getNctx(this),
-                        AppPrefs.getNBatch(this),
-                        AppPrefs.getNThreads(this),
-                        true,
-                        false
-                    )
-                    runOnUiThread {
-                        if (success) {
-                            statusText.text =
-                                "✅ XENA-AI Model siap — ${modelFile.name} ($size)"
-                            topStatus.text = "Ready — XENA"
-                            if (notifyUi) notifyModelReady(true)
-                        } else {
-                            statusText.text = "❌ XENA gagal auto load (native/lib?)"
-                            topStatus.text = "Error"
-                            if (notifyUi) notifyModelReady(false)
-                        }
-                    }
-                } catch (e: Exception) {
-                    runOnUiThread {
-                        statusText.text = "XENA Error auto: ${e.message}"
-                        topStatus.text = "Error"
-                        if (notifyUi) notifyModelReady(false)
-                    }
-                }
-            }.start()
+            loadModelFile(modelFile, notifyUi)
         } else {
-            statusText.text = "Model belum ada. Letakkan GGUF di Download / files app"
+            statusText.text = "Model belum ada. Unduh model atau pilih file GGUF."
             topStatus.text = "No Model"
             if (notifyUi) notifyModelReady(false)
         }
+    }
+
+    private fun loadModelFile(modelFile: File, notifyUi: Boolean) {
+        val size = ModelAutoLoader.getModelSizeMB(this, modelFile)
+        statusText.text = "Memuat model ${modelFile.name} ($size)…"
+        topStatus.text = "Loading XENA…"
+        AppPrefs.saveLastModelPath(this, modelFile.absolutePath)
+        Log.d(TAG, "XENA loading model: ${modelFile.absolutePath}")
+        Thread {
+            try {
+                val success = LlamaBridge.loadModel(
+                    modelFile.absolutePath,
+                    AppPrefs.getNctx(this),
+                    AppPrefs.getNBatch(this),
+                    AppPrefs.getNThreads(this),
+                    true,
+                    false
+                )
+                runOnUiThread {
+                    if (success) {
+                        statusText.text = "✅ XENA-AI Model siap — ${modelFile.name} ($size)"
+                        topStatus.text = "Ready — XENA"
+                    } else {
+                        statusText.text = "❌ Model gagal dimuat: ${LlamaBridge.lastError}"
+                        topStatus.text = "Error"
+                    }
+                    if (notifyUi) notifyModelReady(success)
+                }
+            } catch (e: Exception) {
+                runOnUiThread {
+                    statusText.text = "XENA Error: ${e.message}"
+                    topStatus.text = "Error"
+                    if (notifyUi) notifyModelReady(false)
+                }
+            }
+        }.start()
+    }
+
+    private fun openModelPicker() {
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "*/*"
+            addFlags(
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                    Intent.FLAG_GRANT_WRITE_URI_PERMISSION or
+                    Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
+            )
+        }
+        try {
+            startActivityForResult(intent, PICK_MODEL_REQUEST)
+        } catch (e: Exception) {
+            Toast.makeText(this, "Pemilih file tidak tersedia: ${e.message}", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    @Deprecated("Deprecated in Android API; retained for broad device compatibility")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode != PICK_MODEL_REQUEST || resultCode != RESULT_OK) return
+        val resultData = data ?: return
+        val uri = resultData.data ?: return
+        val flags = resultData.flags and
+            (Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+        try {
+            contentResolver.takePersistableUriPermission(uri, flags)
+        } catch (_: Exception) {
+            // Some document providers grant a temporary permission only.
+        }
+        Toast.makeText(this, "Menyalin model ke folder aplikasi…", Toast.LENGTH_LONG).show()
+        Thread {
+            try {
+                val file = ModelAutoLoader.importModelFromUri(this, uri) { copied, total ->
+                    val percent = if (total > 0L) ((copied * 100L) / total).toInt().coerceIn(0, 99) else 0
+                    runOnUiThread {
+                        evalJs(
+                            "if(typeof window.xenaModelImportProgress==='function'){window.xenaModelImportProgress($percent)}"
+                        )
+                    }
+                }
+                runOnUiThread {
+                    evalJs(
+                        "if(typeof window.xenaModelImportFinished==='function'){window.xenaModelImportFinished(${JSONObject.quote(file.name)})}"
+                    )
+                    loadModelFile(file, notifyUi = true)
+                    AlertDialog.Builder(this)
+                        .setTitle("Model berhasil diimpor")
+                        .setMessage("Model sudah disimpan di folder aplikasi. Hapus file sumber dari Downloads untuk menghemat ruang?")
+                        .setNegativeButton("Simpan file sumber", null)
+                        .setPositiveButton("Hapus sumber") { _, _ ->
+                            val deleted = try {
+                                DocumentsContract.deleteDocument(contentResolver, uri)
+                            } catch (_: Exception) {
+                                false
+                            }
+                            Toast.makeText(
+                                this,
+                                if (deleted) "File sumber dihapus" else "Izin hapus tidak tersedia; hapus file sumber lewat Files",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                        .show()
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "import model failed: ${e.message}")
+                runOnUiThread {
+                    Toast.makeText(
+                        this,
+                        "Gagal mengimpor model: ${e.message ?: "kesalahan file"}",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        }.start()
+    }
+
+    private fun downloadRecommendedModel(id: String) {
+        val started = ModelAutoLoader.startDownload(
+            this,
+            id,
+            onProgress = { percent, speed ->
+                val safeId = JSONObject.quote(id)
+                runOnUiThread {
+                    evalJs(
+                        "if(typeof window.xenaModelDownloadProgress==='function'){window.xenaModelDownloadProgress($safeId,$percent,$speed)}"
+                    )
+                }
+            },
+            onComplete = { success, message ->
+                val safeId = JSONObject.quote(id)
+                val safeMessage = JSONObject.quote(message)
+                runOnUiThread {
+                    evalJs(
+                        "if(typeof window.xenaModelDownloadComplete==='function'){window.xenaModelDownloadComplete($safeId,$success,$safeMessage)}"
+                    )
+                }
+            }
+        )
+        if (!started) {
+            evalJs(
+                "if(typeof window.xenaModelDownloadComplete==='function'){window.xenaModelDownloadComplete(${JSONObject.quote(id)},false,'Unduhan model sedang berjalan atau tidak tersedia')}"
+            )
+        }
+    }
+
+    private fun useRecommendedModel(id: String) {
+        val file = ModelAutoLoader.findModel(this, id)
+        if (file == null) {
+            Toast.makeText(this, "Model belum diunduh", Toast.LENGTH_SHORT).show()
+            return
+        }
+        loadModelFile(file, notifyUi = true)
     }
 
     private fun notifyModelReady(ok: Boolean) {
@@ -99,6 +223,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        UpdateChecker.resumePendingInstall(this)
         // Cek update tiap kali app kembali aktif (throttle di UpdateChecker)
         webView.postDelayed({
             if (!isFinishing) {
@@ -234,10 +359,36 @@ class MainActivity : AppCompatActivity() {
         }
 
         @android.webkit.JavascriptInterface
+        fun getRecommendedModels(): String = ModelAutoLoader.recommendedModelsJson(context)
+
+        @android.webkit.JavascriptInterface
+        fun downloadModel(modelId: String) {
+            activity.runOnUiThread { activity.downloadRecommendedModel(modelId) }
+        }
+
+        @android.webkit.JavascriptInterface
+        fun cancelModelDownload(modelId: String) {
+            activity.runOnUiThread {
+                ModelAutoLoader.cancelDownload(context, modelId)
+            }
+        }
+
+        @android.webkit.JavascriptInterface
+        fun useModel(modelId: String) {
+            activity.runOnUiThread { activity.useRecommendedModel(modelId) }
+        }
+
+        @android.webkit.JavascriptInterface
+        fun pickModelFile() {
+            activity.runOnUiThread { activity.openModelPicker() }
+        }
+
+        @android.webkit.JavascriptInterface
         fun storageInfo(): String {
             return try {
-                val free = activity.filesDir.usableSpace.toDouble() / (1024 * 1024 * 1024)
-                val total = activity.filesDir.totalSpace.toDouble() / (1024 * 1024 * 1024)
+                val storageRoot = activity.getExternalFilesDir(null) ?: activity.filesDir
+                val free = storageRoot.usableSpace.toDouble() / (1024 * 1024 * 1024)
+                val total = storageRoot.totalSpace.toDouble() / (1024 * 1024 * 1024)
                 val used = (total - free).coerceAtLeast(0.0)
                 JSONObject()
                     .put("used", String.format(java.util.Locale.US, "%.2f", used).toDouble())
