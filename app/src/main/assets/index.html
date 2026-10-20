@@ -552,10 +552,51 @@ let tx=null;document.addEventListener('touchstart',e=>{tx=e.touches[0].clientX<2
 
 /* ---------- model ---------- */
 function tgl(k,el){const v=!S.get(k,false);S.set(k,v);el.classList.toggle('on',v);toast(v?'Auto load aktif':'Auto load mati','ok')}
-async function loadModel(){if($('#mDot').dataset.l)return toast('Model sudah dimuat','ok');$('#mState').textContent='Memuat 3.55 GB…';toast('Memuat model 3.55 GB…');
-if(window.Android&&Android.loadModel){window.xenaModelReady=modelOk;Android.loadModel();return}
-await sleep(1800);$('#mDot').dataset.l=1;$('#mDot').className='dot';$('#mState').textContent='Siap dipakai';toast('Model siap','ok')}
-function modelOk(){$('#mDot').dataset.l=1;$('#mDot').className='dot';$('#mState').textContent='Siap dipakai';toast('Model siap','ok');logT('✅ Model dimuat')}
+async function loadModel(force){
+  // Cek status native dulu — jangan percaya flag UI saja
+  let nativeReady=false;
+  try{ if(window.Android&&Android.isModelReady) nativeReady=!!Android.isModelReady(); }catch(e){}
+  if(!force && nativeReady){ modelOk(true); return toast('Model sudah dimuat di engine','ok'); }
+  $('#mDot').dataset.l=''; $('#mDot').className='dot off';
+  $('#mState').textContent='Memuat model ke engine…';
+  toast('Memuat model 3.55 GB ke RAM — tunggu 15–60 detik','ok');
+  if(window.Android&&Android.loadModel){
+    window.xenaModelReady=modelOk;
+    try{ Android.loadModel(); }catch(e){ modelOk(false); toast('Gagal panggil loadModel: '+e.message,'bad'); }
+    return;
+  }
+  // Tanpa bridge native: jangan pura-pura sukses
+  $('#mState').textContent='Bridge native tidak ada';
+  toast('Buka di APK Xena-AI, bukan browser','bad');
+  logT('❌ Android.loadModel tidak tersedia');
+}
+function modelOk(ok){
+  // Native memanggil window.xenaModelReady(true/false)
+  if(ok===false || ok===0 || ok==='false'){
+    $('#mDot').dataset.l='';
+    $('#mDot').className='dot bad';
+    $('#mState').textContent='Gagal muat ke engine';
+    toast('File GGUF ketemu, tapi engine gagal load (RAM/path/lib). Coba Muat Model lagi.','bad');
+    logT('❌ nativeLoadModel gagal — file ada tapi belum di RAM engine');
+    return;
+  }
+  // Konfirmasi ulang ke native
+  let ready=true;
+  try{ if(window.Android&&Android.isModelReady) ready=!!Android.isModelReady(); }catch(e){}
+  if(!ready && window.Android){
+    $('#mDot').dataset.l='';
+    $('#mDot').className='dot bad';
+    $('#mState').textContent='Belum ready di engine';
+    toast('Engine belum siap. Tekan Muat Model.','bad');
+    logT('❌ isModelReady=false setelah callback');
+    return;
+  }
+  $('#mDot').dataset.l=1;
+  $('#mDot').className='dot';
+  $('#mState').textContent='Siap dipakai (engine)';
+  toast('Model siap di engine','ok');
+  logT('✅ Model dimuat di native engine');
+}
 function cancelDl(){if(!dlT)return;clearInterval(dlT);dlT=null;dlP=0;$('#dlBar').style.width=0;$('#dlPct').textContent='0%';$('#dlSpd').textContent='';$('#dlName').textContent='Tidak ada unduhan aktif';toast('Unduhan dibatalkan')}
 async function bench(){toast('Menjalankan benchmark…');$('#mSpd').textContent='…';await sleep(1500);const v=(6+Math.random()*4).toFixed(1);$('#mSpd').textContent=v+' tok/s';S.set('spd',v);toast('Kecepatan: '+v+' tok/s','ok')}
 let dlT=null,dlP=0,dlPaused=false,dlTot=0;

@@ -59,10 +59,10 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.2.1
-          name: Xena-AI v1.2.1
+          tag_name: v1.2.2
+          name: Xena-AI v1.2.2
           body: |
-            ## Xena-AI v1.2.1 — real llama.cpp JNI
+            ## Xena-AI v1.2.2 — real llama.cpp JNI
 
             - UI v1.2 full-screen (Chat / Model / Konektor / Atur)
             - Bridge `Android.chat`, `loadModel`, `stop`, `storageInfo`
