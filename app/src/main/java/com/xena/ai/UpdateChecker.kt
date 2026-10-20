@@ -3,6 +3,7 @@ package com.xena.ai
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
@@ -14,6 +15,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
+import java.security.MessageDigest
 
 /**
  * Cek GitHub Releases dan unduh APK terbaru.
@@ -159,6 +161,29 @@ object UpdateChecker {
         } else true
     }
 
+    /** Avoid an Android installer failure when a published APK changes signing key. */
+    fun hasCompatibleSigningCertificate(context: Context, apk: File): Boolean {
+        return try {
+            val pm = context.packageManager
+            if (Build.VERSION.SDK_INT >= 28) {
+                val installed = pm.getPackageInfo(context.packageName, PackageManager.GET_SIGNING_CERTIFICATES)
+                    .signingInfo?.apkContentsSigners ?: return false
+                val downloaded = pm.getPackageArchiveInfo(apk.absolutePath, PackageManager.GET_SIGNING_CERTIFICATES)
+                    ?.signingInfo?.apkContentsSigners ?: return false
+                installed.any { old -> downloaded.any { fresh -> MessageDigest.isEqual(old.toByteArray(), fresh.toByteArray()) } }
+            } else {
+                @Suppress("DEPRECATION")
+                val installed = pm.getPackageInfo(context.packageName, PackageManager.GET_SIGNATURES).signatures ?: return false
+                @Suppress("DEPRECATION")
+                val downloaded = pm.getPackageArchiveInfo(apk.absolutePath, PackageManager.GET_SIGNATURES)?.signatures ?: return false
+                installed.any { old -> downloaded.any { fresh -> MessageDigest.isEqual(old.toByteArray(), fresh.toByteArray()) } }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "signer check failed: ${e.message}")
+            false
+        }
+    }
+
     fun openInstallPermissionSettings(activity: Activity) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
@@ -204,7 +229,8 @@ object UpdateChecker {
                     Log.d(TAG, "no release info")
                     return@Thread
                 }
-                if (!isNewer(info.tag, local) && !force) {
+                // force skips the throttle only; never redownload/install the same or an older release.
+                if (!isNewer(info.tag, local)) {
                     Log.d(TAG, "up to date local=$local remote=${info.tag}")
                     if (!silent) {
                         activity.runOnUiThread {
@@ -241,6 +267,17 @@ object UpdateChecker {
                 if (file == null) {
                     activity.runOnUiThread {
                         Toast.makeText(activity, "Gagal unduh update", Toast.LENGTH_LONG).show()
+                    }
+                    return@Thread
+                }
+                if (!hasCompatibleSigningCertificate(activity, file)) {
+                    activity.runOnUiThread {
+                        Toast.makeText(
+                            activity,
+                            "Kunci APK berbeda. Export/cadangkan data, hapus versi lama, lalu pasang APK baru. Update otomatis berikutnya akan kompatibel.",
+                            Toast.LENGTH_LONG
+                        ).show()
+                        activity.webViewEval("if(typeof window.xenaUpdateProgress==='function'){window.xenaUpdateProgress(100,'Perlu pasang ulang satu kali: kunci APK berubah')}")
                     }
                     return@Thread
                 }

@@ -26,12 +26,21 @@ object AppPrefs {
         getPrefs(context).edit().putString("system_prompt", prompt).apply()
     }
 
-    /** RAM 6GB defaults */
-    fun getNctx(context: Context): Int = getPrefs(context).getInt("n_ctx", 2048)
+    /** Conservative defaults for phones with 6 GB RAM. */
+    fun getNctx(context: Context): Int {
+        migrateSixGbDefaults(context)
+        return getPrefs(context).getInt("n_ctx", 1024)
+    }
 
-    fun getNBatch(context: Context): Int = getPrefs(context).getInt("n_batch", 128)
+    fun getNBatch(context: Context): Int {
+        migrateSixGbDefaults(context)
+        return getPrefs(context).getInt("n_batch", 32)
+    }
 
-    fun getNThreads(context: Context): Int = getPrefs(context).getInt("n_threads", 4)
+    fun getNThreads(context: Context): Int {
+        migrateSixGbDefaults(context)
+        return getPrefs(context).getInt("n_threads", 2)
+    }
 
     fun getTemperature(context: Context): Float = getPrefs(context).getFloat("temperature", 0.2f)
 
@@ -49,5 +58,15 @@ object AppPrefs {
             .putInt("n_threads", n_threads)
             .putFloat("temperature", temperature)
             .apply()
+    }
+
+    private fun migrateSixGbDefaults(context: Context) {
+        val prefs = getPrefs(context)
+        if (prefs.getBoolean("six_gb_defaults_migrated", false)) return
+        val editor = prefs.edit()
+        if (prefs.getInt("n_ctx", 1024) == 2048) editor.putInt("n_ctx", 1024)
+        if (prefs.getInt("n_batch", 32) == 128) editor.putInt("n_batch", 32)
+        if (prefs.getInt("n_threads", 2) == 4) editor.putInt("n_threads", 2)
+        editor.putBoolean("six_gb_defaults_migrated", true).apply()
     }
 }

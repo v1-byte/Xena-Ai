@@ -12,8 +12,8 @@ android {
         applicationId = "com.xena.ai"
         minSdk = 26
         targetSdk = 34
-        versionCode = 135
-        versionName = "1.3.5"
+        versionCode = 136
+        versionName = "1.3.6"
         ndk {
             abiFilters += listOf("arm64-v8a")
         }
@@ -25,9 +25,19 @@ android {
         }
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = System.getenv("XENA_SIGNING_KEYSTORE_PATH")?.let { file(it) }
+            storePassword = System.getenv("XENA_SIGNING_KEYSTORE_PASSWORD")
+            keyAlias = System.getenv("XENA_SIGNING_KEY_ALIAS") ?: "xena-release"
+            keyPassword = System.getenv("XENA_SIGNING_KEY_PASSWORD") ?: System.getenv("XENA_SIGNING_KEYSTORE_PASSWORD")
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

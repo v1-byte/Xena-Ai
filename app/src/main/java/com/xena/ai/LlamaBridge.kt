@@ -32,28 +32,26 @@ object LlamaBridge {
         }
     }
 
-    /**
-     * Coba beberapa preset RAM: 2048 → 1024 → 512 context.
-     * mmap ON, mlock OFF agar 6GB phone lebih mungkin berhasil.
-     */
+    /** Coba preset konservatif untuk ponsel 6 GB, lalu turunkan context jika perlu. */
+    @Synchronized
     fun loadModel(
         modelPath: String,
-        n_ctx: Int = 2048,
-        n_batch: Int = 128,
-        n_threads: Int = 4,
+        n_ctx: Int = 1024,
+        n_batch: Int = 32,
+        n_threads: Int = 2,
         useMmap: Boolean = true,
         useMlock: Boolean = false
     ): Boolean {
         val attempts = listOf(
-            Triple(n_ctx.coerceAtMost(2048), n_batch.coerceAtMost(128), n_threads.coerceAtMost(4)),
-            Triple(1024, 64, 3),
-            Triple(512, 32, 2)
+            Triple(n_ctx.coerceIn(512, 2048), n_batch.coerceIn(16, 32), n_threads.coerceIn(1, 4)),
+            Triple(768, 24, 2),
+            Triple(512, 16, 1)
         ).distinct()
 
         for ((ctx, batch, thr) in attempts) {
             try {
                 Log.d(TAG, "try load $modelPath ctx=$ctx batch=$batch thr=$thr")
-                val ok = nativeLoadModel(modelPath, ctx, batch, thr, true, false)
+                val ok = nativeLoadModel(modelPath, ctx, batch, thr, useMmap, useMlock)
                 lastError = try { nativeLastError() } catch (_: Throwable) { if (ok) "ok" else "native gagal" }
                 if (ok) {
                     isModelLoaded = true

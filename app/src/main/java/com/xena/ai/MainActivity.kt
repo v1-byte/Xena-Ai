@@ -1,15 +1,21 @@
 package com.xena.ai
 
 import android.annotation.SuppressLint
+import android.net.Uri
 import android.os.Bundle
 import android.util.Log
+import android.provider.DocumentsContract
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.activity.result.contract.ActivityResultContracts
 import com.google.android.material.bottomnavigation.BottomNavigationView
+import org.json.JSONArray
 import org.json.JSONObject
+import android.widget.Toast
+import java.io.File
 
 class MainActivity : AppCompatActivity() {
     private val TAG = "XENA-Main"
@@ -17,7 +23,17 @@ class MainActivity : AppCompatActivity() {
     private lateinit var topStatus: TextView
     private lateinit var bottomNav: BottomNavigationView
     private lateinit var webView: WebView
+    private lateinit var modelDownloads: ModelDownloadManager
+    private val modelOperationLock = Any()
+    @Volatile private var modelLoadInProgress = false
     @Volatile private var stopRequested = false
+    private var firstResume = true
+    @Volatile private var deletePickedSourceAfterImport = false
+    private val modelPicker = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        val moveSource = deletePickedSourceAfterImport
+        deletePickedSourceAfterImport = false
+        if (uri != null) importSelectedModel(uri, moveSource)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -27,6 +43,10 @@ class MainActivity : AppCompatActivity() {
         topStatus = findViewById(R.id.topStatus)
         bottomNav = findViewById(R.id.bottom_navigation)
         webView = findViewById(R.id.webview)
+        modelDownloads = ModelDownloadManager(this)
+        modelDownloads.setListener { snapshot ->
+            runOnUiThread { publishTransfer(snapshot) }
+        }
 
         AppPrefs.getSafeSystemPrompt(this)
         Log.d(TAG, "XENA Safe prompt ready")
@@ -38,21 +58,65 @@ class MainActivity : AppCompatActivity() {
         autoLoadModelIfExists(notifyUi = false)
         // Auto-update dari GitHub Releases (unduh + dialog install)
         webView.postDelayed({
-            UpdateChecker.checkAndUpdate(this@MainActivity, force = true, silent = false)
+            // force hanya melewati throttle; versi yang sama tidak pernah diunduh ulang.
+            UpdateChecker.checkAndUpdate(this@MainActivity, force = true, silent = true)
         }, 2500)
     }
 
     fun autoLoadModelIfExists(notifyUi: Boolean = true) {
-        val modelFile = ModelAutoLoader.ensurePrivateModel(this)
-        if (modelFile != null) {
-            val size = ModelAutoLoader.getModelSizeMB(this)
-            statusText.text = "Auto memuat XENA model $size…"
+        statusText.text = "Memeriksa model GGUF…"
+        topStatus.text = "XENA model…"
+        Thread {
+            try {
+                val modelFile = synchronized(modelOperationLock) {
+                    ModelAutoLoader.ensurePrivateModel(this) { bytes, total ->
+                        val totalValue = total.coerceAtLeast(0L)
+                        publishTransfer(
+                            ModelDownloadManager.Snapshot(
+                                "moving", "", "Model dari Download", bytes, totalValue, 0L,
+                                "Memindahkan model ke penyimpanan aplikasi…"
+                            )
+                        )
+                    }
+                }
+                if (modelFile == null) {
+                    runOnUiThread {
+                        statusText.text = "Belum ada model. Pilih GGUF dari Download atau unduh katalog."
+                        topStatus.text = "Pilih model"
+                        if (notifyUi) notifyModelReady(false)
+                    }
+                    return@Thread
+                }
+                loadModelFile(modelFile, notifyUi)
+            } catch (e: Exception) {
+                Log.e(TAG, "Auto model preparation failed: ${e.message}", e)
+                runOnUiThread {
+                    statusText.text = "Model belum siap: ${e.message}"
+                    topStatus.text = "Error model"
+                    if (notifyUi) notifyModelReady(false)
+                }
+            }
+        }.start()
+    }
+
+    private fun loadModelFile(modelFile: File, notifyUi: Boolean, selectedCallback: Boolean = false) {
+        synchronized(modelOperationLock) {
+            if (modelLoadInProgress) {
+                if (selectedCallback) notifySelectedModel(false, modelFile.name, "Pemuatan model lain masih berlangsung")
+                return
+            }
+            modelLoadInProgress = true
+        }
+        runOnUiThread {
+            statusText.text = "Memuat ${modelFile.name} ke RAM…"
             topStatus.text = "Loading XENA…"
-            AppPrefs.saveLastModelPath(this, modelFile.absolutePath)
-            Log.d(TAG, "XENA Auto loading: ${modelFile.absolutePath}")
-            Thread {
-                try {
-                    val success = LlamaBridge.loadModel(
+        }
+        Thread {
+            var success = false
+            var error = ""
+            try {
+                success = synchronized(modelOperationLock) {
+                    LlamaBridge.loadModel(
                         modelFile.absolutePath,
                         AppPrefs.getNctx(this),
                         AppPrefs.getNBatch(this),
@@ -60,31 +124,111 @@ class MainActivity : AppCompatActivity() {
                         true,
                         false
                     )
-                    runOnUiThread {
-                        if (success) {
-                            statusText.text =
-                                "✅ XENA-AI Model siap — ${modelFile.name} ($size)"
-                            topStatus.text = "Ready — XENA"
-                            if (notifyUi) notifyModelReady(true)
-                        } else {
-                            statusText.text = "❌ XENA gagal auto load (native/lib?)"
-                            topStatus.text = "Error"
-                            if (notifyUi) notifyModelReady(false)
-                        }
-                    }
-                } catch (e: Exception) {
-                    runOnUiThread {
-                        statusText.text = "XENA Error auto: ${e.message}"
-                        topStatus.text = "Error"
-                        if (notifyUi) notifyModelReady(false)
-                    }
                 }
-            }.start()
-        } else {
-            statusText.text = "Model belum ada. Letakkan GGUF di Download / files app"
-            topStatus.text = "No Model"
-            if (notifyUi) notifyModelReady(false)
+                error = if (success) "ok" else LlamaBridge.lastError
+                if (success) AppPrefs.saveLastModelPath(this, modelFile.absolutePath)
+            } catch (e: Throwable) {
+                error = e.message ?: e.javaClass.simpleName
+                Log.e(TAG, "Model load failed: $error", e)
+            } finally {
+                synchronized(modelOperationLock) { modelLoadInProgress = false }
+            }
+            val loaded = success
+            val loadError = error
+            runOnUiThread {
+                statusText.text = if (loaded) "Model siap — ${modelFile.name} (${ModelAutoLoader.getModelSizeMB(modelFile)})" else "Gagal memuat model: $loadError"
+                topStatus.text = if (loaded) "Ready — XENA" else "Error model"
+                if (selectedCallback) notifySelectedModel(loaded, modelFile.name, loadError)
+                if (notifyUi) notifyModelReady(loaded)
+                if (loaded) publishTransfer(
+                    ModelDownloadManager.Snapshot("ready", ModelCatalog.byFileName(modelFile.name)?.id.orEmpty(), modelFile.name, modelFile.length(), modelFile.length(), 0L, "Model siap digunakan")
+                )
+            }
+        }.start()
+    }
+
+    fun useInstalledModel(modelIdOrName: String): Boolean {
+        val modelFile = ModelAutoLoader.modelFileForId(this, modelIdOrName)
+        if (modelFile == null) {
+            notifySelectedModel(false, modelIdOrName, "Model GGUF tidak ditemukan atau tidak valid")
+            return false
         }
+        if (LlamaBridge.isReady() && AppPrefs.getLastModelPath(this) == modelFile.absolutePath) {
+            notifySelectedModel(true, modelFile.name, "Model sudah aktif")
+            return true
+        }
+        publishTransfer(ModelDownloadManager.Snapshot("loading", modelIdOrName, modelFile.name, modelFile.length(), modelFile.length(), 0L, "Memuat model ke engine…"))
+        loadModelFile(modelFile, notifyUi = false, selectedCallback = true)
+        return true
+    }
+
+    fun moveModelFromDownloads() {
+        Thread {
+            val moved = ModelAutoLoader.moveDownloadedModel(this) { bytes, total ->
+                publishTransfer(
+                    ModelDownloadManager.Snapshot(
+                        "moving", "", "Model dari Download", bytes, total.coerceAtLeast(0L), 0L,
+                        "Memindahkan model ke penyimpanan aplikasi…"
+                    )
+                )
+            }
+            runOnUiThread {
+                if (moved != null) {
+                    AppPrefs.saveLastModelPath(this, moved.absolutePath)
+                    loadModelFile(moved, notifyUi = true)
+                } else {
+                    Toast.makeText(this, "Pilih file .gguf dari Download. Android dapat membatasi akses langsung ke folder Download.", Toast.LENGTH_LONG).show()
+                    deletePickedSourceAfterImport = true
+                    modelPicker.launch(arrayOf("*/*"))
+                }
+            }
+        }.start()
+    }
+
+    private fun importSelectedModel(uri: Uri, moveSource: Boolean) {
+        Thread {
+            val imported = ModelAutoLoader.importFromUri(this, uri) { bytes, total ->
+                publishTransfer(
+                    ModelDownloadManager.Snapshot(
+                        if (moveSource) "moving" else "importing", "", "Model pilihan", bytes, total.coerceAtLeast(0L), 0L,
+                        if (moveSource) "Memindahkan dan memvalidasi file GGUF…" else "Mengimpor dan memvalidasi file GGUF…"
+                    )
+                )
+            }
+            val sourceDeleted = if (imported != null && moveSource) {
+                try { DocumentsContract.deleteDocument(contentResolver, uri) } catch (e: Exception) {
+                    Log.w(TAG, "Could not remove verified SAF source: ${e.message}")
+                    false
+                }
+            } else false
+            runOnUiThread {
+                if (imported == null) {
+                    publishTransfer(ModelDownloadManager.Snapshot("failed", "", "", 0L, 0L, 0L, "Impor gagal: file harus GGUF valid dan ruang penyimpanan harus cukup"))
+                    Toast.makeText(this, "Impor gagal. Pastikan file GGUF valid dan ruang kosong cukup.", Toast.LENGTH_LONG).show()
+                } else {
+                    evalJs("if(typeof window.xenaModelImported==='function'){window.xenaModelImported(${JSONObject.quote(imported.name)})}")
+                    if (moveSource) {
+                        val message = if (sourceDeleted) "Model dipindahkan dan divalidasi di penyimpanan aplikasi."
+                            else "Model tersimpan dan valid; sumber Download tidak dapat dihapus otomatis."
+                        Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+                    }
+                    loadModelFile(imported, notifyUi = true)
+                }
+            }
+        }.start()
+    }
+
+    private fun notifySelectedModel(ok: Boolean, name: String, error: String) {
+        evalJs("if(typeof window.xenaSelectedModelReady==='function'){window.xenaSelectedModelReady($ok,${JSONObject.quote(name)},${JSONObject.quote(error)})}")
+    }
+
+    private fun publishTransfer(snapshot: ModelDownloadManager.Snapshot) {
+        evalJs("if(typeof window.xenaModelTransferState==='function'){window.xenaModelTransferState(${snapshot.toJson()})}")
+    }
+
+        private fun importModelPicker() {
+        deletePickedSourceAfterImport = false
+        modelPicker.launch(arrayOf("*/*"))
     }
 
     private fun notifyModelReady(ok: Boolean) {
@@ -99,12 +243,24 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        if (firstResume) {
+            firstResume = false
+            return
+        }
         // Cek update tiap kali app kembali aktif (throttle di UpdateChecker)
         webView.postDelayed({
             if (!isFinishing) {
                 UpdateChecker.checkAndUpdate(this@MainActivity, force = false, silent = true)
             }
         }, 1500)
+    }
+
+    override fun onDestroy() {
+        if (::modelDownloads.isInitialized) {
+            modelDownloads.pause()
+            modelDownloads.setListener(null)
+        }
+        super.onDestroy()
     }
 
     private fun setupBottomNav() {
@@ -129,7 +285,7 @@ class MainActivity : AppCompatActivity() {
 
     fun evalJs(js: String) {
         try {
-            webView.evaluateJavascript(js, null)
+            runOnUiThread { webView.evaluateJavascript(js, null) }
         } catch (_: Exception) {
         }
     }
@@ -142,20 +298,6 @@ class MainActivity : AppCompatActivity() {
             activity.stopRequested = false
             Thread {
                 try {
-                    // Auto-load engine if file exists but native not ready
-                    if (!LlamaBridge.isReady()) {
-                        val f = ModelAutoLoader.ensurePrivateModel(context)
-                        if (f != null) {
-                            LlamaBridge.loadModel(
-                                f.absolutePath,
-                                AppPrefs.getNctx(context),
-                                AppPrefs.getNBatch(context),
-                                AppPrefs.getNThreads(context),
-                                true,
-                                false
-                            )
-                        }
-                    }
                     var temp = AppPrefs.getTemperature(context)
                     try {
                         val o = JSONObject(paramsJson.ifBlank { "{}" })
@@ -163,9 +305,26 @@ class MainActivity : AppCompatActivity() {
                         if (o.has("temp")) temp = o.getDouble("temp").toFloat()
                     } catch (_: Exception) {
                     }
-                    val safePrompt = AppPrefs.getSafeSystemPrompt(context)
-                    val userMsg = extractUserMessage(prompt)
-                    val out = LlamaBridge.generate(userMsg, safePrompt, temp)
+                    val out = synchronized(activity.modelOperationLock) {
+                        // Auto-load only from a verified app-owned GGUF; never use a .part file/source path.
+                        if (!LlamaBridge.isReady()) {
+                            val f = ModelAutoLoader.ensurePrivateModel(context)
+                            if (f != null) {
+                                val loaded = LlamaBridge.loadModel(
+                                    f.absolutePath,
+                                    AppPrefs.getNctx(context),
+                                    AppPrefs.getNBatch(context),
+                                    AppPrefs.getNThreads(context),
+                                    true,
+                                    false
+                                )
+                                if (loaded) AppPrefs.saveLastModelPath(context, f.absolutePath)
+                            }
+                        }
+                        val safePrompt = AppPrefs.getSafeSystemPrompt(context)
+                        val userMsg = extractUserMessage(prompt)
+                        LlamaBridge.generate(userMsg, safePrompt, temp)
+                    }
                     if (activity.stopRequested) {
                         activity.runOnUiThread {
                             activity.webView.evaluateJavascript(
@@ -236,15 +395,21 @@ class MainActivity : AppCompatActivity() {
         @android.webkit.JavascriptInterface
         fun storageInfo(): String {
             return try {
-                val free = activity.filesDir.usableSpace.toDouble() / (1024 * 1024 * 1024)
-                val total = activity.filesDir.totalSpace.toDouble() / (1024 * 1024 * 1024)
-                val used = (total - free).coerceAtLeast(0.0)
+                val dir = ModelAutoLoader.modelDirectory(activity)
+                val freeBytes = dir.usableSpace
+                val totalBytes = dir.totalSpace
+                val modelBytes = ModelAutoLoader.usedModelBytes(activity)
+                val gib = 1024.0 * 1024.0 * 1024.0
                 JSONObject()
-                    .put("used", String.format(java.util.Locale.US, "%.2f", used).toDouble())
-                    .put("total", String.format(java.util.Locale.US, "%.2f", total).toDouble())
+                    .put("used", String.format(java.util.Locale.US, "%.2f", modelBytes / gib).toDouble())
+                    .put("total", String.format(java.util.Locale.US, "%.2f", totalBytes / gib).toDouble())
+                    .put("free", String.format(java.util.Locale.US, "%.2f", freeBytes / gib).toDouble())
+                    .put("modelUsedBytes", modelBytes)
+                    .put("freeBytes", freeBytes)
+                    .put("totalBytes", totalBytes)
                     .toString()
             } catch (e: Exception) {
-                """{"used":0,"total":10}"""
+                """{"used":0,"total":0,"free":0,"modelUsedBytes":0,"freeBytes":0,"totalBytes":0}"""
             }
         }
 
@@ -301,10 +466,64 @@ class MainActivity : AppCompatActivity() {
 
         @android.webkit.JavascriptInterface
         fun getModelInfo(): String {
-            val size = ModelAutoLoader.getModelSizeMB(context)
-            val path = AppPrefs.getLastModelPath(context) ?: ""
+            val file = ModelAutoLoader.findInstalledModel(context)
+            val size = ModelAutoLoader.getModelSizeMB(file)
+            val path = file?.absolutePath ?: ""
             val ready = LlamaBridge.isReady()
-            return """{"ready":$ready,"size":"$size","path":"$path"}"""
+            return JSONObject().put("ready", ready).put("size", size)
+                .put("name", file?.name.orEmpty()).put("path", path).toString()
+        }
+
+        @android.webkit.JavascriptInterface
+        fun getModelCatalog(): String = ModelCatalog.toJson()
+
+        @android.webkit.JavascriptInterface
+        fun getInstalledModels(): String {
+            val activePath = AppPrefs.getLastModelPath(context)
+            val engineReady = LlamaBridge.isReady()
+            val models = JSONArray()
+            ModelAutoLoader.installedModels(context).forEach { file ->
+                val spec = ModelCatalog.byFileName(file.name)
+                models.put(
+                    JSONObject()
+                        .put("id", spec?.id ?: file.name)
+                        .put("title", spec?.title ?: file.name)
+                        .put("fileName", file.name)
+                        .put("sizeBytes", file.length())
+                        .put("quantization", spec?.quantization ?: "GGUF")
+                        .put("installed", true)
+                        .put("active", engineReady && activePath == file.absolutePath)
+                )
+            }
+            return models.toString()
+        }
+
+        @android.webkit.JavascriptInterface
+        fun getModelTransferState(): String = modelDownloads.currentSnapshot().toJson()
+
+        @android.webkit.JavascriptInterface
+        fun startModelDownload(modelId: String): Boolean = modelDownloads.start(modelId)
+
+        @android.webkit.JavascriptInterface
+        fun pauseModelDownload(): Boolean = modelDownloads.pause()
+
+        @android.webkit.JavascriptInterface
+        fun resumeModelDownload(): Boolean = modelDownloads.resume()
+
+        @android.webkit.JavascriptInterface
+        fun cancelModelDownload(): Boolean = modelDownloads.cancel()
+
+        @android.webkit.JavascriptInterface
+        fun useModel(modelIdOrName: String): Boolean = activity.useInstalledModel(modelIdOrName)
+
+        @android.webkit.JavascriptInterface
+        fun moveModelFromDownloads() {
+            activity.moveModelFromDownloads()
+        }
+
+        @android.webkit.JavascriptInterface
+        fun importModelFromDownloads() {
+            activity.runOnUiThread { activity.importModelPicker() }
         }
 
         @android.webkit.JavascriptInterface

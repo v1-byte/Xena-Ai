@@ -1,0 +1,107 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { Script } from 'node:vm';
+
+const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8');
+const activity = read('../app/src/main/java/com/xena/ai/MainActivity.kt');
+const loader = read('../app/src/main/java/com/xena/ai/ModelAutoLoader.kt');
+const transfer = read('../app/src/main/java/com/xena/ai/ModelDownloadManager.kt');
+const catalog = read('../app/src/main/java/com/xena/ai/ModelCatalog.kt');
+const prefs = read('../app/src/main/java/com/xena/ai/AppPrefs.kt');
+const updater = read('../app/src/main/java/com/xena/ai/UpdateChecker.kt');
+const html = read('../app/src/main/assets/index.html');
+const modelUi = read('../app/src/main/assets/model-manager.js');
+const manifest = read('../app/src/main/AndroidManifest.xml');
+const gradle = read('../app/build.gradle.kts');
+const workflow = read('../.github/workflows/build.yml');
+
+test('all embedded model UI scripts parse before they are packaged', () => {
+  const scripts = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)]
+    .map((match) => match[1])
+    .filter((source) => source.trim());
+  assert.ok(scripts.length > 0);
+  scripts.forEach((source, index) => assert.doesNotThrow(() => new Script(source, { filename: `index-inline-${index}.js` })));
+  assert.doesNotThrow(() => new Script(modelUi, { filename: 'model-manager.js' }));
+});
+
+test('the existing app sections and primary navigation remain in place', () => {
+  for (const id of ['t0', 't1', 't2', 't3']) assert.match(html, new RegExp(`id="${id}"`));
+  for (const tab of ['Chat', 'Model', 'Konektor', 'Atur']) assert.ok(html.includes(tab));
+  assert.match(html, /id="modelCatalog"/);
+  assert.match(html, /onclick="loadModel\(\)"/);
+  assert.match(html, /onclick="bench\(\)"/);
+  assert.match(html, /onclick="startDl\('qwen7b-q3'\)"/);
+  assert.match(html, /onclick="startDl\('qwen7b-q4'\)"/);
+  assert.match(html, /onclick="moveModelFromDownloads\(\)"/);
+  assert.match(html, /onclick="selectModelFromDownloads\(\)"/);
+  assert.match(html, /<script src="model-manager\.js"><\/script>/);
+  assert.match(modelUi, /window\.startDl = function/);
+});
+
+test('catalog keeps the requested model variants and direct Hugging Face files', () => {
+  for (const file of [
+    'qwen2.5-coder-1.5b-instruct-q4_k_m.gguf',
+    'qwen2.5-coder-3b-instruct-q3_k_m.gguf',
+    'qwen2.5-coder-7b-instruct-q2_k.gguf',
+    'qwen2.5-coder-7b-instruct-q3_k_m.gguf',
+    'qwen2.5-coder-7b-instruct-q4_k_m.gguf'
+  ]) assert.ok(catalog.includes(file), `missing ${file}`);
+  assert.equal((catalog.match(/https:\/\/huggingface\.co\//g) || []).length, 5);
+});
+
+test('model downloads use resumable byte ranges and validate partials before activation', () => {
+  assert.match(transfer, /setRequestProperty\("Range",\s*"bytes=\$offset-"\)/);
+  assert.match(transfer, /setRequestProperty\("If-Range"/);
+  assert.match(transfer, /HTTP_PARTIAL/);
+  assert.match(transfer, /CONTENT_RANGE/);
+  assert.match(transfer, /ModelAutoLoader\.isValidGguf\(part\)/);
+  assert.match(transfer, /part\.renameTo\(final\)/);
+  assert.match(transfer, /pause\(\)/);
+  assert.match(transfer, /cancel\(\)/);
+  assert.doesNotMatch(transfer, /Math\.random|setInterval/);
+});
+
+test('Downloads import is SAF-first/fallback and GGUF validation prevents loading temporary files', () => {
+  assert.match(activity, /ActivityResultContracts\.OpenDocument\(\)/);
+  assert.match(activity, /DocumentsContract\.deleteDocument\(contentResolver, uri\)/);
+  assert.match(activity, /imported != null && moveSource/);
+  assert.match(activity, /importModelFromDownloads/);
+  assert.match(loader, /getExternalFilesDir\(null\)/);
+  assert.match(loader, /MIN_MODEL_BYTES/);
+  assert.match(loader, /version in 2\.\.3/);
+  assert.match(loader, /COPY_BUFFER_BYTES = 8 \* 1024 \* 1024/);
+  assert.match(loader, /sameContent\(source, installed\)/);
+  assert.doesNotMatch(manifest, /MANAGE_EXTERNAL_STORAGE/);
+});
+
+test('the 6 GB profile defaults to 1024 context, 32 batch, and 2 threads', () => {
+  assert.match(prefs, /getInt\("n_ctx", 1024\)/);
+  assert.match(prefs, /getInt\("n_batch", 32\)/);
+  assert.match(prefs, /getInt\("n_threads", 2\)/);
+  assert.match(catalog, /rekomendasi awal untuk RAM 6 GB/);
+  assert.match(html, /id="ctx" min="512" max="2048"[^>]*value="1024"/);
+  assert.match(html, /function buildThr\(\)\{const cur=S\.get\('thr',2\)/);
+});
+
+test('force update still refuses same or older versions', () => {
+  assert.match(updater, /if \(!isNewer\(info\.tag, local\)\)/);
+  assert.match(updater, /hasCompatibleSigningCertificate\(activity, file\)/);
+  assert.match(updater, /Kunci APK berbeda/);
+  assert.doesNotMatch(updater, /!isNewer\(info\.tag, local\)\s*&&\s*!force/);
+  assert.match(updater, /if \(!force && !shouldCheck\(activity\)\)/);
+});
+
+test('APK release is version-driven and verifies native llama library packaging', () => {
+  assert.match(gradle, /versionCode = 136/);
+  assert.match(gradle, /versionName = "1\.3\.6"/);
+  assert.match(gradle, /signingConfig = signingConfigs\.getByName\("release"\)/);
+  assert.match(workflow, /steps\.release_meta\.outputs\.tag/);
+  assert.match(workflow, /gradle assembleRelease/);
+  assert.match(workflow, /secrets\.XENA_SIGNING_KEYSTORE_BASE64/);
+  assert.match(workflow, /Compare signing certificate/);
+  assert.match(workflow, /lib\/arm64-v8a\/libllama\.so/);
+  assert.doesNotMatch(workflow, /tag_name:\s*v1\.3\.5/);
+  assert.match(modelUi, /bytesPerSecond/);
+  assert.doesNotMatch(modelUi, /Math\.random/);
+});

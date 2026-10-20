@@ -15,6 +15,29 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Resolve APK release version
+        id: release_meta
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION_NAME=$(sed -nE 's/^[[:space:]]*versionName = "([^"]+)".*/\1/p' app/build.gradle.kts | head -n 1)
+          if [[ ! "$VERSION_NAME" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid app versionName: $VERSION_NAME" >&2
+            exit 1
+          fi
+          TAG="v$VERSION_NAME"
+          echo "version=$VERSION_NAME" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Release $TAG already exists; build will be validated without replacing a published APK."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run model, UI, updater, and release checks
+        run: node --test tests/model-download-release.test.mjs
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -41,43 +64,97 @@ jobs:
           echo "ANDROID_SDK_ROOT=$SDK" >> $GITHUB_ENV
           echo "PATH=$SDK/cmdline-tools/latest/bin:$SDK/platform-tools:$PATH" >> $GITHUB_ENV
 
-      - name: local.properties
+      - name: Configure Android SDK
         run: |
           echo "sdk.dir=$ANDROID_HOME" > local.properties
           echo "ndk.dir=$ANDROID_HOME/ndk/26.1.10909125" >> local.properties
-          cat local.properties
 
-      - name: Build debug APK
-        run: gradle assembleDebug --stacktrace
+      - name: Load stable APK signing key
+        env:
+          XENA_SIGNING_KEYSTORE_BASE64: ${{ secrets.XENA_SIGNING_KEYSTORE_BASE64 }}
+          XENA_SIGNING_KEYSTORE_PASSWORD: ${{ secrets.XENA_SIGNING_KEYSTORE_PASSWORD }}
+        run: |
+          test -n "$XENA_SIGNING_KEYSTORE_BASE64"
+          test -n "$XENA_SIGNING_KEYSTORE_PASSWORD"
+          KEYSTORE="$RUNNER_TEMP/xena-release.jks"
+          printf '%s' "$XENA_SIGNING_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE"
+          chmod 600 "$KEYSTORE"
+          echo "XENA_SIGNING_KEYSTORE_PATH=$KEYSTORE" >> "$GITHUB_ENV"
+          echo "XENA_SIGNING_KEYSTORE_PASSWORD=$XENA_SIGNING_KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+          echo "XENA_SIGNING_KEY_ALIAS=xena-release" >> "$GITHUB_ENV"
+          echo "XENA_SIGNING_KEY_PASSWORD=$XENA_SIGNING_KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+
+      - name: Build signed release APK
+        run: gradle assembleRelease --stacktrace
+
+      - name: Verify APK and native ARM64 llama.cpp engine
+        run: |
+          APK=app/build/outputs/apk/release/app-release.apk
+          test -s "$APK"
+          unzip -l "$APK" | grep -F 'lib/arm64-v8a/libllama.so'
+          "$ANDROID_HOME/build-tools/34.0.0/apksigner" verify --verbose "$APK"
+
+      - name: Compare signing certificate and prepare release notes
+        id: signer
+        if: github.ref == 'refs/heads/main' && steps.release_meta.outputs.exists != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          APK=app/build/outputs/apk/release/app-release.apk
+          APKSIGNER="$ANDROID_HOME/build-tools/34.0.0/apksigner"
+          CURRENT=$($APKSIGNER verify --print-certs "$APK" | sed -n 's/.*Signer #1 certificate SHA-256 digest: //p' | head -n 1)
+          test -n "$CURRENT"
+          printf '%s\n' "## Xena-AI v${{ steps.release_meta.outputs.version }}" > release-notes.md
+          PREVIOUS=$(gh release list --repo "$GITHUB_REPOSITORY" --limit 1 --json tagName --jq '.[0].tagName // ""')
+          COMPATIBLE=true
+          if [[ -n "$PREVIOUS" ]]; then
+            mkdir -p /tmp/xena-previous-release
+            if gh release download "$PREVIOUS" --repo "$GITHUB_REPOSITORY" --pattern 'app-*.apk' --dir /tmp/xena-previous-release >/dev/null 2>&1; then
+              OLD_APK=$(find /tmp/xena-previous-release -maxdepth 1 -type f -name '*.apk' -print -quit)
+              if [[ -z "$OLD_APK" ]]; then
+                COMPATIBLE=false
+              else
+                OLD=$($APKSIGNER verify --print-certs "$OLD_APK" | sed -n 's/.*Signer #1 certificate SHA-256 digest: //p' | head -n 1)
+                if [[ -z "$OLD" || "$OLD" != "$CURRENT" ]]; then COMPATIBLE=false; fi
+              fi
+            else
+              COMPATIBLE=false
+            fi
+          fi
+          echo "compatible=$COMPATIBLE" >> "$GITHUB_OUTPUT"
+          if [[ "$COMPATIBLE" == "true" ]]; then
+            printf '\n- APK signed with the same stable signing certificate as the previous release.\n' >> release-notes.md
+          else
+            printf '\n### One-time signing-key migration\n\nEarlier Xena APK releases used different debug signing certificates. Android cannot update those installations in place to this stable signed release. Export or back up important local data, uninstall the older app, then install this APK. After this migration, future APK updates from the same stable signing key can be installed normally.\n' >> release-notes.md
+            echo "::warning::Signing certificate changed; earlier installs require a one-time reinstall."
+          fi
+          cat >> release-notes.md <<'NOTES'
+
+- Model catalog: Qwen2.5-Coder 1.5B Q4_K_M, 3B Q3_K_M, 7B Q2_K, Q3_K_M, and Q4_K_M.
+- Real model download progress with pause, resume, cancellation, and HTTP byte-range recovery.
+- GGUF validation and safe import/move into Android app-specific storage.
+- Conservative 6 GB RAM defaults: context 1024, batch 32, 2 threads; lower-memory load fallbacks.
+- Existing Chat, navigation, connectors, themes, and settings remain in the app.
+- `libllama.so` is built from the pinned llama.cpp source for arm64-v8a; GGUF model weights are downloaded separately in the app.
+
+### Install
+Download `app-release.apk` and install on the Android device. Android may ask once to allow installation from this source.
+NOTES
 
       - uses: actions/upload-artifact@v4
         with:
-          name: xena-ai-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
+          name: xena-ai-release-apk-v${{ steps.release_meta.outputs.version }}
+          path: app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
 
       - name: Create GitHub Release
+        if: github.ref == 'refs/heads/main' && steps.release_meta.outputs.exists != 'true'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.3.5
-          name: Xena-AI v1.3.5
-          body: |
-            ## Xena-AI v1.3.5 — real llama.cpp JNI
-
-            - UI v1.2 full-screen (Chat / Model / Konektor / Atur)
-            - Bridge `Android.chat`, `loadModel`, `stop`, `storageInfo`
-            - Connectors (token lokal)
-            - JNI `libllama.so` built from llama.cpp (CPU arm64) (ganti dengan llama.cpp asli untuk inference penuh)
-
-            ### Install
-            Unduh `app-debug.apk`, install di HP (izinkan sumber tidak dikenal).
-
-            ### Model
-            Letakkan `qwen2.5-coder-7b-instruct-q3_k_m.gguf` di Download atau folder app.
-
-            ### Catatan
-            Stub native tidak menjalankan GGUF — untuk chat lokal penuh, bangun `libllama.so` asli.
-          files: app/build/outputs/apk/debug/*.apk
+          tag_name: ${{ steps.release_meta.outputs.tag }}
+          name: Xena-AI v${{ steps.release_meta.outputs.version }}
+          body_path: release-notes.md
+          files: app/build/outputs/apk/release/app-release.apk
           draft: false
           prerelease: false
           generate_release_notes: true
