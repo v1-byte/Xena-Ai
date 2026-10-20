@@ -715,25 +715,26 @@ async function loadModel(force){
   toast('Buka di APK Xena-AI, bukan browser','bad');
   logT('❌ Android.loadModel tidak tersedia');
 }
-function modelOk(ok){
-  // Native memanggil window.xenaModelReady(true/false)
-  if(ok===false || ok===0 || ok==='false'){
+function modelOk(ok,err){
+  if(ok===false||ok===0||ok==='false'){
     $('#mDot').dataset.l='';
     $('#mDot').className='dot bad';
+    const msg=(err&&err!=='ok')?err:'Engine gagal load';
     $('#mState').textContent='Gagal muat ke engine';
-    toast('File GGUF ketemu, tapi engine gagal load (RAM/path/lib). Coba Muat Model lagi.','bad');
-    logT('❌ nativeLoadModel gagal — file ada tapi belum di RAM engine');
+    toast(msg,'bad');
+    logT('❌ '+msg);
     return;
   }
-  // Konfirmasi ulang ke native
   let ready=true;
   try{ if(window.Android&&Android.isModelReady) ready=!!Android.isModelReady(); }catch(e){}
   if(!ready && window.Android){
+    let e2='';
+    try{e2=Android.getLastError&&Android.getLastError()}catch(e){}
     $('#mDot').dataset.l='';
     $('#mDot').className='dot bad';
     $('#mState').textContent='Belum ready di engine';
-    toast('Engine belum siap. Tekan Muat Model.','bad');
-    logT('❌ isModelReady=false setelah callback');
+    toast(e2||'Engine belum siap. Tekan Muat Model.','bad');
+    logT('❌ isModelReady=false '+(e2||''));
     return;
   }
   $('#mDot').dataset.l=1;

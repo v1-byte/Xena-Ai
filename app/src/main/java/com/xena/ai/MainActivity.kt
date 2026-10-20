@@ -287,6 +287,9 @@ class MainActivity : AppCompatActivity() {
         fun isModelReady(): Boolean = LlamaBridge.isReady()
 
         @android.webkit.JavascriptInterface
+        fun getLastError(): String = LlamaBridge.lastError
+
+        @android.webkit.JavascriptInterface
         fun getModelInfo(): String {
             val size = ModelAutoLoader.getModelSizeMB(context)
             val path = AppPrefs.getLastModelPath(context) ?: ""

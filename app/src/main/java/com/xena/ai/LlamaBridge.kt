@@ -5,6 +5,8 @@ import android.util.Log
 object LlamaBridge {
     private const val TAG = "XENA-Llama"
     private var isModelLoaded = false
+    @Volatile var lastError: String = "ok"
+        private set
 
     external fun nativeLoadModel(
         modelPath: String,
@@ -18,16 +20,22 @@ object LlamaBridge {
     external fun nativeGenerate(prompt: String, temp: Float, topP: Float, repeatPenalty: Float): String
     external fun nativeIsLoaded(): Boolean
     external fun nativeFreeModel()
+    external fun nativeLastError(): String
 
     init {
         try {
             System.loadLibrary("llama")
             Log.d(TAG, "libllama loaded")
         } catch (e: Exception) {
-            Log.e(TAG, "Load lib error: ${e.message}")
+            lastError = "libllama.so gagal load: ${e.message}"
+            Log.e(TAG, lastError)
         }
     }
 
+    /**
+     * Coba beberapa preset RAM: 2048 → 1024 → 512 context.
+     * mmap ON, mlock OFF agar 6GB phone lebih mungkin berhasil.
+     */
     fun loadModel(
         modelPath: String,
         n_ctx: Int = 2048,
@@ -36,25 +44,41 @@ object LlamaBridge {
         useMmap: Boolean = true,
         useMlock: Boolean = false
     ): Boolean {
-        return try {
-            Log.d(TAG, "XENA Loading: $modelPath ctx=$n_ctx batch=$n_batch threads=$n_threads")
-            val ok = nativeLoadModel(modelPath, n_ctx, n_batch, n_threads, useMmap, useMlock)
-            isModelLoaded = ok
-            ok
-        } catch (e: UnsatisfiedLinkError) {
-            Log.e(TAG, "Native lib missing: ${e.message}")
-            false
-        } catch (e: Exception) {
-            Log.e(TAG, "Load error: ${e.message}")
-            false
+        val attempts = listOf(
+            Triple(n_ctx.coerceAtMost(2048), n_batch.coerceAtMost(128), n_threads.coerceAtMost(4)),
+            Triple(1024, 64, 3),
+            Triple(512, 32, 2)
+        ).distinct()
+
+        for ((ctx, batch, thr) in attempts) {
+            try {
+                Log.d(TAG, "try load $modelPath ctx=$ctx batch=$batch thr=$thr")
+                val ok = nativeLoadModel(modelPath, ctx, batch, thr, true, false)
+                lastError = try { nativeLastError() } catch (_: Throwable) { if (ok) "ok" else "native gagal" }
+                if (ok) {
+                    isModelLoaded = true
+                    Log.d(TAG, "loaded ok with ctx=$ctx err=$lastError")
+                    return true
+                }
+                Log.e(TAG, "attempt failed ctx=$ctx: $lastError")
+            } catch (e: UnsatisfiedLinkError) {
+                lastError = "Native symbol missing: ${e.message}"
+                Log.e(TAG, lastError)
+                isModelLoaded = false
+                return false
+            } catch (e: Exception) {
+                lastError = "Load exception: ${e.message}"
+                Log.e(TAG, lastError)
+            }
         }
+        isModelLoaded = false
+        return false
     }
 
     fun getSafeSystemPrompt(raw: String?): String {
         if (raw.isNullOrBlank() || raw == "null" || raw == "undefined") {
             return "You are Xena-AI, a helpful coding assistant powered by Qwen2.5-Coder. " +
-                "You are an expert programmer created by Xena. Answer correctly and clearly in Indonesian. " +
-                "Provide working code when asked."
+                "Answer correctly and clearly in Indonesian. Provide working code when asked."
         }
         return raw.trim()
     }
@@ -72,23 +96,22 @@ object LlamaBridge {
         if (!isModelLoaded) {
             try {
                 if (!nativeIsLoaded()) {
-                    return "[XENA Engine belum siap. Tab Model → Muat Model, tunggu 30–60 dtk. Pastikan GGUF di files app / Download dan RAM cukup.]"
+                    return "[XENA Engine belum siap: $lastError]"
                 }
             } catch (_: Throwable) {
-                return "[XENA Model belum dimuat / native lib belum tersedia]"
+                return "[XENA libllama tidak tersedia: $lastError]"
             }
         }
-        val systemPrompt = getSafeSystemPrompt(systemPromptRaw)
-        val userMsg = getSafeUserMessage(userMessage)
-        val fullPrompt =
-            "<|im_start|>system\n$systemPrompt<|im_end|>\n" +
-                "<|im_start|>user\n$userMsg<|im_end|>\n" +
-                "<|im_start|>assistant\n"
         return try {
-            val res = nativeGenerate(fullPrompt, temperature, topP, repeatPenalty)
-            if (res.isBlank()) "[XENA gagal generate, coba set context 2048]" else res
+            val system = getSafeSystemPrompt(systemPromptRaw)
+            val user = getSafeUserMessage(userMessage)
+            val fullPrompt =
+                "<|im_start|>system\n$system<|im_end|>\n" +
+                    "<|im_start|>user\n$user<|im_end|>\n" +
+                    "<|im_start|>assistant\n"
+            nativeGenerate(fullPrompt, temperature, topP, repeatPenalty)
         } catch (e: Exception) {
-            "[XENA Error: ${e.message}]"
+            "[XENA Generate error: ${e.message}]"
         }
     }
 
@@ -104,8 +127,8 @@ object LlamaBridge {
     fun unload() {
         try {
             nativeFreeModel()
-            isModelLoaded = false
-        } catch (_: Exception) {
+        } catch (_: Throwable) {
         }
+        isModelLoaded = false
     }
 }
