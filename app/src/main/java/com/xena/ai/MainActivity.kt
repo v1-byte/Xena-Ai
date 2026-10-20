@@ -499,19 +499,19 @@ class MainActivity : AppCompatActivity() {
         }
 
         @android.webkit.JavascriptInterface
-        fun getModelTransferState(): String = modelDownloads.currentSnapshot().toJson()
+        fun getModelTransferState(): String = activity.modelDownloads.currentSnapshot().toJson()
 
         @android.webkit.JavascriptInterface
-        fun startModelDownload(modelId: String): Boolean = modelDownloads.start(modelId)
+        fun startModelDownload(modelId: String): Boolean = activity.modelDownloads.start(modelId)
 
         @android.webkit.JavascriptInterface
-        fun pauseModelDownload(): Boolean = modelDownloads.pause()
+        fun pauseModelDownload(): Boolean = activity.modelDownloads.pause()
 
         @android.webkit.JavascriptInterface
-        fun resumeModelDownload(): Boolean = modelDownloads.resume()
+        fun resumeModelDownload(): Boolean = activity.modelDownloads.resume()
 
         @android.webkit.JavascriptInterface
-        fun cancelModelDownload(): Boolean = modelDownloads.cancel()
+        fun cancelModelDownload(): Boolean = activity.modelDownloads.cancel()
 
         @android.webkit.JavascriptInterface
         fun useModel(modelIdOrName: String): Boolean = activity.useInstalledModel(modelIdOrName)

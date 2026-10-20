@@ -345,7 +345,7 @@ object ModelAutoLoader {
                         if (count > 0) md.update(buffer, 0, count)
                     }
                 }
-                md.digest()
+                return md.digest()
             }
             MessageDigest.isEqual(digest(first), digest(second))
         } catch (e: Exception) {
