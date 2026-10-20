@@ -27,11 +27,11 @@ object AppPrefs {
     }
 
     /** RAM 6GB defaults */
-    fun getNctx(context: Context): Int = getPrefs(context).getInt("n_ctx", 2048)
+    fun getNctx(context: Context): Int = getPrefs(context).getInt("n_ctx", 1024).coerceIn(512, 1024)
 
-    fun getNBatch(context: Context): Int = getPrefs(context).getInt("n_batch", 128)
+    fun getNBatch(context: Context): Int = getPrefs(context).getInt("n_batch", 32).coerceIn(16, 32)
 
-    fun getNThreads(context: Context): Int = getPrefs(context).getInt("n_threads", 4)
+    fun getNThreads(context: Context): Int = getPrefs(context).getInt("n_threads", 2).coerceIn(1, 2)
 
     fun getTemperature(context: Context): Float = getPrefs(context).getFloat("temperature", 0.2f)
 

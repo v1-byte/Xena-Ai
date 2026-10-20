@@ -3,6 +3,17 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
+val signingStorePath = System.getenv("ANDROID_KEYSTORE_PATH")
+val signingStorePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+val signingKeyAlias = System.getenv("ANDROID_KEY_ALIAS")
+val signingKeyPassword = System.getenv("ANDROID_KEY_PASSWORD")
+val releaseSigningConfigured = listOf(
+    signingStorePath,
+    signingStorePassword,
+    signingKeyAlias,
+    signingKeyPassword
+).all { !it.isNullOrBlank() }
+
 android {
     namespace = "com.xena.ai"
     compileSdk = 34
@@ -12,8 +23,8 @@ android {
         applicationId = "com.xena.ai"
         minSdk = 26
         targetSdk = 34
-        versionCode = 135
-        versionName = "1.3.5"
+        versionCode = 136
+        versionName = "1.3.6"
         ndk {
             abiFilters += listOf("arm64-v8a")
         }
@@ -25,9 +36,23 @@ android {
         }
     }
 
+    signingConfigs {
+        create("release") {
+            if (releaseSigningConfigured) {
+                storeFile = file(signingStorePath!!)
+                storePassword = signingStorePassword
+                keyAlias = signingKeyAlias
+                keyPassword = signingKeyPassword
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+            if (releaseSigningConfigured) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

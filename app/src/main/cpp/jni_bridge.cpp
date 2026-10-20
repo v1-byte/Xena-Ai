@@ -82,7 +82,7 @@ Java_com_xena_ai_LlamaBridge_nativeLoadModel(
 
     llama_context_params cparams = llama_context_default_params();
     cparams.n_ctx = n_ctx > 0 ? (uint32_t)n_ctx : 1024;
-    cparams.n_batch = n_batch > 0 ? (uint32_t)n_batch : 64;
+    cparams.n_batch = n_batch > 0 ? (uint32_t)n_batch : 32;
     cparams.n_threads = n_threads > 0 ? (int32_t)n_threads : 2;
     cparams.n_threads_batch = cparams.n_threads;
 
