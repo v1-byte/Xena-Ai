@@ -559,7 +559,84 @@ async function send(txt){const inp=$('#inp');const p=(txt??inp.value).trim();if(
 if(!c.msgs.length){c.title=p.slice(0,36);renderHist()}c.msgs.push({role:'user',text:p,ts:Date.now()});addMsg('user',p);inp.value='';resize();slashHide();persist();await answer(p)}
 function regen(){if(busy)return;const c=curChat();if(!c)return;while(c.msgs.length&&c.msgs[c.msgs.length-1].role==='assistant')c.msgs.pop();const last=c.msgs[c.msgs.length-1];if(!last)return;persist();renderChat();answer(last.text)}
 function toBottom(){const e=$('#chat');e.scrollTo({top:e.scrollHeight,behavior:'smooth'})}
-function pushGit(){if(!S.get('con_github',false)){toast('Hubungkan GitHub dulu di tab Konektor','bad');tab(2);return}logT('⏳ Push ke v1-byte/Xena-Ai…');setTimeout(()=>{logT('✅ Push berhasil (simulasi)');toast('Push ke GitHub berhasil','ok')},900)}
+
+/* ===== GitHub API nyata (Contents API = commit/push tanpa git CLI) ===== */
+const GH_REPO='v1-byte/Xena-Ai';
+function ghToken(){return S.get('tok_github','')||S.get('tok_github','')}
+function ghHeaders(){
+  const t=ghToken();
+  if(!t) throw new Error('Token GitHub kosong — tab Konektor → GitHub → simpan PAT (scope repo)');
+  return {'Authorization':'token '+t,'Accept':'application/vnd.github+json','Content-Type':'application/json','User-Agent':'Xena-AI'};
+}
+async function ghApi(path,opt={}){
+  const res=await fetch('https://api.github.com'+path,Object.assign({headers:ghHeaders()},opt));
+  const text=await res.text();
+  let data=null;try{data=JSON.parse(text)}catch(e){data={raw:text}}
+  if(!res.ok) throw new Error((data&&data.message)||('HTTP '+res.status));
+  return data;
+}
+async function ghGetFile(path){
+  const d=await ghApi('/repos/'+GH_REPO+'/contents/'+path.replace(/^\/+/,''));
+  if(d.content&&d.encoding==='base64'){
+    const bin=atob(d.content.replace(/\n/g,''));
+    // decode utf-8
+    const bytes=Uint8Array.from(bin,c=>c.charCodeAt(0));
+    return {sha:d.sha,text:new TextDecoder().decode(bytes),path:d.path};
+  }
+  return d;
+}
+async function ghWriteFile(path,content,message){
+  path=path.replace(/^\/+/,'');
+  let sha=undefined;
+  try{const cur=await ghApi('/repos/'+GH_REPO+'/contents/'+path);sha=cur.sha}catch(e){}
+  const body={
+    message: message||('chore: update '+path+' via Xena-AI'),
+    content: btoa(unescape(encodeURIComponent(content))),
+    ...(sha?{sha}:{})
+  };
+  const d=await ghApi('/repos/'+GH_REPO+'/contents/'+path,{method:'PUT',body:JSON.stringify(body)});
+  return d;
+}
+async function ghList(path=''){
+  const d=await ghApi('/repos/'+GH_REPO+'/contents/'+(path||'').replace(/^\/+/,''));
+  return Array.isArray(d)?d: [d];
+}
+async function ghDispatch(workflow='build.yml',ref='main'){
+  await ghApi('/repos/'+GH_REPO+'/actions/workflows/'+workflow+'/dispatches',{
+    method:'POST',body:JSON.stringify({ref})
+  });
+  return true;
+}
+async function pushGit(){
+  if(!S.get('con_github',false)&&!ghToken()){toast('Hubungkan GitHub dulu di tab Konektor','bad');tab(2);return}
+  try{
+    logT('⏳ Cek akses GitHub '+GH_REPO+'…');
+    const repo=await ghApi('/repos/'+GH_REPO);
+    logT('✅ Repo OK · '+repo.full_name+' · default '+repo.default_branch);
+    // Tulis file status kecil sebagai bukti push nyata dari HP
+    const stamp=new Date().toISOString();
+    const path='docs/XENA_PUSH_LOG.md';
+    let prev='# Xena push log\n\n';
+    try{const f=await ghGetFile(path);prev=f.text}catch(e){}
+    const content=prev+`- ${stamp} · push dari Xena-AI di HP\n`;
+    const r=await ghWriteFile(path,content,'chore: Xena-AI remote push '+stamp.slice(0,19));
+    logT('✅ Commit/push OK · '+(r.commit?.sha||'').slice(0,7)+' · '+path);
+    toast('Push GitHub berhasil','ok');
+  }catch(e){
+    logT('❌ Push gagal: '+e.message);
+    toast('Push gagal: '+e.message,'bad');
+  }
+}
+async function ghWriteFromChat(path,code,msg){
+  try{
+    logT('⏳ Menulis '+path+' ke GitHub…');
+    const r=await ghWriteFile(path,code,msg||('feat: tulis kode via Xena-AI'));
+    logT('✅ Tersimpan di GitHub · '+(r.commit?.sha||'').slice(0,7)+' · '+path);
+    toast('Kode ter-push ke GitHub','ok');
+    return true;
+  }catch(e){logT('❌ '+e.message);toast(e.message,'bad');return false}
+}
+
 
 /* ---------- input ---------- */
 const inp=$('#inp');
@@ -652,7 +729,7 @@ function paintLog(s){const t=$('#term');if(!t)return;const d=document.createElem
 function logT(m){const s='['+new Date().toLocaleTimeString([], {hour12:false})+'] '+m;LOGS.push(s);if(LOGS.length>300)LOGS.shift();paintLog(s)}
 function buildCon(){const on=k=>S.get('con_'+k,false);
 $('#conn').innerHTML=CON.map(c=>`<div class="card"><div class="cc ${on(c[0])?'on':''}"><div class="cic">${ic(c[3])}<span class="dot ${on(c[0])?'':'off'}"></span></div><div class="sp"><b>${c[1]}</b><div class="muted">${c[2]}</div></div><button class="sw ${on(c[0])?'on':''}" onclick="conTgl('${c[0]}')"></button></div>
-${on(c[0])?`<div class="btns"><button class="btn sm" onclick="conTest('${c[0]}')">${ic('check')}Test</button><button class="btn sm" onclick="conTok('${c[0]}')">${ic('edit')}Token</button><button class="btn sm dng" onclick="conDel('${c[0]}')">${ic('trash')}Hapus</button><button class="btn sm" onclick="scanQR('${c[0]}')">${ic('qr')}Scan QR</button></div>`:''}</div>`).join('')+
+${on(c[0])?`<div class="btns"><button class="btn sm" onclick="conTest('${c[0]}')">${ic('check')}Test</button><button class="btn sm" onclick="conTok('${c[0]}')">${ic('edit')}Token</button><button class="btn sm dng" onclick="conDel('${c[0]}')">${ic('trash')}Hapus</button><button class="btn sm" onclick="scanQR('${c[0]}')">${ic('qr')}Scan QR</button>${c[0]==='github'?`<button class="btn sm pri" onclick="pushGit()">${ic('upload')}Push</button><button class="btn sm" onclick="ghDispatch().then(()=>{logT('✅ Actions dipicu');toast('Build Actions jalan','ok')}).catch(e=>{logT('❌ '+e.message);toast(e.message,'bad')})">${ic('bolt')}Build APK</button>`:''}</div>`:''}</div>`).join('')+
 `<div class="card" id="repoC" style="display:none"><h4>${ic('github')}Repo v1-byte/Xena-Ai</h4><div class="repo" id="repo"></div><div class="btns"><button class="btn sm pri" onclick="logT('⏳ Mengunduh libllama.so dari DT-E-AI lama…');setTimeout(()=>logT('✅ libllama.so dimigrasi'),900)">${ic('save')}Migrasi libllama.so</button></div></div>
 <div class="card"><h4>${ic('term')}Log Console</h4><div class="term" id="term"></div><div class="btns"><button class="btn sm" onclick="LOGS.length=0;$('#term').innerHTML=''">Clear</button><button class="btn sm" onclick="dl('xena-log.txt',$('#term').innerText);">Export Log</button></div></div>`;
 LOGS.length?LOGS.forEach(paintLog):logT('Console siap.');setTimeout(()=>$('#conn').classList.add('st'),900);
