@@ -10,6 +10,35 @@
 [data-theme=hacker]{--bg:#000;--bg2:#050805;--card:#07110a;--card2:#0b1a0f;--line:#0f3a1a;--text:#00ff66;--muted:#0a9a40;--accent:#00ff41;--accent2:#00ff41;--logo:#00ff41;--ubtxt:#001a07;font-family:ui-monospace,Menlo,Consolas,monospace}
 [data-theme=light]{--bg:#f5f7fb;--bg2:#fff;--card:#fff;--card2:#eef1f8;--line:#dbe1ee;--text:#0f172a;--muted:#64748b;--logo:#0f172a}
 [data-theme=cyberpunk]{--bg:#12061f;--bg2:#1a0a2e;--card:#26104a;--card2:#311563;--line:#4a2380;--text:#f4e9ff;--muted:#a98cd6;--accent:#ff2bd6;--accent2:#00f0ff;--logo:#fff}
+[data-theme=aurora]{--bg:#061018;--bg2:#0a1a24;--card:#0f2430;--card2:#143040;--line:#1e4a5c;--text:#e8f7ff;--muted:#7eb8d4;--accent:#22d3ee;--accent2:#a3e635;--logo:#fff}
+[data-theme=gold]{--bg:#120e06;--bg2:#1a1408;--card:#241c0c;--card2:#2e2410;--line:#4a3a18;--text:#fff6e0;--muted:#c4a574;--accent:#f59e0b;--accent2:#fbbf24;--logo:#ffe8a0}
+[data-theme=ocean]{--bg:#020617;--bg2:#0b1224;--card:#111b33;--card2:#172554;--line:#1e3a5f;--text:#e0f2fe;--muted:#7dd3fc;--accent:#38bdf8;--accent2:#818cf8;--logo:#fff}
+[data-theme=neon]{--bg:#050505;--bg2:#0a0a0a;--card:#111;--card2:#1a1a1a;--line:#2a2a2a;--text:#f8fafc;--muted:#94a3b8;--accent:#f43f5e;--accent2:#22d3ee;--logo:#fff}
+/* Thinking HD animation */
+.think-wrap{display:flex;flex-direction:column;gap:10px;min-width:160px}
+.think-orb{width:52px;height:52px;border-radius:50%;position:relative;margin:4px auto;background:radial-gradient(circle at 30% 30%,var(--accent2),var(--accent));box-shadow:0 0 24px color-mix(in srgb,var(--accent) 55%,transparent);animation:orbPulse 1.6s ease-in-out infinite}
+.think-orb::before,.think-orb::after{content:"";position:absolute;inset:-6px;border-radius:50%;border:2px solid color-mix(in srgb,var(--accent) 40%,transparent);animation:ring 1.8s linear infinite}
+.think-orb::after{inset:-14px;animation-duration:2.4s;opacity:.5}
+.think-label{font-size:12px;color:var(--muted);text-align:center;letter-spacing:.04em}
+.think-bar{height:3px;border-radius:3px;background:var(--card2);overflow:hidden;margin-top:2px}
+.think-bar b{display:block;height:100%;width:35%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:3px;animation:thinkSlide 1.1s ease-in-out infinite}
+.think-steps{font-size:11px;color:var(--muted);line-height:1.5}
+.think-steps span{display:inline-block;opacity:.35;margin-right:6px;transition:.3s}
+.think-steps span.on{opacity:1;color:var(--accent)}
+@keyframes orbPulse{50%{transform:scale(1.08);filter:brightness(1.15)}}
+@keyframes ring{to{transform:rotate(360deg)}}
+@keyframes thinkSlide{0%{transform:translateX(-120%)}100%{transform:translateX(320%)}}
+/* Glass cards HD */
+.card{backdrop-filter:blur(12px);box-shadow:0 8px 32px rgba(0,0,0,.18)}
+.msg.assistant .bubble{box-shadow:0 4px 20px rgba(0,0,0,.12)}
+/* Connector status live */
+.cc .dot.live{background:var(--ok);box-shadow:0 0 10px var(--ok);animation:pulse 1.5s infinite}
+.conn-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+/* Feature chips */
+.feat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.feat{background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:10px;font-size:12px}
+.feat b{display:block;margin-bottom:4px;color:var(--accent)}
+
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font:14px/1.5 system-ui,-apple-system,Roboto,sans-serif;transition:background .4s,color .4s}
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
@@ -419,7 +448,7 @@ header,nav{transition:transform .8s cubic-bezier(.2,.8,.2,1) .1s}
       <div class="stat"><span class="muted">Baterai</span><b id="dBat">–</b></div>
       <div class="stat"><span class="muted">Konektor</span><b id="dCon">0 aktif</b></div>
     </div>
-    <div class="btns"><button class="btn" onclick="clearCache()"><svg class="i"><use href="#i-trash"/></svg>Clear Cache</button><button class="btn" onclick="tab(2);toast('Log ada di tab Konektor')"><svg class="i"><use href="#i-term"/></svg>Logs</button><button class="btn" onclick="toast('Xena AI v1.2.0 · eXpert Engine for Neural Assistance')"><svg class="i"><use href="#i-info"/></svg>Tentang</button></div>
+    <div class="btns"><button class="btn" onclick="clearCache()"><svg class="i"><use href="#i-trash"/></svg>Clear Cache</button><button class="btn" onclick="tab(2);toast('Log ada di tab Konektor')"><svg class="i"><use href="#i-term"/></svg>Logs</button><button class="btn" onclick="toast('Xena AI v1.3.0 · eXpert Engine for Neural Assistance')"><svg class="i"><use href="#i-info"/></svg>Tentang</button></div>
   </div>
 </div></section>
 </main>
@@ -462,7 +491,7 @@ let cur=0;
 function tab(i){cur=i;$$('.tab').forEach((t,k)=>t.classList.toggle('active',k===i));$$('#nav button').forEach((b,k)=>b.classList.toggle('active',k===i));$('#navInd').style.transform=`translateX(${i*100}%)`;if(i===3)dash();if(i)$$('#t'+i+' .card').forEach((e,k)=>e.style.setProperty('--n',Math.min(k,9)));closeAll();$('#fab').classList.remove('open')}
 
 /* ---------- theme ---------- */
-const THEMES=[['dark','Dark Ungu','moon','#0a0f1e','#a855f7'],['hacker','Hacker','term','#000','#00ff41'],['light','Light','sun','#fff','#a855f7'],['cyberpunk','Cyberpunk','gamepad','#1a0a2e','#ff2bd6']];
+const THEMES=[['dark','Dark','#07090f','#a855f7'],['hacker','Hacker','#000','#00ff41'],['light','Light','#f5f7fb','#7c3aed'],['cyberpunk','Cyber','#12061f','#ff2bd6'],['aurora','Aurora','#061018','#22d3ee'],['gold','Gold','#120e06','#f59e0b'],['ocean','Ocean','#020617','#38bdf8'],['neon','Neon','#050505','#f43f5e']];
 function buildThemes(){$('#themes').innerHTML=THEMES.map(t=>`<button class="th" data-t="${t[0]}" style="background:${t[3]};color:${t[4]};border-color:${t[4]}" onclick="setTheme('${t[0]}')">${ic(t[2])}${t[1]}</button>`).join('')}
 function setTheme(n){document.documentElement.dataset.theme=n;document.documentElement.style.removeProperty('--accent');document.documentElement.style.removeProperty('--ubub');S.set('theme',n);S.set('accent',null);$$('.th').forEach(b=>b.classList.toggle('active',b.dataset.t===n));const bg=getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();document.querySelector('meta[name=theme-color]').content=bg;const ap=$('#accPick');if(ap)ap.value=getComputedStyle(document.documentElement).getPropertyValue('--accent').trim().slice(0,7);toast('Tema: '+n,'ok')}
 function setAccent(c){document.documentElement.style.setProperty('--accent',c);document.documentElement.style.setProperty('--ubub',c);S.set('accent',c)}
@@ -514,7 +543,8 @@ try{
   }
 }catch(e){}
 
-const holder=addMsg('assistant','',Date.now());holder.querySelector('.bubble').innerHTML='<span class="typing"><i></i><i></i><i></i></span>';holder.querySelector('.qa')?.remove();
+const holder=addMsg('assistant','',Date.now());holder.querySelector('.bubble').innerHTML=`<div class="think-wrap"><div class="think-orb"></div><div class="think-label">Xena sedang berpikir…</div><div class="think-bar"><b></b></div><div class="think-steps" id="thSteps"><span class="on">baca</span><span>analisis</span><span>kode</span><span>jawab</span></div></div>`;
+(function cycleThink(){const steps=holder.querySelectorAll('#thSteps span');if(!steps.length||!busy)return;let i=0;const t=setInterval(()=>{if(!busy||!holder.isConnected){clearInterval(t);return}steps.forEach((s,k)=>s.classList.toggle('on',k===i));i=(i+1)%steps.length},700);holder._thinkT=t})();holder.querySelector('.qa')?.remove();
 let full='';const bub=holder.querySelector('.bubble');const chatEl=$('#chat');const upd=()=>{bub.innerHTML=md(full)+'<span class="caret"></span>';if(S.get('asc',true)&&nearBottom())chatEl.scrollTop=chatEl.scrollHeight};
 const params={system:$('#sys').value,ctx:+$('#ctx').value,temp:+$('#tmp').value,threads:S.get('thr',4),top_p:S.get('topp',.9),top_k:S.get('topk',40),repeat_penalty:S.get('rep',1.1),max_tokens:S.get('maxt',1024)};
 if(window.Android&&Android.chat){ /* Native: Android.chat(prompt, paramsJson) → panggil window.xenaToken(t) & window.xenaDone() */
@@ -630,8 +660,46 @@ const n=CON.filter(c=>on(c[0])).length;const b=$('#conBadge');b.textContent=n;b.
 function conTgl(k){S.set('con_'+k,!S.get('con_'+k,false));buildCon();if(S.get('con_'+k,false)){logT('✅ '+k+' terhubung');toast(k+' terhubung','ok');if(!S.get('tok_'+k,''))conTok(k)}else toast(k+' diputus')}
 async function conTok(k){const t=await ask('Token '+k+' (disimpan lokal)',S.get('tok_'+k,''),1);if(t!==null){S.set('tok_'+k,t);toast('Token disimpan','ok')}}
 function conDel(k){S.set('tok_'+k,'');S.set('con_'+k,false);buildCon();toast('Dihapus')}
-async function conTest(k){logT('⏳ Cek '+k+'…');await sleep(700);if(!navigator.onLine){logT('❌ Offline');toast('Butuh koneksi internet','bad');return}
-if(k==='github'){logT('⏳ Cek v1-byte/Xena-Ai…');await sleep(500);$('#repoC').style.display='block';$('#repo').innerHTML=[['index.html',1],['MainActivity.kt',1],['libllama.so',0]].map(f=>`<div>${f[1]?ic('check','okc'):ic('x','errc')}<span>${f[0]}</span><span class="sp"></span><span class="muted">${f[1]?'ada':'BELUM ADA'}</span></div>`).join('');logT('❌ libllama.so BELUM ADA')}else logT('✅ '+k+' OK');toast(k+' OK','ok')}
+async function conTest(k){
+  logT('⏳ Tes konektor '+k+'…');
+  if(!navigator.onLine){logT('❌ Offline');toast('Butuh internet','bad');return}
+  const tok=S.get('tok_'+k,'');
+  try{
+    if(k==='github'){
+      if(!tok){toast('Isi token GitHub dulu','bad');return}
+      const res=await fetch('https://api.github.com/repos/v1-byte/Xena-Ai',{headers:{'Authorization':'token '+tok,'Accept':'application/vnd.github+json'}});
+      const data=await res.json();
+      if(!res.ok){logT('❌ GitHub '+res.status+': '+(data.message||''));toast('GitHub gagal','bad');return}
+      logT('✅ GitHub OK · '+data.full_name+' · ★'+data.stargazers_count);
+      let lib='?';
+      try{
+        const c=await fetch('https://api.github.com/repos/v1-byte/Xena-Ai/contents/app/src/main/jniLibs/arm64-v8a',{headers:{'Authorization':'token '+tok}});
+        if(c.ok){const files=await c.json();lib=Array.isArray(files)&&files.some(f=>f.name==='libllama.so')?'ada':'BELUM ADA';logT(lib==='ada'?'✅ libllama.so ada di repo':'⚠️ libllama.so belum di jniLibs (dibuild dari CMake)')}
+      }catch(e){}
+      $('#repoC')&&($('#repoC').style.display='block');
+      toast('GitHub terhubung','ok');
+    }else if(k==='cloudflare'){
+      if(!tok){toast('Isi Cloudflare API token','bad');return}
+      const res=await fetch('https://api.cloudflare.com/client/v4/user/tokens/verify',{headers:{'Authorization':'Bearer '+tok,'Content-Type':'application/json'}});
+      const data=await res.json();
+      if(data.success){logT('✅ Cloudflare token valid · status '+(data.result?.status||'ok'));toast('Cloudflare OK','ok')}
+      else{logT('❌ Cloudflare: '+(data.errors?.[0]?.message||res.status));toast('Cloudflare gagal','bad')}
+    }else if(k==='meta'){
+      if(!tok){toast('Isi Meta token','bad');return}
+      const res=await fetch('https://graph.facebook.com/v19.0/me?access_token='+encodeURIComponent(tok));
+      const data=await res.json();
+      if(data.id){logT('✅ Meta OK · '+data.name+' ('+data.id+')');toast('Meta OK','ok')}
+      else{logT('❌ Meta: '+(data.error?.message||'gagal'));toast('Meta gagal','bad')}
+    }else if(k==='hf'){
+      const res=await fetch('https://huggingface.co/api/models/Qwen/Qwen2.5-Coder-7B-Instruct-GGUF');
+      const data=await res.json();
+      logT('✅ HF · '+(data.modelId||data.id)+' · downloads '+(data.downloads||'?'));
+      toast('HuggingFace OK','ok');
+    }else{
+      await sleep(500);logT('✅ '+k+' OK');toast(k+' OK','ok');
+    }
+  }catch(e){logT('❌ '+k+': '+e.message);toast('Tes gagal','bad')}
+}
 async function scanQR(k){if(!('BarcodeDetector' in window)){toast('Scan QR belum didukung WebView ini — tempel token manual','bad');return conTok(k)}
 try{const st=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});const v=document.createElement('video');v.srcObject=st;v.playsInline=true;await v.play();const bd=new BarcodeDetector({formats:['qr_code']});toast('Arahkan kamera ke QR token…');const t0=Date.now();while(Date.now()-t0<20000){const r=await bd.detect(v);if(r.length){S.set('tok_'+k,r[0].rawValue);toast('Token dipindai','ok');break}await sleep(300)}st.getTracks().forEach(t=>t.stop())}catch(e){toast('Kamera tidak tersedia','bad')}}
 
@@ -685,7 +753,7 @@ const SET=[
  [null,'info','Inti CPU',()=>navigator.hardwareConcurrency||'–'],
  [null,'info','Layar',()=>innerWidth+'×'+innerHeight],
  [null,'info','Jaringan',()=>navigator.connection?.effectiveType||(navigator.onLine?'online':'offline')],
- [null,'info','Versi','v1.2.0']]]];
+ [null,'info','Versi','v1.3.0']]]];
 const FLAT=SET.flatMap(g=>g[2]);
 function buildSettings(){$('#setx').innerHTML=SET.map(([i,t,rows])=>`<div class="card"><h4>${ic(i)}${t}</h4>${rows.map(r=>{const[k,ty,l]=r;let c='';
 if(ty==='sw')c=`<button class="sw${S.get(k,r[3])?' on':''}" onclick="sw('${k}',this,${r[3]})"></button>`;
