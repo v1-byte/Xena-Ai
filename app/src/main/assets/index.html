@@ -551,7 +551,7 @@ function fabGo(w){$('#fab').classList.remove('open');if(w==='file')$('#file').cl
 /* ---------- sidebar / palette ---------- */
 function openSide(){renderHist();$('#side').classList.add('on');$('#shade').classList.add('on')}
 function closeAll(){if(askRes)askEnd(null);$('#side').classList.remove('on');$('#shade').classList.remove('on');$('#pal').classList.remove('on')}
-const PAL=[['wrench','Fix libllama.so',()=>{tab(0);runCmd('/fix')}],['github','Add GitHub Connector',()=>tab(2)],['palette','Ganti tema Hacker',()=>setTheme('hacker')],['palette','Ganti tema Cyberpunk',()=>setTheme('cyberpunk')],['sun','Ganti tema Light',()=>setTheme('light')],['moon','Ganti tema Dark',()=>setTheme('dark')],['trash','Clear chat',clearChat],['plus','Chat baru',newChat],['save','Export settings',exportSet],['cpu','Muat model',()=>{tab(1);loadModel()}]];
+const PAL=[['wrench','Fix libllama.so',()=>{tab(0);runCmd('/fix')}],['github','Add GitHub Connector',()=>tab(2)],['palette','Ganti tema Hacker',()=>setTheme('hacker')],['palette','Ganti tema Cyberpunk',()=>setTheme('cyberpunk')],['sun','Ganti tema Light',()=>setTheme('light')],['moon','Ganti tema Dark',()=>setTheme('dark')],['trash','Clear chat',clearChat],['plus','Chat baru',newChat],['save','Export settings',exportSet],['cpu','Muat model',()=>{tab(1);loadModel()}],['save','Cek update APK',()=>{try{Android.checkUpdate(true)}catch(e){toast('Update hanya di APK','bad')}}]];
 let palSel=0,palCur=PAL;
 function openPal(){$('#pal').classList.add('on');$('#palIn').value='';palFilter();setTimeout(()=>$('#palIn').focus(),50)}
 function palFilter(){const q=$('#palIn').value.toLowerCase();palCur=PAL.filter(p=>p[1].toLowerCase().includes(q));palSel=0;palDraw()}
@@ -713,6 +713,8 @@ async function boot(){if(!S.get('splash',true))return endSplash();for(let i=0;i<
 function endSplash(){if(document.body.classList.contains('ready'))return;$('#splash').classList.add('hide');document.body.classList.add('ready');if(S.get('pin',''))$('#lock').classList.add('on')}
 
 /* ---------- init ---------- */
+
+window.xenaUpdateProgress=function(pct,msg){try{if(typeof toast==='function')toast(msg||('Update '+pct+'%'),'ok');logT&&logT('⬆ '+(msg||pct));}catch(e){}};
 function init(){applySettings();buildSettings();buildThemes();const th=S.get('theme','dark');document.documentElement.dataset.theme=th;$$('.th').forEach(b=>b.classList.toggle('active',b.dataset.t===th));const ac=S.get('accent',null);if(ac){setAccent(ac);$('#accPick').value=ac}
 $('#sys').value=S.get('sys',TPL.agent);saveSys();$('#ctx').value=S.get('ctx',2048);$('#tmp').value=S.get('tmp',.2);slide();buildThr();storage();$('#swAuto').classList.toggle('on',S.get('auto',false));$('#mSpd').textContent=S.get('spd','–')+(S.get('spd')?' tok/s':' tok/s');
 buildCon();net();if(!curChat()&&chats.length)cid=chats[0].id;renderChat();$('#navInd').style.transform='translateX(0)';

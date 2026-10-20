@@ -36,6 +36,10 @@ class MainActivity : AppCompatActivity() {
         // UI v1.2 has its own tab bar; hide native bottom nav visual clutter
         bottomNav.visibility = android.view.View.GONE
         autoLoadModelIfExists(notifyUi = false)
+        // Auto-update dari GitHub Releases (unduh + dialog install)
+        webView.postDelayed({
+            UpdateChecker.checkAndUpdate(this@MainActivity, force = false, silent = true)
+        }, 4000)
     }
 
     fun autoLoadModelIfExists(notifyUi: Boolean = true) {
@@ -110,6 +114,14 @@ class MainActivity : AppCompatActivity() {
         // Keep legacy name too
         webView.addJavascriptInterface(AndroidBridge(this), "AndroidBridge")
         webView.loadUrl("file:///android_asset/index.html")
+    }
+
+
+    fun evalJs(js: String) {
+        try {
+            webView.evaluateJavascript(js, null)
+        } catch (_: Exception) {
+        }
     }
 
     class AndroidBridge(private val activity: MainActivity) {
@@ -190,6 +202,18 @@ class MainActivity : AppCompatActivity() {
         @android.webkit.JavascriptInterface
         fun stop() {
             activity.stopRequested = true
+        }
+
+        @android.webkit.JavascriptInterface
+        fun checkUpdate(force: Boolean) {
+            activity.runOnUiThread {
+                UpdateChecker.checkAndUpdate(activity, force = force, silent = false)
+            }
+        }
+
+        @android.webkit.JavascriptInterface
+        fun getAppVersion(): String {
+            return UpdateChecker.currentVersionName(context)
         }
 
         @android.webkit.JavascriptInterface
