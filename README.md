@@ -1,9 +1,9 @@
 # Xena-AI
 
-**v1.4.1** — default **Server Mode** (HuggingFace Space) untuk HP 6GB, dengan panel URL Space yang terlihat di tab **Atur**.
+**v1.4.2** — Server Mode memakai Hugging Face Inference Providers melalui endpoint Chat Completions resmi; token dimasukkan di aplikasi dan dienkripsi lewat Android Keystore.
 Local GGUF tetap opsional (1.5B / 3B / 7B).
 
-- Dok migrasi: [`docs/MIGRASI_HF_SERVER_v1.4.0.md`](docs/MIGRASI_HF_SERVER_v1.4.0.md)
+- Dok migrasi: [`docs/MIGRASI_HF_INFERENCE_v1.4.2.md`](docs/MIGRASI_HF_INFERENCE_v1.4.2.md)
 - Template Space: [`docs/hf-space/`](docs/hf-space/)
 
 Aplikasi Android untuk model **GGUF lokal** (target Qwen2.5-Coder 7B Q3_K_M ~3.55 GB).  
@@ -34,7 +34,7 @@ app/src/main/
 ```
 
 ## Atur koneksi Hugging Face
-Di aplikasi buka tab **Atur** → **Koneksi Hugging Face Space**, masukkan URL HTTPS Space Anda (Space harus berstatus **Running**), lalu tekan **Simpan URL**. Aktifkan **Server Mode: ON** untuk memakai server tanpa memuat GGUF lokal. Tombol **Tes koneksi** mengecek apakah Space merespons.
+Di aplikasi buka tab **Atur** → **Koneksi Hugging Face Inference**, masukkan token HF baru yang memiliki izin Inference lalu tekan **Simpan token**. Token dienkripsi di perangkat dan tidak ditanam ke APK. Aktifkan **Server Mode: ON** dan gunakan **Tes koneksi**. Inference Providers dapat mempunyai kuota atau biaya sesuai pengaturan akun/provider; periksa dashboard HF sebelum digunakan.
 
 ## Model di HP
 Letakkan salah satu:

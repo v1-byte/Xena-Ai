@@ -2,6 +2,14 @@ package com.xena.ai
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyProperties
+import android.util.Base64
+import java.security.KeyStore
+import javax.crypto.Cipher
+import javax.crypto.KeyGenerator
+import javax.crypto.SecretKey
+import javax.crypto.spec.GCMParameterSpec
 
 object AppPrefs {
     private const val PREF_NAME = "xena_prefs"
@@ -67,17 +75,58 @@ object AppPrefs {
         getPrefs(context).edit().putBoolean("server_mode", enabled).apply()
     }
 
-    fun getHfServerUrl(context: Context): String =
-        getPrefs(context).getString("hf_server_url", "") ?: ""
+    private const val HF_TOKEN_KEY = "hf_inference_token_encrypted"
+    private const val HF_KEY_ALIAS = "xena_hf_token_key"
 
-    fun setHfServerUrl(context: Context, url: String) {
-        val cleaned = url.trim().trimEnd('/')
-        getPrefs(context).edit().putString("hf_server_url", cleaned).apply()
-        KonektorHuggingFace.baseUrl = cleaned
+    fun hasHfToken(context: Context): Boolean = getPrefs(context).contains(HF_TOKEN_KEY)
+
+    fun setHfToken(context: Context, token: String) {
+        val cleaned = token.trim()
+        if (cleaned.isEmpty()) {
+            clearHfToken(context)
+            return
+        }
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.ENCRYPT_MODE, getOrCreateHfKey())
+        val encrypted = cipher.doFinal(cleaned.toByteArray(Charsets.UTF_8))
+        val packed = cipher.iv + encrypted
+        getPrefs(context).edit()
+            .putString(HF_TOKEN_KEY, Base64.encodeToString(packed, Base64.NO_WRAP))
+            .apply()
     }
 
-    fun applyServerConfig(context: Context) {
-        KonektorHuggingFace.baseUrl = getHfServerUrl(context)
+    fun getHfToken(context: Context): String {
+        val encoded = getPrefs(context).getString(HF_TOKEN_KEY, null) ?: return ""
+        return try {
+            val packed = Base64.decode(encoded, Base64.NO_WRAP)
+            if (packed.size <= 12) return ""
+            val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+            cipher.init(Cipher.DECRYPT_MODE, getOrCreateHfKey(), GCMParameterSpec(128, packed.copyOfRange(0, 12)))
+            String(cipher.doFinal(packed.copyOfRange(12, packed.size)), Charsets.UTF_8)
+        } catch (_: Exception) {
+            ""
+        }
+    }
+
+    fun clearHfToken(context: Context) {
+        getPrefs(context).edit().remove(HF_TOKEN_KEY).apply()
+    }
+
+    private fun getOrCreateHfKey(): SecretKey {
+        val keyStore = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+        (keyStore.getKey(HF_KEY_ALIAS, null) as? SecretKey)?.let { return it }
+        val generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore")
+        generator.init(
+            KeyGenParameterSpec.Builder(
+                HF_KEY_ALIAS,
+                KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
+            )
+                .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                .setRandomizedEncryptionRequired(true)
+                .build()
+        )
+        return generator.generateKey()
     }
 
     private fun migrateSixGbDefaults(context: Context) {

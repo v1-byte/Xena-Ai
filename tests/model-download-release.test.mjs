@@ -9,6 +9,7 @@ const loader = read('../app/src/main/java/com/xena/ai/ModelAutoLoader.kt');
 const transfer = read('../app/src/main/java/com/xena/ai/ModelDownloadManager.kt');
 const catalog = read('../app/src/main/java/com/xena/ai/ModelCatalog.kt');
 const prefs = read('../app/src/main/java/com/xena/ai/AppPrefs.kt');
+const hfConnector = read('../app/src/main/java/com/xena/ai/KonektorHuggingFace.kt');
 const updater = read('../app/src/main/java/com/xena/ai/UpdateChecker.kt');
 const html = read('../app/src/main/assets/index.html');
 const modelUi = read('../app/src/main/assets/model-manager.js');
@@ -36,11 +37,17 @@ test('the existing app sections and primary navigation remain in place', () => {
   assert.match(html, /onclick="moveModelFromDownloads\(\)"/);
   assert.match(html, /onclick="selectModelFromDownloads\(\)"/);
   assert.match(html, /id="hfServerSettings"/);
-  assert.match(html, /id="hfSpaceUrl"/);
-  assert.match(html, /onclick="saveHfSpaceUrl\(\)"/);
+  assert.match(html, /id="hfInferenceToken"/);
+  assert.match(html, /onclick="saveHfInferenceToken\(\)"/);
+  assert.match(html, /onclick="clearHfInferenceToken\(\)"/);
   assert.match(html, /onclick="toggleHfServerMode\(\)"/);
-  assert.match(html, /onclick="testHfSpace\(\)"/);
+  assert.match(html, /onclick="testHfInference\(\)"/);
   assert.match(html, /function loadHfServerSettings\(\)/);
+  assert.match(html, /Android Keystore/);
+  assert.match(prefs, /AES\/GCM\/NoPadding/);
+  assert.match(prefs, /AndroidKeyStore/);
+  assert.match(hfConnector, /https:\/\/router\.huggingface\.co\/v1\/chat\/completions/);
+  assert.doesNotMatch(hfConnector, /hf_[A-Za-z0-9]{20,}/);
   assert.match(html, /<script src="model-manager\.js"><\/script>/);
   assert.match(modelUi, /window\.startDl = function/);
 });
@@ -126,8 +133,8 @@ test('force update still refuses same or older versions', () => {
 });
 
 test('APK release is version-driven and verifies native llama library packaging', () => {
-  assert.match(gradle, /versionCode = 141/);
-  assert.match(gradle, /versionName = "1.4.1"/);
+  assert.match(gradle, /versionCode = 142/);
+  assert.match(gradle, /versionName = "1.4.2"/);
   assert.match(gradle, /signingConfig = signingConfigs\.getByName\("release"\)/);
   assert.match(workflow, /steps\.release_meta\.outputs\.tag/);
   assert.match(workflow, /gradle assembleRelease/);
