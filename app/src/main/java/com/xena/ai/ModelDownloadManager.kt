@@ -340,7 +340,7 @@ class ModelDownloadManager(context: Context) {
                     connectTimeout = 30_000
                     readTimeout = 45_000
                     instanceFollowRedirects = true
-                    setRequestProperty("User-Agent", "Xena-AI-Android/1.3.7")
+                    setRequestProperty("User-Agent", "Xena-AI-Android/1.3.8")
                     setRequestProperty("Accept", "application/octet-stream")
                     if (offset > 0L) {
                         setRequestProperty("Range", "bytes=$offset-")

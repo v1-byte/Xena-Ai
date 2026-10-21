@@ -55,12 +55,47 @@ class MainActivity : AppCompatActivity() {
         setupBottomNav()
         // UI v1.2 has its own tab bar; hide native bottom nav visual clutter
         bottomNav.visibility = android.view.View.GONE
-        autoLoadModelIfExists(notifyUi = false)
+        prepareModelIfExists()
         // Auto-update dari GitHub Releases (unduh + dialog install)
         webView.postDelayed({
             // force hanya melewati throttle; versi yang sama tidak pernah diunduh ulang.
             UpdateChecker.checkAndUpdate(this@MainActivity, force = true, silent = true)
         }, 2500)
+    }
+
+    /** Migrate/discover a model at startup, but do not load multi-GB weights unless opted in. */
+    private fun prepareModelIfExists() {
+        statusText.text = "Memeriksa model GGUF…"
+        topStatus.text = "XENA model…"
+        Thread {
+            try {
+                val modelFile = synchronized(modelOperationLock) {
+                    ModelAutoLoader.ensurePrivateModel(this) { bytes, total ->
+                        publishTransfer(
+                            ModelDownloadManager.Snapshot(
+                                "moving", "", "Model dari Download", bytes, total.coerceAtLeast(0L), 0L,
+                                "Memindahkan model ke penyimpanan aplikasi…"
+                            )
+                        )
+                    }
+                }
+                runOnUiThread {
+                    if (modelFile == null) {
+                        statusText.text = "Belum ada model. Pilih GGUF dari Download atau unduh katalog."
+                        topStatus.text = "Pilih model"
+                    } else {
+                        statusText.text = "Model tersedia — ${modelFile.name}. Tekan Muat Model untuk memuat ke RAM."
+                        topStatus.text = "Model tersedia"
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Model preparation failed: ${e.message}", e)
+                runOnUiThread {
+                    statusText.text = "Model belum siap: ${e.message}"
+                    topStatus.text = "Error model"
+                }
+            }
+        }.start()
     }
 
     fun autoLoadModelIfExists(notifyUi: Boolean = true) {
@@ -100,6 +135,23 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun loadModelFile(modelFile: File, notifyUi: Boolean, selectedCallback: Boolean = false) {
+        val memoryWarning = modelLoadMemoryWarning(modelFile)
+        if (memoryWarning != null) {
+            publishTransfer(
+                ModelDownloadManager.Snapshot(
+                    "failed", ModelCatalog.byFileName(modelFile.name)?.id.orEmpty(), modelFile.name,
+                    modelFile.length(), modelFile.length(), 0L, memoryWarning
+                )
+            )
+            runOnUiThread {
+                statusText.text = memoryWarning
+                topStatus.text = "RAM tidak cukup"
+                Toast.makeText(this, memoryWarning, Toast.LENGTH_LONG).show()
+                if (selectedCallback) notifySelectedModel(false, modelFile.name, memoryWarning)
+                if (notifyUi) notifyModelReady(false)
+            }
+            return
+        }
         synchronized(modelOperationLock) {
             if (modelLoadInProgress) {
                 if (selectedCallback) notifySelectedModel(false, modelFile.name, "Pemuatan model lain masih berlangsung")
@@ -145,6 +197,25 @@ class MainActivity : AppCompatActivity() {
                 )
             }
         }.start()
+    }
+
+    /** Keep the low-memory killer from terminating the app while loading large GGUF weights. */
+    private fun modelLoadMemoryWarning(modelFile: File): String? {
+        val manager = getSystemService(android.content.Context.ACTIVITY_SERVICE) as? android.app.ActivityManager ?: return null
+        val memory = android.app.ActivityManager.MemoryInfo()
+        manager.getMemoryInfo(memory)
+        val gib = 1024L * 1024L * 1024L
+        val modelBytes = modelFile.length()
+        if (memory.totalMem <= 6L * gib + gib / 2L && modelBytes >= 3L * gib) {
+            return "Model 7B ini terlalu berat untuk perangkat RAM 6 GB; pemuatan dihentikan agar aplikasi tidak tertutup. Gunakan Qwen 1.5B atau 3B."
+        }
+        val requiredBytes = modelBytes + gib
+        if (memory.availMem < requiredBytes) {
+            val required = String.format(java.util.Locale.US, "%.1f", requiredBytes / 1073741824.0)
+            val available = String.format(java.util.Locale.US, "%.1f", memory.availMem / 1073741824.0)
+            return "RAM bebas belum cukup: perlu sekitar ${required} GB, tersedia ${available} GB. Tutup aplikasi lain atau gunakan model lebih kecil."
+        }
+        return null
     }
 
     fun useInstalledModel(modelIdOrName: String): Boolean {
@@ -310,6 +381,16 @@ class MainActivity : AppCompatActivity() {
                         if (!LlamaBridge.isReady()) {
                             val f = ModelAutoLoader.ensurePrivateModel(context)
                             if (f != null) {
+                                val memoryWarning = activity.modelLoadMemoryWarning(f)
+                                if (memoryWarning != null) {
+                                    activity.publishTransfer(
+                                        ModelDownloadManager.Snapshot(
+                                            "failed", ModelCatalog.byFileName(f.name)?.id.orEmpty(), f.name,
+                                            f.length(), f.length(), 0L, memoryWarning
+                                        )
+                                    )
+                                    return@synchronized "[XENA] $memoryWarning"
+                                }
                                 val loaded = LlamaBridge.loadModel(
                                     f.absolutePath,
                                     AppPrefs.getNctx(context),
@@ -455,7 +536,8 @@ class MainActivity : AppCompatActivity() {
         fun loadModelWithConfig(n_ctx: Int, n_batch: Int, n_threads: Int): Boolean {
             AppPrefs.saveConfig(context, n_ctx, n_batch, n_threads)
             val f = ModelAutoLoader.ensurePrivateModel(context) ?: return false
-            return LlamaBridge.loadModel(f.absolutePath, n_ctx, n_batch, n_threads, true, false)
+            activity.loadModelFile(f, notifyUi = false)
+            return true
         }
 
         @android.webkit.JavascriptInterface

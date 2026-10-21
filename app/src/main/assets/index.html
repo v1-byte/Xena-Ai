@@ -495,7 +495,7 @@ header,nav{transition:transform .8s cubic-bezier(.2,.8,.2,1) .1s}
       <div class="stat"><span class="muted">Baterai</span><b id="dBat">–</b></div>
       <div class="stat"><span class="muted">Konektor</span><b id="dCon">0 aktif</b></div>
     </div>
-    <div class="btns"><button class="btn" onclick="clearCache()"><svg class="i"><use href="#i-trash"/></svg>Clear Cache</button><button class="btn" onclick="tab(2);toast('Log ada di tab Konektor')"><svg class="i"><use href="#i-term"/></svg>Logs</button><button class="btn" onclick="toast('Xena AI v1.3.0 · eXpert Engine for Neural Assistance')"><svg class="i"><use href="#i-info"/></svg>Tentang</button></div>
+    <div class="btns"><button class="btn" onclick="clearCache()"><svg class="i"><use href="#i-trash"/></svg>Clear Cache</button><button class="btn" onclick="tab(2);toast('Log ada di tab Konektor')"><svg class="i"><use href="#i-term"/></svg>Logs</button><button class="btn" onclick="toast('Xena AI v1.3.8 · eXpert Engine for Neural Assistance')"><svg class="i"><use href="#i-info"/></svg>Tentang</button></div>
   </div>
 </div></section>
 </main>
@@ -873,12 +873,12 @@ const SET=[
  [null,'btn','Riwayat chat','Hapus','clearCache()',1],
  [null,'btn','Pengaturan','Reset','resetSet()',1],
  [null,'btn','Semua data','Hapus semua','resetAll()',1]]],
-['info','Perangkat',[
+      ['info','Perangkat',[
  [null,'info','RAM',()=>navigator.deviceMemory?navigator.deviceMemory+' GB':'–'],
  [null,'info','Inti CPU',()=>navigator.hardwareConcurrency||'–'],
  [null,'info','Layar',()=>innerWidth+'×'+innerHeight],
  [null,'info','Jaringan',()=>navigator.connection?.effectiveType||(navigator.onLine?'online':'offline')],
- [null,'info','Versi','v1.3.0']]]];
+       [null,'info','Versi','v1.3.8']]]];
 const FLAT=SET.flatMap(g=>g[2]);
 function buildSettings(){$('#setx').innerHTML=SET.map(([i,t,rows])=>`<div class="card"><h4>${ic(i)}${t}</h4>${rows.map(r=>{const[k,ty,l]=r;let c='';
 if(ty==='sw')c=`<button class="sw${S.get(k,r[3])?' on':''}" onclick="sw('${k}',this,${r[3]})"></button>`;

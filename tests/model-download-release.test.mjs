@@ -99,6 +99,18 @@ test('the 6 GB profile defaults to 1024 context, 32 batch, and 2 threads', () =>
   assert.match(html, /function buildThr\(\)\{const cur=S\.get\('thr',2\)/);
 });
 
+test('startup honors opt-in auto-load and blocks likely low-RAM model kills before JNI', () => {
+  const onCreate = activity.slice(activity.indexOf('override fun onCreate'), activity.indexOf('fun autoLoadModelIfExists'));
+  assert.match(onCreate, /prepareModelIfExists\(\)/);
+  assert.doesNotMatch(onCreate, /autoLoadModelIfExists/);
+  assert.match(activity, /private fun prepareModelIfExists\(\)/);
+  assert.match(activity, /memory\.totalMem <= 6L \* gib \+ gib \/ 2L && modelBytes >= 3L \* gib/);
+  assert.match(activity, /memory\.availMem < requiredBytes/);
+  assert.match(activity, /val memoryWarning = activity\.modelLoadMemoryWarning\(f\)/);
+  assert.match(activity, /activity\.loadModelFile\(f, notifyUi = false\)/);
+  assert.match(html, /if\(S\.get\('auto',false\)\)setTimeout\(loadModel,2600\)/);
+});
+
 test('force update still refuses same or older versions', () => {
   assert.match(updater, /if \(!isNewer\(info\.tag, local\)\)/);
   assert.match(updater, /hasCompatibleSigningCertificate\(activity, file\)/);
@@ -108,8 +120,8 @@ test('force update still refuses same or older versions', () => {
 });
 
 test('APK release is version-driven and verifies native llama library packaging', () => {
-  assert.match(gradle, /versionCode = 137/);
-  assert.match(gradle, /versionName = "1\.3\.7"/);
+  assert.match(gradle, /versionCode = 138/);
+  assert.match(gradle, /versionName = "1\.3\.8"/);
   assert.match(gradle, /signingConfig = signingConfigs\.getByName\("release"\)/);
   assert.match(workflow, /steps\.release_meta\.outputs\.tag/);
   assert.match(workflow, /gradle assembleRelease/);
