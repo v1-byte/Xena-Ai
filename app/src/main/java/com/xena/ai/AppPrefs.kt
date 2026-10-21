@@ -22,7 +22,7 @@ object AppPrefs {
         var prompt = prefs.getString("system_prompt", "") ?: ""
         if (prompt.isBlank() || prompt == "null" || prompt == "undefined") {
             prompt =
-                "You are Xena-AI, a helpful coding assistant powered by Qwen2.5-Coder. " +
+                "You are Xena-AI, a helpful coding assistant powered by Groq openai/gpt-oss-20b. " +
                     "You are an expert programmer created by Xena. Answer correctly and clearly in Indonesian. " +
                     "Provide working code when asked. Be concise but correct."
             prefs.edit().putString("system_prompt", prompt).apply()
@@ -67,7 +67,7 @@ object AppPrefs {
             .apply()
     }
 
-    /** v1.4.0 — Server mode (HF Space) default ON for 6GB phones. */
+    /** Server mode calls the configured remote provider instead of loading GGUF locally. */
     fun isServerMode(context: Context): Boolean =
         getPrefs(context).getBoolean("server_mode", true)
 
@@ -75,50 +75,63 @@ object AppPrefs {
         getPrefs(context).edit().putBoolean("server_mode", enabled).apply()
     }
 
-    private const val HF_TOKEN_KEY = "hf_inference_token_encrypted"
-    private const val HF_KEY_ALIAS = "xena_hf_token_key"
+    private const val GROQ_API_KEY_PREF = "groq_api_key_encrypted"
+    private const val GROQ_KEY_ALIAS = "xena_groq_api_key"
 
-    fun hasHfToken(context: Context): Boolean = getPrefs(context).contains(HF_TOKEN_KEY)
+    fun hasGroqApiKey(context: Context): Boolean = getGroqApiKey(context).isNotBlank()
 
-    fun setHfToken(context: Context, token: String) {
-        val cleaned = token.trim()
+    fun setGroqApiKey(context: Context, apiKey: String) {
+        val cleaned = apiKey.trim()
         if (cleaned.isEmpty()) {
-            clearHfToken(context)
+            clearGroqApiKey(context)
             return
         }
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        cipher.init(Cipher.ENCRYPT_MODE, getOrCreateHfKey())
+        cipher.init(Cipher.ENCRYPT_MODE, getOrCreateGroqKey())
         val encrypted = cipher.doFinal(cleaned.toByteArray(Charsets.UTF_8))
         val packed = cipher.iv + encrypted
         getPrefs(context).edit()
-            .putString(HF_TOKEN_KEY, Base64.encodeToString(packed, Base64.NO_WRAP))
+            .putString(GROQ_API_KEY_PREF, Base64.encodeToString(packed, Base64.NO_WRAP))
             .apply()
     }
 
-    fun getHfToken(context: Context): String {
-        val encoded = getPrefs(context).getString(HF_TOKEN_KEY, null) ?: return ""
+    fun getGroqApiKey(context: Context): String {
+        val encoded = getPrefs(context).getString(GROQ_API_KEY_PREF, null) ?: return ""
         return try {
             val packed = Base64.decode(encoded, Base64.NO_WRAP)
             if (packed.size <= 12) return ""
             val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-            cipher.init(Cipher.DECRYPT_MODE, getOrCreateHfKey(), GCMParameterSpec(128, packed.copyOfRange(0, 12)))
+            cipher.init(Cipher.DECRYPT_MODE, getOrCreateGroqKey(), GCMParameterSpec(128, packed.copyOfRange(0, 12)))
             String(cipher.doFinal(packed.copyOfRange(12, packed.size)), Charsets.UTF_8)
         } catch (_: Exception) {
             ""
         }
     }
 
-    fun clearHfToken(context: Context) {
-        getPrefs(context).edit().remove(HF_TOKEN_KEY).apply()
+    fun clearGroqApiKey(context: Context) {
+        getPrefs(context).edit().remove(GROQ_API_KEY_PREF).apply()
     }
 
-    private fun getOrCreateHfKey(): SecretKey {
+    /** Remove credentials and endpoint configuration saved by older Hugging Face builds. */
+    fun clearLegacyHfConfig(context: Context) {
+        getPrefs(context).edit()
+            .remove("hf_inference_token_encrypted")
+            .remove("hf_server_url")
+            .apply()
+        Connectors.clearToken(context, "huggingface")
+        try {
+            KeyStore.getInstance("AndroidKeyStore").apply { load(null) }.deleteEntry("xena_hf_token_key")
+        } catch (_: Exception) {
+        }
+    }
+
+    private fun getOrCreateGroqKey(): SecretKey {
         val keyStore = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
-        (keyStore.getKey(HF_KEY_ALIAS, null) as? SecretKey)?.let { return it }
+        (keyStore.getKey(GROQ_KEY_ALIAS, null) as? SecretKey)?.let { return it }
         val generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore")
         generator.init(
             KeyGenParameterSpec.Builder(
-                HF_KEY_ALIAS,
+                GROQ_KEY_ALIAS,
                 KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
             )
                 .setBlockModes(KeyProperties.BLOCK_MODE_GCM)

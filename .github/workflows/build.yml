@@ -136,6 +136,9 @@ jobs:
           - Startup prepares/migrates models without loading them unless auto-load was enabled; preflight RAM checks prevent likely low-memory process kills.
           - GGUF validation and safe import/move into Android app-specific storage.
           - Conservative 6 GB RAM defaults: context 1024, batch 32, 2 threads; lower-memory load fallbacks.
+          - Server Mode migrates from Hugging Face Inference to Groq Chat Completions using the currently listed production model `openai/gpt-oss-20b`.
+          - Groq API key is entered in the app and encrypted with Android Keystore; no API key is included in source or APK.
+          - Legacy Hugging Face inference credentials and Space URL are cleared. Hugging Face remains only as a source for public local GGUF model files.
           - Existing Chat, navigation, connectors, themes, and settings remain in the app.
           - `libllama.so` is built from the pinned llama.cpp source for arm64-v8a; GGUF model weights are downloaded separately in the app.
 

@@ -42,14 +42,6 @@ object Connectors {
             description = "Baca Ads, Page insights",
             tokenLabel = "Meta Access Token",
             tokenHint = "EAAxxxxxxxxxxxx"
-        ),
-        ConnectorDef(
-            id = "huggingface",
-            name = "HuggingFace",
-            icon = "🤗",
-            description = "Download model GGUF Qwen, gratis tanpa token",
-            tokenLabel = "HF Token (opsional, untuk private model)",
-            tokenHint = "hf_xxxxxxxx"
         )
     )
 
@@ -73,8 +65,6 @@ object Connectors {
     }
 
     fun isConnected(context: Context, id: String): Boolean {
-        // HuggingFace boleh tanpa token (public)
-        if (id == "huggingface") return true
         return !getToken(context, id).isNullOrBlank()
     }
 

@@ -1,57 +1,28 @@
 # Xena-AI
 
-**v1.4.2** — Server Mode memakai Hugging Face Inference Providers melalui endpoint Chat Completions resmi; token dimasukkan di aplikasi dan dienkripsi lewat Android Keystore.
-Local GGUF tetap opsional (1.5B / 3B / 7B).
+**v1.5.0** — Server Mode memakai Groq Chat Completions dengan model production `openai/gpt-oss-20b`. API key dimasukkan lewat aplikasi dan dienkripsi menggunakan Android Keystore; key tidak ditanam di repository atau APK. Mode GGUF lokal tetap tersedia.
 
-- Dok migrasi: [`docs/MIGRASI_HF_INFERENCE_v1.4.2.md`](docs/MIGRASI_HF_INFERENCE_v1.4.2.md)
-- Template Space: [`docs/hf-space/`](docs/hf-space/)
+- Panduan Groq: [`docs/MIGRASI_GROQ_v1.5.0.md`](docs/MIGRASI_GROQ_v1.5.0.md)
+- Unduh APK: [GitHub Releases](https://github.com/v1-byte/Xena-Ai/releases)
 
-Aplikasi Android untuk model **GGUF lokal** (target Qwen2.5-Coder 7B Q3_K_M ~3.55 GB).  
-UI HTML v1.2 full-screen WebView + bridge Kotlin `window.Android`.
+## Koneksi Groq
 
-## Status v1.2.0
-- ✅ UI v1.2 (Chat / Model / Konektor / Atur)
-- ✅ Auto-load model path
-- ✅ Anti-error system prompt
-- ✅ Connectors (token lokal)
-- ✅ JNI library `libllama` (stub aman — ganti dengan llama.cpp asli untuk inference)
-- ⚠️ Inference penuh butuh `libllama.so` hasil build llama.cpp (bukan stub)
+Buat API key dari [Groq Console](https://console.groq.com/keys). Di aplikasi, buka **Atur → Koneksi Groq**, masukkan key yang diawali `gsk_`, lalu tekan **Simpan API key**. Aktifkan **Server Mode: ON** dan gunakan **Tes koneksi**.
 
-## Struktur
-```
-app/src/main/
-  assets/index.html          # UI utama
-  java/com/xena/ai/          # MainActivity, LlamaBridge, AppPrefs, ModelAutoLoader, Connectors
-  cpp/                       # JNI stub (libllama.so)
-  jniLibs/arm64-v8a/         # Opsional: taruh .so prebuilt di sini (override stub)
-```
+Groq menerbitkan model `openai/gpt-oss-20b` sebagai production model. Kuota Free dibatasi menurut model dan organisasi; dokumentasi mencantumkan 1.000 permintaan/hari dan 8.000 token/menit untuk model ini. Developer tier menggunakan harga per token dan mensyaratkan metode pembayaran. Batas dan harga dapat berubah; cek [model/harga](https://console.groq.com/docs/models), [rate limits](https://console.groq.com/docs/rate-limits), dan billing akun sebelum penggunaan. Tombol tes koneksi juga mengirim satu permintaan inference.
+
+Migrasi ini menghapus konektor inference HF dan konfigurasi Space lama. Hugging Face masih dipakai sebagai sumber unduhan beberapa berkas model GGUF di katalog lokal; berkas tersebut terpisah dari koneksi chat Groq.
+
+## Mode lokal
+
+Mode lokal memakai katalog GGUF 1.5B/3B/7B yang bisa diunduh dari tab **Model**. Di HP dengan RAM 6 GB, profil awal memakai context 1024, batch 32, dan 2 threads. Model lokal tidak diperlukan saat Server Mode aktif.
 
 ## Build lokal
+
+Butuh JDK 17, Android SDK, NDK 26, dan CMake 3.22:
+
 ```bash
-# Butuh JDK 17 + Android SDK + NDK 26 + CMake 3.22
 ./gradlew assembleDebug
-# APK: app/build/outputs/apk/debug/app-debug.apk
 ```
 
-## Atur koneksi Hugging Face
-Di aplikasi buka tab **Atur** → **Koneksi Hugging Face Inference**, masukkan token HF baru yang memiliki izin Inference lalu tekan **Simpan token**. Token dienkripsi di perangkat dan tidak ditanam ke APK. Aktifkan **Server Mode: ON** dan gunakan **Tes koneksi**. Inference Providers dapat mempunyai kuota atau biaya sesuai pengaturan akun/provider; periksa dashboard HF sebelum digunakan.
-
-## Model di HP
-Letakkan salah satu:
-- `Android/data/com.xena.ai/files/qwen2.5-coder-7b-instruct-q3_k_m.gguf`
-- `/storage/emulated/0/Download/qwen2.5-coder-7b-instruct-q3_k_m.gguf`
-- Migrasi dari `com.dte.ai/files/...`
-
-## Ganti stub → llama.cpp asli
-1. Build `libllama.so` + JNI bindings untuk package `com.xena.ai.LlamaBridge`
-2. Metode native: `nativeLoadModel`, `nativeGenerate`, `nativeIsLoaded`, `nativeFreeModel`
-3. Taruh di `app/src/main/jniLibs/arm64-v8a/libllama.so` **atau** ganti `app/src/main/cpp/`
-
-## Connectors
-Token disimpan lokal (SharedPreferences). GitHub test mengecek repo & `libllama.so`.
-
-## RAM 6 GB
-Context 2048 · batch 128 · threads 4 · temp 0.2 · mmap on · mlock off
-
-## Lisensi
-Private project.
+APK debug: `app/build/outputs/apk/debug/app-debug.apk`.

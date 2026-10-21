@@ -467,18 +467,18 @@ header,nav{transition:transform .8s cubic-bezier(.2,.8,.2,1) .1s}
 
 <!-- ===== ATUR ===== -->
 <section class="tab" id="t3"><div class="scroll"><input type="text" id="setq" placeholder="Cari pengaturan…" oninput="setFind()"><div id="setx"></div>
-  <div class="card" id="hfServerSettings">
-    <h4><svg class="i"><use href="#i-cloud"/></svg>Koneksi Hugging Face Inference</h4>
-    <p class="muted">Masukkan token Hugging Face dengan izin Inference. Token dienkripsi menggunakan Android Keystore di perangkat ini dan tidak dimasukkan ke APK/source code. Tes koneksi mengirim permintaan kecil dan dapat memakai kuota/provider; layanan mungkin memiliki biaya.</p>
-    <label for="hfInferenceToken">Token Hugging Face</label>
-    <input class="f" id="hfInferenceToken" type="password" inputmode="text" autocomplete="off" placeholder="hf_…">
+  <div class="card" id="groqServerSettings">
+    <h4><svg class="i"><use href="#i-cloud"/></svg>Koneksi Groq</h4>
+    <p class="muted">Masukkan Groq API key yang diawali <code>gsk_</code>. Key dienkripsi menggunakan Android Keystore di perangkat ini dan tidak dimasukkan ke APK/source code. Chat dikirim ke Groq untuk diproses dengan model <b>openai/gpt-oss-20b</b>. Tes koneksi memakai request dan kuota. Paket Free memiliki batas; Developer tier memakai penagihan berdasarkan token—periksa billing akun Anda sebelum digunakan.</p>
+    <label for="groqApiKey">Groq API key</label>
+    <input class="f" id="groqApiKey" type="password" inputmode="text" autocomplete="off" placeholder="gsk_…">
     <div class="btns">
-      <button class="btn pri" onclick="saveHfInferenceToken()">Simpan token</button>
-      <button class="btn dng" onclick="clearHfInferenceToken()">Hapus token</button>
-      <button class="btn" id="hfModeToggle" onclick="toggleHfServerMode()">Server Mode: —</button>
-      <button class="btn" onclick="testHfInference()">Tes koneksi</button>
+      <button class="btn pri" onclick="saveGroqApiKey()">Simpan API key</button>
+      <button class="btn dng" onclick="clearGroqApiKey()">Hapus API key</button>
+      <button class="btn" id="groqModeToggle" onclick="toggleGroqServerMode()">Server Mode: —</button>
+      <button class="btn" onclick="testGroqConnection()">Tes koneksi</button>
     </div>
-    <p class="muted" id="hfServerStatus" aria-live="polite">Token belum diperiksa.</p>
+    <p class="muted" id="groqServerStatus" aria-live="polite">API key belum diperiksa.</p>
   </div>
   <div class="card"><h4><svg class="i"><use href="#i-edit"/></svg>System Prompt</h4>
     <select id="tpl" onchange="loadTpl(this.value)"><option value="">— Pilih template —</option><option value="agent">Coding Agent</option><option value="hacker">Hacker Mode</option><option value="guru">Guru Ngoding</option><option value="nurut">Xena Nurut</option></select>
@@ -784,7 +784,7 @@ function pauseDl(){if(!dlT)return;dlPaused=!dlPaused;$('#dlPause').innerHTML=dlP
 function storage(){let used=3.55,tot=10;try{const j=JSON.parse(Android.storageInfo());used=j.used;tot=j.total}catch(e){}$('#stUsed').textContent=used.toFixed(2)+' GB / '+tot+' GB terpakai';const p=used/tot*100;$('#stBar').style.width=p+'%';$('#stBar').style.background=p>85?'var(--err)':'';$('#stFree').textContent=(tot-used).toFixed(2)+' GB bebas · '+((tot-used)>4?'Cukup':'Hampir penuh');$('#stFree').style.color=(tot-used)>4?'var(--ok)':'var(--err)'}
 
 /* ---------- konektor ---------- */
-const CON=[['github','GitHub','Repo v1-byte/Xena-Ai','github'],['cloudflare','Cloudflare','Workers & tunnel','cloud'],['meta','Meta','Llama & Meta AI API','meta'],['hf','Hugging Face','Unduh model GGUF','hf']];
+const CON=[['github','GitHub','Repo v1-byte/Xena-Ai','github'],['cloudflare','Cloudflare','Workers & tunnel','cloud'],['meta','Meta','Llama & Meta AI API','meta']];
 const LOGS=[];
 function paintLog(s){const t=$('#term');if(!t)return;const d=document.createElement('div');d.textContent=s;t.appendChild(d);t.scrollTop=t.scrollHeight}
 function logT(m){const s='['+new Date().toLocaleTimeString([], {hour12:false})+'] '+m;LOGS.push(s);if(LOGS.length>300)LOGS.shift();paintLog(s)}
@@ -828,11 +828,6 @@ async function conTest(k){
       const data=await res.json();
       if(data.id){logT('✅ Meta OK · '+data.name+' ('+data.id+')');toast('Meta OK','ok')}
       else{logT('❌ Meta: '+(data.error?.message||'gagal'));toast('Meta gagal','bad')}
-    }else if(k==='hf'){
-      const res=await fetch('https://huggingface.co/api/models/Qwen/Qwen2.5-Coder-7B-Instruct-GGUF');
-      const data=await res.json();
-      logT('✅ HF · '+(data.modelId||data.id)+' · downloads '+(data.downloads||'?'));
-      toast('HuggingFace OK','ok');
     }else{
       await sleep(500);logT('✅ '+k+' OK');toast(k+' OK','ok');
     }
@@ -891,13 +886,13 @@ const SET=[
  [null,'info','Inti CPU',()=>navigator.hardwareConcurrency||'–'],
  [null,'info','Layar',()=>innerWidth+'×'+innerHeight],
  [null,'info','Jaringan',()=>navigator.connection?.effectiveType||(navigator.onLine?'online':'offline')],
-       [null,'info','Versi','v1.4.1']]]];
+       [null,'info','Versi','v1.5.0']]]];
 const FLAT=SET.flatMap(g=>g[2]);
-function loadHfServerSettings(){try{if(!window.Android)return;$('#hfInferenceToken').value='';const configured=!!(Android.hasHfInferenceToken&&Android.hasHfInferenceToken());const enabled=!!(Android.isServerMode&&Android.isServerMode());$('#hfModeToggle').textContent='Server Mode: '+(enabled?'ON':'OFF');$('#hfModeToggle').classList.toggle('pri',enabled);$('#hfServerStatus').textContent=configured?'Token tersimpan dengan enkripsi perangkat.':'Token belum disimpan.'}catch(e){$('#hfServerStatus').textContent='Bridge Android belum tersedia.'}}
-function saveHfInferenceToken(){const token=$('#hfInferenceToken').value.trim();if(!token){toast('Masukkan token HF terlebih dahulu','bad');return false}if(!token.startsWith('hf_')){toast('Format token HF tidak dikenali','bad');return false}if(!window.Android||!Android.setHfInferenceToken){toast('Fitur ini perlu APK Xena-AI terbaru','bad');return false}Android.setHfInferenceToken(token);$('#hfInferenceToken').value='';$('#hfServerStatus').textContent='Token tersimpan dengan enkripsi perangkat.';toast('Token HF tersimpan','ok');return true}
-function clearHfInferenceToken(){if(!window.Android||!Android.clearHfInferenceToken){toast('Fitur ini perlu APK Xena-AI terbaru','bad');return}Android.clearHfInferenceToken();$('#hfInferenceToken').value='';$('#hfServerStatus').textContent='Token dihapus dari perangkat.';toast('Token HF dihapus','ok')}
-function toggleHfServerMode(){if(!window.Android||!Android.setServerMode){toast('Fitur ini perlu APK Xena-AI terbaru','bad');return}const enabled=!(Android.isServerMode&&Android.isServerMode());Android.setServerMode(enabled);$('#hfModeToggle').textContent='Server Mode: '+(enabled?'ON':'OFF');$('#hfModeToggle').classList.toggle('pri',enabled);toast(enabled?'Server Mode aktif':'Mode lokal aktif','ok')}
-function testHfInference(){if($('#hfInferenceToken').value.trim()&&!saveHfInferenceToken())return;if(!window.Android||!Android.pingHfServer){toast('Bridge Android belum tersedia','bad');return}$('#hfServerStatus').textContent='Menguji endpoint Hugging Face…';setTimeout(()=>{try{const ok=Android.pingHfServer();$('#hfServerStatus').textContent=ok?'Inference API merespons. Coba kirim chat.':'Tes gagal. Periksa token, izin Inference, kuota/provider, dan internet.';toast(ok?'Koneksi HF berhasil':'Koneksi gagal','bad')}catch(e){$('#hfServerStatus').textContent='Tes koneksi gagal: '+e.message}},50)}
+function loadGroqSettings(){try{if(!window.Android)return;$('#groqApiKey').value='';const configured=!!(Android.hasGroqApiKey&&Android.hasGroqApiKey());const enabled=!!(Android.isServerMode&&Android.isServerMode());$('#groqModeToggle').textContent='Server Mode: '+(enabled?'ON':'OFF');$('#groqModeToggle').classList.toggle('pri',enabled);$('#groqServerStatus').textContent=configured?'API key tersimpan terenkripsi di perangkat.':'API key belum disimpan.'}catch(e){$('#groqServerStatus').textContent='Bridge Android belum tersedia.'}}
+function saveGroqApiKey(){const key=$('#groqApiKey').value.trim();if(!key){toast('Masukkan Groq API key terlebih dahulu','bad');return false}if(!key.startsWith('gsk_')){toast('Format Groq API key tidak dikenali','bad');return false}if(!window.Android||!Android.setGroqApiKey){toast('Perlu APK Xena-AI v1.5.0 atau lebih baru','bad');return false}Android.setGroqApiKey(key);$('#groqApiKey').value='';$('#groqServerStatus').textContent='API key tersimpan terenkripsi di perangkat.';toast('Groq API key tersimpan','ok');return true}
+function clearGroqApiKey(){if(!window.Android||!Android.clearGroqApiKey){toast('Perlu APK Xena-AI v1.5.0 atau lebih baru','bad');return}Android.clearGroqApiKey();$('#groqApiKey').value='';$('#groqServerStatus').textContent='API key dihapus dari perangkat.';toast('Groq API key dihapus','ok')}
+function toggleGroqServerMode(){if(!window.Android||!Android.setServerMode){toast('Perlu APK Xena-AI v1.5.0 atau lebih baru','bad');return}const enabled=!(Android.isServerMode&&Android.isServerMode());Android.setServerMode(enabled);$('#groqModeToggle').textContent='Server Mode: '+(enabled?'ON':'OFF');$('#groqModeToggle').classList.toggle('pri',enabled);toast(enabled?'Server Mode Groq aktif':'Mode lokal aktif','ok')}
+function testGroqConnection(){if($('#groqApiKey').value.trim()&&!saveGroqApiKey())return;if(!window.Android||!Android.pingGroqServer){toast('Bridge Android belum tersedia','bad');return}$('#groqServerStatus').textContent='Menguji koneksi Groq…';setTimeout(()=>{try{const ok=Android.pingGroqServer();$('#groqServerStatus').textContent=ok?'Groq merespons. Coba kirim chat.':'Tes gagal. Periksa API key, kuota/plan Groq, billing akun, dan internet.';toast(ok?'Koneksi Groq berhasil':'Koneksi gagal','bad')}catch(e){$('#groqServerStatus').textContent='Tes koneksi gagal: '+e.message}},50)}
 function buildSettings(){$('#setx').innerHTML=SET.map(([i,t,rows])=>`<div class="card"><h4>${ic(i)}${t}</h4>${rows.map(r=>{const[k,ty,l]=r;let c='';
 if(ty==='sw')c=`<button class="sw${S.get(k,r[3])?' on':''}" onclick="sw('${k}',this,${r[3]})"></button>`;
 else if(ty==='range'){const v=S.get(k,r[6]);return `<div class="sr"><label>${l}: <b id="v_${k}">${r[7](v)}</b></label><input type="range" min="${r[3]}" max="${r[4]}" step="${r[5]}" value="${v}" oninput="rg('${k}',this.value)"></div>`}
@@ -972,7 +967,7 @@ function endSplash(){if(document.body.classList.contains('ready'))return;$('#spl
 /* ---------- init ---------- */
 
 window.xenaUpdateProgress=function(pct,msg){try{if(typeof toast==='function')toast(msg||('Update '+pct+'%'),'ok');logT&&logT('⬆ '+(msg||pct));}catch(e){}};
-function init(){applySettings();buildSettings();loadHfServerSettings();buildThemes();const th=S.get('theme','dark');document.documentElement.dataset.theme=th;$$('.th').forEach(b=>b.classList.toggle('active',b.dataset.t===th));const ac=S.get('accent',null);if(ac){setAccent(ac);$('#accPick').value=ac}
+function init(){S.set('tok_hf','');S.set('con_hf',false);S.set('tok_huggingface','');S.set('con_huggingface',false);applySettings();buildSettings();loadGroqSettings();buildThemes();const th=S.get('theme','dark');document.documentElement.dataset.theme=th;$$('.th').forEach(b=>b.classList.toggle('active',b.dataset.t===th));const ac=S.get('accent',null);if(ac){setAccent(ac);$('#accPick').value=ac}
 if(!S.get('ram6defaults136',false)){if(+S.get('ctx',1024)===2048)S.set('ctx',1024);if(+S.get('thr',2)===4)S.set('thr',2);S.set('ram6defaults136',true)}
 $('#sys').value=S.get('sys',TPL.agent);saveSys();$('#ctx').value=S.get('ctx',1024);$('#tmp').value=S.get('tmp',.2);slide();buildThr();storage();$('#swAuto').classList.toggle('on',S.get('auto',false));$('#mSpd').textContent=S.get('spd','–')+(S.get('spd')?' tok/s':' tok/s');
 buildCon();net();if(!curChat()&&chats.length)cid=chats[0].id;renderChat();$('#navInd').style.transform='translateX(0)';

@@ -49,7 +49,8 @@ class MainActivity : AppCompatActivity() {
         }
 
         AppPrefs.getSafeSystemPrompt(this)
-        Log.d(TAG, "XENA Safe prompt ready serverMode=${AppPrefs.isServerMode(this)} hfToken=${AppPrefs.hasHfToken(this)}")
+        AppPrefs.clearLegacyHfConfig(this)
+        Log.d(TAG, "XENA Safe prompt ready serverMode=${AppPrefs.isServerMode(this)} groqKey=${AppPrefs.hasGroqApiKey(this)}")
 
         setupWebView()
         setupBottomNav()
@@ -66,12 +67,12 @@ class MainActivity : AppCompatActivity() {
     /** Server mode: skip GGUF. Local mode: migrate/discover without auto-loading weights. */
     private fun prepareModelIfExists() {
         if (AppPrefs.isServerMode(this)) {
-            if (AppPrefs.hasHfToken(this)) {
-                statusText.text = "Server Mode — Hugging Face Inference siap (tanpa GGUF lokal)"
+            if (AppPrefs.hasGroqApiKey(this)) {
+                statusText.text = "Server Mode — Groq siap (tanpa GGUF lokal)"
                 topStatus.text = "Server Mode"
             } else {
-                statusText.text = "Server Mode ON — simpan token HF di Atur untuk memakai Inference API"
-                topStatus.text = "Set HF Token"
+                statusText.text = "Server Mode ON — simpan Groq API key di Atur"
+                topStatus.text = "Set Groq Key"
             }
             return
         }
@@ -389,8 +390,8 @@ class MainActivity : AppCompatActivity() {
                     val safePrompt = AppPrefs.getSafeSystemPrompt(context)
                     val userMsg = extractUserMessage(prompt)
                     val out = if (AppPrefs.isServerMode(context)) {
-                        // Server mode: Hugging Face Inference API (tidak load GGUF di HP)
-                        KonektorHuggingFace.chat(userMsg, safePrompt, temp, AppPrefs.getHfToken(context))
+                        // Server mode: Groq API (tidak load GGUF di HP)
+                        KonektorGroq.chat(userMsg, safePrompt, temp, AppPrefs.getGroqApiKey(context))
                     } else synchronized(activity.modelOperationLock) {
                         // Local offline fallback
                         if (!LlamaBridge.isReady()) {
@@ -483,12 +484,12 @@ class MainActivity : AppCompatActivity() {
         fun loadModel() {
             activity.runOnUiThread {
                 if (AppPrefs.isServerMode(context)) {
-                    val ok = AppPrefs.hasHfToken(context)
+                    val ok = AppPrefs.hasGroqApiKey(context)
                     activity.statusText.text = if (ok)
-                        "✅ Server Mode — Hugging Face Inference"
+                        "✅ Server Mode — Groq"
                     else
-                        "⚠️ Simpan token HF di Atur (server mode)"
-                    activity.topStatus.text = if (ok) "HF Ready" else "Set HF Token"
+                        "⚠️ Simpan Groq API key di Atur (server mode)"
+                    activity.topStatus.text = if (ok) "Groq Ready" else "Set Groq Key"
                     activity.notifyModelReady(ok)
                 } else {
                     activity.autoLoadModelIfExists(notifyUi = true)
@@ -524,7 +525,7 @@ class MainActivity : AppCompatActivity() {
             val userMsg = extractUserMessage(fullPrompt)
             val t = if (temp > 0f) temp else AppPrefs.getTemperature(context)
             if (AppPrefs.isServerMode(context)) {
-                return KonektorHuggingFace.chat(userMsg, safePrompt, t, AppPrefs.getHfToken(context))
+                return KonektorGroq.chat(userMsg, safePrompt, t, AppPrefs.getGroqApiKey(context))
             }
             return LlamaBridge.generate(userMsg, safePrompt, t)
         }
@@ -534,7 +535,7 @@ class MainActivity : AppCompatActivity() {
             val safePrompt = AppPrefs.getSafeSystemPrompt(context)
             val t = AppPrefs.getTemperature(context)
             if (AppPrefs.isServerMode(context)) {
-                return KonektorHuggingFace.chat(userMessage, safePrompt, t, AppPrefs.getHfToken(context))
+                return KonektorGroq.chat(userMessage, safePrompt, t, AppPrefs.getGroqApiKey(context))
             }
             return LlamaBridge.generate(userMessage, safePrompt, t)
         }
@@ -573,27 +574,27 @@ class MainActivity : AppCompatActivity() {
         @android.webkit.JavascriptInterface
         fun isModelReady(): Boolean {
             return if (AppPrefs.isServerMode(context)) {
-                AppPrefs.hasHfToken(context)
+                AppPrefs.hasGroqApiKey(context)
             } else LlamaBridge.isReady()
         }
 
         @android.webkit.JavascriptInterface
         fun getLastError(): String {
             return if (AppPrefs.isServerMode(context)) {
-                if (AppPrefs.hasHfToken(context)) "ok (HF Inference mode)"
-                else "Token HF belum disimpan"
+                if (AppPrefs.hasGroqApiKey(context)) "ok (Groq mode)"
+                else "Groq API key belum disimpan"
             } else LlamaBridge.lastError
         }
 
         @android.webkit.JavascriptInterface
         fun getModelInfo(): String {
             if (AppPrefs.isServerMode(context)) {
-                val ready = AppPrefs.hasHfToken(context)
+                val ready = AppPrefs.hasGroqApiKey(context)
                 return JSONObject()
                     .put("ready", ready)
                     .put("size", "server")
-                    .put("name", "Hugging Face Inference")
-                    .put("path", "Hugging Face Inference Providers")
+                    .put("name", "Groq ${KonektorGroq.MODEL}")
+                    .put("path", "Groq API")
                     .put("mode", "server")
                     .toString()
             }
@@ -691,7 +692,7 @@ class MainActivity : AppCompatActivity() {
         fun setServerMode(enabled: Boolean) {
             AppPrefs.setServerMode(context, enabled)
             activity.runOnUiThread {
-                activity.statusText.text = if (enabled) "Server Mode: HuggingFace" else "Local GGUF mode"
+                activity.statusText.text = if (enabled) "Server Mode: Groq" else "Local GGUF mode"
                 activity.topStatus.text = if (enabled) "Server Mode" else "Local"
             }
         }
@@ -700,21 +701,21 @@ class MainActivity : AppCompatActivity() {
         fun isServerMode(): Boolean = AppPrefs.isServerMode(context)
 
         @android.webkit.JavascriptInterface
-        fun pingHfServer(): Boolean {
-            return KonektorHuggingFace.ping(AppPrefs.getHfToken(context))
+        fun pingGroqServer(): Boolean {
+            return KonektorGroq.ping(AppPrefs.getGroqApiKey(context))
         }
 
         @android.webkit.JavascriptInterface
-        fun setHfInferenceToken(token: String) {
-            AppPrefs.setHfToken(context, token)
+        fun setGroqApiKey(apiKey: String) {
+            AppPrefs.setGroqApiKey(context, apiKey)
         }
 
         @android.webkit.JavascriptInterface
-        fun hasHfInferenceToken(): Boolean = AppPrefs.hasHfToken(context)
+        fun hasGroqApiKey(): Boolean = AppPrefs.hasGroqApiKey(context)
 
         @android.webkit.JavascriptInterface
-        fun clearHfInferenceToken() {
-            AppPrefs.clearHfToken(context)
+        fun clearGroqApiKey() {
+            AppPrefs.clearGroqApiKey(context)
         }
 
         private fun extractUserMessage(fullPrompt: String): String {
