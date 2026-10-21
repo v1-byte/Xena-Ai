@@ -35,6 +35,12 @@ test('the existing app sections and primary navigation remain in place', () => {
   assert.match(html, /onclick="startDl\('qwen7b-q4'\)"/);
   assert.match(html, /onclick="moveModelFromDownloads\(\)"/);
   assert.match(html, /onclick="selectModelFromDownloads\(\)"/);
+  assert.match(html, /id="hfServerSettings"/);
+  assert.match(html, /id="hfSpaceUrl"/);
+  assert.match(html, /onclick="saveHfSpaceUrl\(\)"/);
+  assert.match(html, /onclick="toggleHfServerMode\(\)"/);
+  assert.match(html, /onclick="testHfSpace\(\)"/);
+  assert.match(html, /function loadHfServerSettings\(\)/);
   assert.match(html, /<script src="model-manager\.js"><\/script>/);
   assert.match(modelUi, /window\.startDl = function/);
 });
@@ -120,8 +126,8 @@ test('force update still refuses same or older versions', () => {
 });
 
 test('APK release is version-driven and verifies native llama library packaging', () => {
-  assert.match(gradle, /versionCode = 140/);
-  assert.match(gradle, /versionName = "1.4.0"/);
+  assert.match(gradle, /versionCode = 141/);
+  assert.match(gradle, /versionName = "1.4.1"/);
   assert.match(gradle, /signingConfig = signingConfigs\.getByName\("release"\)/);
   assert.match(workflow, /steps\.release_meta\.outputs\.tag/);
   assert.match(workflow, /gradle assembleRelease/);

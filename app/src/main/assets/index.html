@@ -467,6 +467,18 @@ header,nav{transition:transform .8s cubic-bezier(.2,.8,.2,1) .1s}
 
 <!-- ===== ATUR ===== -->
 <section class="tab" id="t3"><div class="scroll"><input type="text" id="setq" placeholder="Cari pengaturan…" oninput="setFind()"><div id="setx"></div>
+  <div class="card" id="hfServerSettings">
+    <h4><svg class="i"><use href="#i-cloud"/></svg>Koneksi Hugging Face Space</h4>
+    <p class="muted">Masukkan URL Space milik Anda yang sudah berstatus <b>Running</b>. Contoh: https://nama-akun-xena-qwen-server.hf.space</p>
+    <label for="hfSpaceUrl">URL Space</label>
+    <input class="f" id="hfSpaceUrl" type="url" inputmode="url" autocomplete="url" placeholder="https://username-nama-space.hf.space">
+    <div class="btns">
+      <button class="btn pri" onclick="saveHfSpaceUrl()">Simpan URL</button>
+      <button class="btn" id="hfModeToggle" onclick="toggleHfServerMode()">Server Mode: —</button>
+      <button class="btn" onclick="testHfSpace()">Tes koneksi</button>
+    </div>
+    <p class="muted" id="hfServerStatus" aria-live="polite">URL belum diperiksa.</p>
+  </div>
   <div class="card"><h4><svg class="i"><use href="#i-edit"/></svg>System Prompt</h4>
     <select id="tpl" onchange="loadTpl(this.value)"><option value="">— Pilih template —</option><option value="agent">Coding Agent</option><option value="hacker">Hacker Mode</option><option value="guru">Guru Ngoding</option><option value="nurut">Xena Nurut</option></select>
     <label>Prompt</label><textarea class="f" id="sys" rows="5" oninput="saveSys()" style="font:12px ui-monospace,monospace"></textarea>
@@ -878,8 +890,12 @@ const SET=[
  [null,'info','Inti CPU',()=>navigator.hardwareConcurrency||'–'],
  [null,'info','Layar',()=>innerWidth+'×'+innerHeight],
  [null,'info','Jaringan',()=>navigator.connection?.effectiveType||(navigator.onLine?'online':'offline')],
-       [null,'info','Versi','v1.3.8']]]];
+       [null,'info','Versi','v1.4.1']]]];
 const FLAT=SET.flatMap(g=>g[2]);
+function loadHfServerSettings(){try{if(!window.Android)return;const url=Android.getHfServerUrl?Android.getHfServerUrl():'';$('#hfSpaceUrl').value=url||'';const enabled=!!(Android.isServerMode&&Android.isServerMode());$('#hfModeToggle').textContent='Server Mode: '+(enabled?'ON':'OFF');$('#hfModeToggle').classList.toggle('pri',enabled);$('#hfServerStatus').textContent=url?'URL tersimpan. Pastikan Space berstatus Running.':'Belum ada URL tersimpan.'}catch(e){$('#hfServerStatus').textContent='Bridge Android belum tersedia.'}}
+function saveHfSpaceUrl(){const raw=$('#hfSpaceUrl').value.trim();if(!raw){toast('Masukkan URL Hugging Face Space','bad');return false}let u;try{u=new URL(raw);if(u.protocol!=='https:'||!u.hostname||u.username||u.password)throw new Error('invalid')}catch(e){toast('URL tidak valid. Gunakan alamat HTTPS Space.','bad');return false}if(!window.Android||!Android.setHfServerUrl){toast('Fitur ini perlu APK Xena-AI terbaru','bad');return false}Android.setHfServerUrl(u.origin+u.pathname.replace(/\/+$/,''));$('#hfServerStatus').textContent='URL tersimpan. Pastikan Space berstatus Running.';toast('URL HF Space disimpan','ok');return true}
+function toggleHfServerMode(){if(!window.Android||!Android.setServerMode){toast('Fitur ini perlu APK Xena-AI terbaru','bad');return}const enabled=!(Android.isServerMode&&Android.isServerMode());Android.setServerMode(enabled);$('#hfModeToggle').textContent='Server Mode: '+(enabled?'ON':'OFF');$('#hfModeToggle').classList.toggle('pri',enabled);toast(enabled?'Server Mode aktif':'Mode lokal aktif','ok')}
+function testHfSpace(){if(!saveHfSpaceUrl()||!window.Android||!Android.pingHfServer)return;$('#hfServerStatus').textContent='Menguji koneksi…';setTimeout(()=>{try{const ok=Android.pingHfServer();$('#hfServerStatus').textContent=ok?'Space merespons. Anda bisa mencoba chat.':'Tidak dapat terhubung. Periksa URL, internet, dan status Space.';toast(ok?'Koneksi HF berhasil':'Koneksi gagal','bad')}catch(e){$('#hfServerStatus').textContent='Tes koneksi gagal: '+e.message}},50)}
 function buildSettings(){$('#setx').innerHTML=SET.map(([i,t,rows])=>`<div class="card"><h4>${ic(i)}${t}</h4>${rows.map(r=>{const[k,ty,l]=r;let c='';
 if(ty==='sw')c=`<button class="sw${S.get(k,r[3])?' on':''}" onclick="sw('${k}',this,${r[3]})"></button>`;
 else if(ty==='range'){const v=S.get(k,r[6]);return `<div class="sr"><label>${l}: <b id="v_${k}">${r[7](v)}</b></label><input type="range" min="${r[3]}" max="${r[4]}" step="${r[5]}" value="${v}" oninput="rg('${k}',this.value)"></div>`}
@@ -954,7 +970,7 @@ function endSplash(){if(document.body.classList.contains('ready'))return;$('#spl
 /* ---------- init ---------- */
 
 window.xenaUpdateProgress=function(pct,msg){try{if(typeof toast==='function')toast(msg||('Update '+pct+'%'),'ok');logT&&logT('⬆ '+(msg||pct));}catch(e){}};
-function init(){applySettings();buildSettings();buildThemes();const th=S.get('theme','dark');document.documentElement.dataset.theme=th;$$('.th').forEach(b=>b.classList.toggle('active',b.dataset.t===th));const ac=S.get('accent',null);if(ac){setAccent(ac);$('#accPick').value=ac}
+function init(){applySettings();buildSettings();loadHfServerSettings();buildThemes();const th=S.get('theme','dark');document.documentElement.dataset.theme=th;$$('.th').forEach(b=>b.classList.toggle('active',b.dataset.t===th));const ac=S.get('accent',null);if(ac){setAccent(ac);$('#accPick').value=ac}
 if(!S.get('ram6defaults136',false)){if(+S.get('ctx',1024)===2048)S.set('ctx',1024);if(+S.get('thr',2)===4)S.set('thr',2);S.set('ram6defaults136',true)}
 $('#sys').value=S.get('sys',TPL.agent);saveSys();$('#ctx').value=S.get('ctx',1024);$('#tmp').value=S.get('tmp',.2);slide();buildThr();storage();$('#swAuto').classList.toggle('on',S.get('auto',false));$('#mSpd').textContent=S.get('spd','–')+(S.get('spd')?' tok/s':' tok/s');
 buildCon();net();if(!curChat()&&chats.length)cid=chats[0].id;renderChat();$('#navInd').style.transform='translateX(0)';

@@ -1,6 +1,6 @@
 # Xena-AI
 
-**v1.4.0** — default **Server Mode** (HuggingFace Space) untuk HP 6GB.  
+**v1.4.1** — default **Server Mode** (HuggingFace Space) untuk HP 6GB, dengan panel URL Space yang terlihat di tab **Atur**.
 Local GGUF tetap opsional (1.5B / 3B / 7B).
 
 - Dok migrasi: [`docs/MIGRASI_HF_SERVER_v1.4.0.md`](docs/MIGRASI_HF_SERVER_v1.4.0.md)
@@ -32,6 +32,9 @@ app/src/main/
 ./gradlew assembleDebug
 # APK: app/build/outputs/apk/debug/app-debug.apk
 ```
+
+## Atur koneksi Hugging Face
+Di aplikasi buka tab **Atur** → **Koneksi Hugging Face Space**, masukkan URL HTTPS Space Anda (Space harus berstatus **Running**), lalu tekan **Simpan URL**. Aktifkan **Server Mode: ON** untuk memakai server tanpa memuat GGUF lokal. Tombol **Tes koneksi** mengecek apakah Space merespons.
 
 ## Model di HP
 Letakkan salah satu:
