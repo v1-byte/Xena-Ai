@@ -49,7 +49,8 @@ class MainActivity : AppCompatActivity() {
         }
 
         AppPrefs.getSafeSystemPrompt(this)
-        Log.d(TAG, "XENA Safe prompt ready")
+        AppPrefs.applyServerConfig(this)
+        Log.d(TAG, "XENA Safe prompt ready serverMode=${AppPrefs.isServerMode(this)} hf=${AppPrefs.getHfServerUrl(this)}")
 
         setupWebView()
         setupBottomNav()
@@ -63,8 +64,20 @@ class MainActivity : AppCompatActivity() {
         }, 2500)
     }
 
-    /** Migrate/discover a model at startup, but do not load multi-GB weights unless opted in. */
+    /** Server mode: skip GGUF. Local mode: migrate/discover without auto-loading weights. */
     private fun prepareModelIfExists() {
+        if (AppPrefs.isServerMode(this)) {
+            AppPrefs.applyServerConfig(this)
+            val url = AppPrefs.getHfServerUrl(this)
+            if (url.isNotBlank()) {
+                statusText.text = "Server Mode — HF Space siap dipakai (tanpa GGUF lokal)"
+                topStatus.text = "Server Mode"
+            } else {
+                statusText.text = "Server Mode ON — set URL HF Space di Atur (contoh https://USER-xena-qwen-server.hf.space)"
+                topStatus.text = "Set HF URL"
+            }
+            return
+        }
         statusText.text = "Memeriksa model GGUF…"
         topStatus.text = "XENA model…"
         Thread {
@@ -376,8 +389,14 @@ class MainActivity : AppCompatActivity() {
                         if (o.has("temp")) temp = o.getDouble("temp").toFloat()
                     } catch (_: Exception) {
                     }
-                    val out = synchronized(activity.modelOperationLock) {
-                        // Auto-load only from a verified app-owned GGUF; never use a .part file/source path.
+                    val safePrompt = AppPrefs.getSafeSystemPrompt(context)
+                    val userMsg = extractUserMessage(prompt)
+                    val out = if (AppPrefs.isServerMode(context)) {
+                        // Server mode: HF Space (tidak load GGUF di HP)
+                        AppPrefs.applyServerConfig(context)
+                        KonektorHuggingFace.chat(userMsg, safePrompt, temp)
+                    } else synchronized(activity.modelOperationLock) {
+                        // Local offline fallback
                         if (!LlamaBridge.isReady()) {
                             val f = ModelAutoLoader.ensurePrivateModel(context)
                             if (f != null) {
@@ -402,8 +421,6 @@ class MainActivity : AppCompatActivity() {
                                 if (loaded) AppPrefs.saveLastModelPath(context, f.absolutePath)
                             }
                         }
-                        val safePrompt = AppPrefs.getSafeSystemPrompt(context)
-                        val userMsg = extractUserMessage(prompt)
                         LlamaBridge.generate(userMsg, safePrompt, temp)
                     }
                     if (activity.stopRequested) {
@@ -469,7 +486,18 @@ class MainActivity : AppCompatActivity() {
         @android.webkit.JavascriptInterface
         fun loadModel() {
             activity.runOnUiThread {
-                activity.autoLoadModelIfExists(notifyUi = true)
+                if (AppPrefs.isServerMode(context)) {
+                    AppPrefs.applyServerConfig(context)
+                    val ok = KonektorHuggingFace.isConfigured()
+                    activity.statusText.text = if (ok)
+                        "✅ Server Mode — ${AppPrefs.getHfServerUrl(context)}"
+                    else
+                        "⚠️ Set URL HF Space di Atur (server mode)"
+                    activity.topStatus.text = if (ok) "Server Ready" else "No Server URL"
+                    activity.notifyModelReady(ok)
+                } else {
+                    activity.autoLoadModelIfExists(notifyUi = true)
+                }
             }
         }
 
@@ -500,13 +528,22 @@ class MainActivity : AppCompatActivity() {
             val safePrompt = AppPrefs.getSafeSystemPrompt(context)
             val userMsg = extractUserMessage(fullPrompt)
             val t = if (temp > 0f) temp else AppPrefs.getTemperature(context)
+            if (AppPrefs.isServerMode(context)) {
+                AppPrefs.applyServerConfig(context)
+                return KonektorHuggingFace.chat(userMsg, safePrompt, t)
+            }
             return LlamaBridge.generate(userMsg, safePrompt, t)
         }
 
         @android.webkit.JavascriptInterface
         fun chatSync(userMessage: String): String {
             val safePrompt = AppPrefs.getSafeSystemPrompt(context)
-            return LlamaBridge.generate(userMessage, safePrompt, AppPrefs.getTemperature(context))
+            val t = AppPrefs.getTemperature(context)
+            if (AppPrefs.isServerMode(context)) {
+                AppPrefs.applyServerConfig(context)
+                return KonektorHuggingFace.chat(userMessage, safePrompt, t)
+            }
+            return LlamaBridge.generate(userMessage, safePrompt, t)
         }
 
         @android.webkit.JavascriptInterface
@@ -541,19 +578,41 @@ class MainActivity : AppCompatActivity() {
         }
 
         @android.webkit.JavascriptInterface
-        fun isModelReady(): Boolean = LlamaBridge.isReady()
+        fun isModelReady(): Boolean {
+            return if (AppPrefs.isServerMode(context)) {
+                AppPrefs.applyServerConfig(context)
+                KonektorHuggingFace.isConfigured()
+            } else LlamaBridge.isReady()
+        }
 
         @android.webkit.JavascriptInterface
-        fun getLastError(): String = LlamaBridge.lastError
+        fun getLastError(): String {
+            return if (AppPrefs.isServerMode(context)) {
+                if (KonektorHuggingFace.isConfigured()) "ok (server mode)"
+                else "HF URL belum di-set"
+            } else LlamaBridge.lastError
+        }
 
         @android.webkit.JavascriptInterface
         fun getModelInfo(): String {
+            if (AppPrefs.isServerMode(context)) {
+                AppPrefs.applyServerConfig(context)
+                val url = AppPrefs.getHfServerUrl(context)
+                val ready = KonektorHuggingFace.isConfigured()
+                return JSONObject()
+                    .put("ready", ready)
+                    .put("size", "server")
+                    .put("name", "HuggingFace Space")
+                    .put("path", url)
+                    .put("mode", "server")
+                    .toString()
+            }
             val file = ModelAutoLoader.findInstalledModel(context)
             val size = ModelAutoLoader.getModelSizeMB(file)
             val path = file?.absolutePath ?: ""
             val ready = LlamaBridge.isReady()
             return JSONObject().put("ready", ready).put("size", size)
-                .put("name", file?.name.orEmpty()).put("path", path).toString()
+                .put("name", file?.name.orEmpty()).put("path", path).put("mode", "local").toString()
         }
 
         @android.webkit.JavascriptInterface
@@ -637,7 +696,40 @@ class MainActivity : AppCompatActivity() {
             Connectors.clearToken(context, id)
         }
 
+
+        @android.webkit.JavascriptInterface
+        fun setServerMode(enabled: Boolean) {
+            AppPrefs.setServerMode(context, enabled)
+            activity.runOnUiThread {
+                activity.statusText.text = if (enabled) "Server Mode: HuggingFace" else "Local GGUF mode"
+                activity.topStatus.text = if (enabled) "Server Mode" else "Local"
+            }
+        }
+
+        @android.webkit.JavascriptInterface
+        fun isServerMode(): Boolean = AppPrefs.isServerMode(context)
+
+        @android.webkit.JavascriptInterface
+        fun setHfServerUrl(url: String) {
+            AppPrefs.setHfServerUrl(context, url)
+            activity.runOnUiThread {
+                Toast.makeText(context, "HF URL disimpan", Toast.LENGTH_SHORT).show()
+                activity.statusText.text = "Server: ${url.take(48)}"
+                activity.topStatus.text = "Server Mode"
+            }
+        }
+
+        @android.webkit.JavascriptInterface
+        fun getHfServerUrl(): String = AppPrefs.getHfServerUrl(context)
+
+        @android.webkit.JavascriptInterface
+        fun pingHfServer(): Boolean {
+            AppPrefs.applyServerConfig(context)
+            return KonektorHuggingFace.ping()
+        }
+
         private fun extractUserMessage(fullPrompt: String): String {
+
             val s = fullPrompt.indexOf("<|im_start|>user")
             val e = fullPrompt.indexOf("<|im_end|>", s)
             return if (s != -1 && e != -1) {

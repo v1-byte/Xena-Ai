@@ -26,7 +26,6 @@ object AppPrefs {
         getPrefs(context).edit().putString("system_prompt", prompt).apply()
     }
 
-    /** Conservative defaults for phones with 6 GB RAM. */
     fun getNctx(context: Context): Int {
         migrateSixGbDefaults(context)
         return getPrefs(context).getInt("n_ctx", 1024)
@@ -58,6 +57,27 @@ object AppPrefs {
             .putInt("n_threads", n_threads)
             .putFloat("temperature", temperature)
             .apply()
+    }
+
+    /** v1.4.0 — Server mode (HF Space) default ON for 6GB phones. */
+    fun isServerMode(context: Context): Boolean =
+        getPrefs(context).getBoolean("server_mode", true)
+
+    fun setServerMode(context: Context, enabled: Boolean) {
+        getPrefs(context).edit().putBoolean("server_mode", enabled).apply()
+    }
+
+    fun getHfServerUrl(context: Context): String =
+        getPrefs(context).getString("hf_server_url", "") ?: ""
+
+    fun setHfServerUrl(context: Context, url: String) {
+        val cleaned = url.trim().trimEnd('/')
+        getPrefs(context).edit().putString("hf_server_url", cleaned).apply()
+        KonektorHuggingFace.baseUrl = cleaned
+    }
+
+    fun applyServerConfig(context: Context) {
+        KonektorHuggingFace.baseUrl = getHfServerUrl(context)
     }
 
     private fun migrateSixGbDefaults(context: Context) {

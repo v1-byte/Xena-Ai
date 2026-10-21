@@ -12,8 +12,8 @@ android {
         applicationId = "com.xena.ai"
         minSdk = 26
         targetSdk = 34
-        versionCode = 138
-        versionName = "1.3.8"
+        versionCode = 140
+        versionName = "1.4.0"
         ndk {
             abiFilters += listOf("arm64-v8a")
         }
@@ -75,4 +75,5 @@ dependencies {
     implementation("androidx.appcompat:appcompat:1.6.1")
     implementation("com.google.android.material:material:1.11.0")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 }

@@ -1,5 +1,11 @@
 # Xena-AI
 
+**v1.4.0** — default **Server Mode** (HuggingFace Space) untuk HP 6GB.  
+Local GGUF tetap opsional (1.5B / 3B / 7B).
+
+- Dok migrasi: [`docs/MIGRASI_HF_SERVER_v1.4.0.md`](docs/MIGRASI_HF_SERVER_v1.4.0.md)
+- Template Space: [`docs/hf-space/`](docs/hf-space/)
+
 Aplikasi Android untuk model **GGUF lokal** (target Qwen2.5-Coder 7B Q3_K_M ~3.55 GB).  
 UI HTML v1.2 full-screen WebView + bridge Kotlin `window.Android`.
 
