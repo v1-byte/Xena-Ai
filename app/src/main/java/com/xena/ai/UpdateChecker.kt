@@ -27,6 +27,7 @@ object UpdateChecker {
     private const val REPO = "v1-byte/Xena-Ai"
     private const val API = "https://api.github.com/repos/$REPO/releases/latest"
     private const val PREF = "xena_update"
+    private const val PENDING_APK = "pending_apk"
 
     data class ReleaseInfo(
         val tag: String,
@@ -88,17 +89,19 @@ object UpdateChecker {
             val name = json.optString("name", tag)
             val notes = json.optString("body", "")
             val assets = json.optJSONArray("assets") ?: return null
-            var apkUrl = ""
-            var apkName = "xena-update.apk"
+            val apkCandidates = mutableListOf<Pair<String, String>>()
             for (i in 0 until assets.length()) {
                 val a = assets.getJSONObject(i)
                 val n = a.optString("name", "")
                 if (n.endsWith(".apk", ignoreCase = true)) {
-                    apkUrl = a.optString("browser_download_url", "")
-                    apkName = n
-                    break
+                    apkCandidates += n to a.optString("browser_download_url", "")
                 }
             }
+            val selected = apkCandidates.firstOrNull { it.first.equals("app-release.apk", true) }
+                ?: apkCandidates.firstOrNull { it.first.contains("release", true) }
+                ?: apkCandidates.firstOrNull()
+            val apkName = selected?.first ?: "xena-update.apk"
+            val apkUrl = selected?.second.orEmpty()
             if (apkUrl.isBlank() || tag.isBlank()) return null
             val codeHint = tag.removePrefix("v").replace(".", "").toIntOrNull() ?: 0
             ReleaseInfo(tag, name, notes, apkUrl, apkName, codeHint)
@@ -214,6 +217,20 @@ object UpdateChecker {
         }
     }
 
+    /** Dipanggil setelah pengguna kembali dari Settings izin install sumber tidak dikenal. */
+    fun resumePendingInstall(activity: Activity) {
+        val prefs = activity.getSharedPreferences(PREF, Context.MODE_PRIVATE)
+        val path = prefs.getString(PENDING_APK, null) ?: return
+        val apk = File(path)
+        if (!apk.exists()) {
+            prefs.edit().remove(PENDING_APK).apply()
+            return
+        }
+        if (!canRequestInstall(activity)) return
+        prefs.edit().remove(PENDING_APK).apply()
+        installApk(activity, apk)
+    }
+
     /**
      * Cek update di background. Jika ada, unduh lalu tampilkan dialog install.
      * @param silent Jika true, hanya toast saat ada update / selesai unduh.
@@ -284,12 +301,15 @@ object UpdateChecker {
                 activity.runOnUiThread {
                     Toast.makeText(activity, "Unduhan selesai — pasang update", Toast.LENGTH_LONG).show()
                     if (!canRequestInstall(activity)) {
+                        activity.getSharedPreferences(PREF, Context.MODE_PRIVATE)
+                            .edit().putString(PENDING_APK, file.absolutePath).apply()
                         Toast.makeText(
                             activity,
                             "Izinkan install dari sumber ini di Settings",
                             Toast.LENGTH_LONG
                         ).show()
                         openInstallPermissionSettings(activity)
+                        return@runOnUiThread
                     }
                     installApk(activity, file)
                 }

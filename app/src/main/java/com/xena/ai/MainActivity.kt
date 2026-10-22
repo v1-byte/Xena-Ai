@@ -370,6 +370,8 @@ class MainActivity : AppCompatActivity() {
             firstResume = false
             return
         }
+        // Jika sebelumnya diarahkan ke Settings, lanjutkan installer setelah izin aktif.
+        UpdateChecker.resumePendingInstall(this)
         // Cek update tiap kali app kembali aktif (throttle di UpdateChecker)
         webView.postDelayed({
             if (!isFinishing) {

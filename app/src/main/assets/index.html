@@ -1104,7 +1104,7 @@ const SET=[
  [null,'info','Inti CPU',()=>navigator.hardwareConcurrency||'–'],
  [null,'info','Layar',()=>innerWidth+'×'+innerHeight],
  [null,'info','Jaringan',()=>navigator.connection?.effectiveType||(navigator.onLine?'online':'offline')],
-       [null,'info','Versi','v1.5.0']]]];
+       [null,'info','Versi',()=>window.Android&&Android.getAppVersion?'v'+Android.getAppVersion():'–']]]];
 const FLAT=SET.flatMap(g=>g[2]);
 function loadGroqSettings(){try{if(!window.Android)return;$('#groqApiKey').value='';const configured=!!(Android.hasGroqApiKey&&Android.hasGroqApiKey());const enabled=!!(Android.isServerMode&&Android.isServerMode());$('#groqModeToggle').textContent='Server Mode: '+(enabled?'ON':'OFF');$('#groqModeToggle').classList.toggle('pri',enabled);$('#groqServerStatus').textContent=configured?'API key tersimpan terenkripsi di perangkat.':'API key belum disimpan.'}catch(e){$('#groqServerStatus').textContent='Bridge Android belum tersedia.'}}
 function saveGroqApiKey(){const key=$('#groqApiKey').value.trim();if(!key){toast('Masukkan Groq API key terlebih dahulu','bad');return false}if(!key.startsWith('gsk_')){toast('Format Groq API key tidak dikenali','bad');return false}if(!window.Android||!Android.setGroqApiKey){toast('Perlu APK Xena-AI v1.5.0 atau lebih baru','bad');return false}Android.setGroqApiKey(key);$('#groqApiKey').value='';$('#groqServerStatus').textContent='API key tersimpan terenkripsi di perangkat.';toast('Groq API key tersimpan','ok');return true}
