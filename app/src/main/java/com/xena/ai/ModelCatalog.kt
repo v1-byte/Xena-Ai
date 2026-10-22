@@ -39,6 +39,17 @@ object ModelCatalog {
             recommendation = "Seimbang · ukuran dan kemampuan menengah",
             ramNote = "RAM 6 GB: mulai dari context 1024"
         ),
+        // BugHunter 3B — bug bounty / security research; ~1.9 GB file, cocok RAM 2 GB+
+        Model(
+            id = "qwen3b-bughunter",
+            title = "Qwen2.5 3B BugHunter",
+            fileName = "Qwen2.5-VL-3B-uncensored-bughunter-v9.Q4_K_M.gguf",
+            url = "https://huggingface.co/mmp2055/Qwen2.5-VL-3B-uncensored-bughunter-v9/resolve/main/Qwen2.5-VL-3B-uncensored-bughunter-v9.Q4_K_M.gguf",
+            sizeBytes = 1_929_902_432L,
+            quantization = "Q4_K_M",
+            recommendation = "Bug bounty & security · ~1,9 GB · RAM 2 GB+",
+            ramNote = "Aktif ~2,5 GB RAM; context 1024 disarankan. Text-only (tanpa mmproj vision)."
+        ),
         Model(
             id = "qwen7b-q2",
             title = "Qwen2.5-Coder 7B",

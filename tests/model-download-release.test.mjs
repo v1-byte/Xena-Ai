@@ -71,6 +71,7 @@ test('catalog keeps the requested model variants and direct Hugging Face files',
   for (const file of [
     'qwen2.5-coder-1.5b-instruct-q4_k_m.gguf',
     'qwen2.5-coder-3b-instruct-q3_k_m.gguf',
+    'Qwen2.5-VL-3B-uncensored-bughunter-v9.Q4_K_M.gguf',
     'qwen2.5-coder-7b-instruct-q2_k.gguf',
     'qwen2.5-coder-7b-instruct-q3_k_m.gguf',
     'qwen2.5-coder-7b-instruct-q4_k_m.gguf',
@@ -81,9 +82,11 @@ test('catalog keeps the requested model variants and direct Hugging Face files',
     'WhiteRabbitNeo_WhiteRabbitNeo-V3-7B-Q4_K_M.gguf',
     'WhiteRabbitNeo_WhiteRabbitNeo-V3-7B-Q5_K_M.gguf'
   ]) assert.ok(catalog.includes(file), `missing ${file}`);
-  assert.equal((catalog.match(/https:\/\/huggingface\.co\//g) || []).length, 11);
+  assert.equal((catalog.match(/https:\/\/huggingface\.co\//g) || []).length, 12);
+  assert.match(catalog, /id = "qwen3b-bughunter"/);
   assert.match(catalog, /id = "whiterabbitneo-v3-7b-q2"/);
   assert.match(catalog, /id = "wrn-v3-iq2m"/);
+  assert.match(catalog, /sizeBytes = 1_929_902_432L/);
   assert.match(catalog, /sizeBytes = 3_015_941_312L/);
   assert.match(catalog, /sizeBytes = 2_780_343_488L/);
 });
