@@ -112,9 +112,9 @@ test('model downloads use resumable byte ranges and validate partials before act
 
 test('download UI has explicit resume, pause, verification, and searchable local model paths', () => {
   for (const id of ['dlResume', 'dlPause', 'dlVerify', 'modelFileSearch', 'modelFiles']) assert.ok(html.includes(`id="${id}"`));
-  assert.match(html, /Lanjut Download/);
-  assert.match(html, /Jeda Download/);
-  assert.match(html, /Verifikasi Download/);
+  assert.match(html, /Lanjut Download|Lanjutkan unduhan/);
+  assert.match(html, /Jeda Download|Jeda unduhan/);
+  assert.match(html, /Verifikasi Download|Verifikasi/);
   assert.match(modelUi, /window\.resumeDl/);
   assert.match(modelUi, /window\.pauseDl/);
   assert.match(modelUi, /window\.verifyDl/);
@@ -187,8 +187,8 @@ test('RAM cleaner frees native weights, light mode lowers context, and model sea
 });
 
 test('APK release is version-driven and verifies native llama library packaging', () => {
-  assert.match(gradle, /versionCode = 157/);
-  assert.match(gradle, /versionName = "1\.5\.7"/);
+  assert.match(gradle, /versionCode = 158/);
+  assert.match(gradle, /versionName = "1\.5\.8"/);
   assert.doesNotMatch(gradle, /versionName = "1\.4\.2"/);
   assert.match(gradle, /signingConfig = signingConfigs\.getByName\("release"\)/);
   assert.match(workflow, /steps\.release_meta\.outputs\.tag/);

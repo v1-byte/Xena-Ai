@@ -1,6 +1,6 @@
 # Xena-AI UI — Catatan Terkini
 
-**Versi UI:** v1.5.7
+**Versi UI:** v1.5.8
 **Sumber utama:** `app/src/main/assets/index.html` dan `app/src/main/assets/model-manager.js`
 **Shell:** Android WebView full-screen dengan bridge Kotlin `window.Android`
 
