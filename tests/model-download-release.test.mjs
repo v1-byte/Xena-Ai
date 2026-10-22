@@ -15,6 +15,9 @@ const updater = read('../app/src/main/java/com/xena/ai/UpdateChecker.kt');
 const html = read('../app/src/main/assets/index.html');
 const modelUi = read('../app/src/main/assets/model-manager.js');
 const manifest = read('../app/src/main/AndroidManifest.xml');
+const cpp = read('../app/src/main/cpp/jni_bridge.cpp');
+const ram = read('../app/src/main/java/com/xena/ai/RamGuard.kt');
+const finder = read('../app/src/main/java/com/xena/ai/ModelFileFinder.kt');
 const gradle = read('../app/build.gradle.kts');
 const workflow = read('../.github/workflows/build.yml');
 
@@ -164,9 +167,28 @@ test('force update still refuses same or older versions', () => {
   assert.match(updater, /if \(!force && !shouldCheck\(activity\)\)/);
 });
 
+test('RAM cleaner frees native weights, light mode lowers context, and model search scans downloads', () => {
+  assert.match(ram, /LlamaBridge\.unload\(\)/);
+  assert.match(ram, /fun purge\(/);
+  assert.match(ram, /fun tune\(/);
+  assert.match(cpp, /malloc_trim\(0\)/);
+  assert.match(cpp, /llama_model_free/);
+  assert.match(activity, /RamGuard\.purge/);
+  assert.match(activity, /override fun onTrimMemory/);
+  assert.match(activity, /fun importFoundModel\(path: String\)/);
+  assert.match(activity, /fun rescanModelFiles\(\)/);
+  assert.match(finder, /MediaStore\.Downloads/);
+  assert.match(finder, /DIRECTORY_DOWNLOADS/);
+  assert.match(finder, /Xena-AI\/Models/);
+  assert.match(html, /id="ramLive"/);
+  assert.match(html, /searchLocalModels\(true\)/);
+  assert.match(modelUi, /window\.importFoundModel/);
+  assert.doesNotMatch(activity, /System\.runFinalization\(\)/);
+});
+
 test('APK release is version-driven and verifies native llama library packaging', () => {
-  assert.match(gradle, /versionCode = 155/);
-  assert.match(gradle, /versionName = "1.5.5"/);
+  assert.match(gradle, /versionCode = 156/);
+  assert.match(gradle, /versionName = "1.5.6"/);
   assert.doesNotMatch(gradle, /versionName = "1\.4\.2"/);
   assert.match(gradle, /signingConfig = signingConfigs\.getByName\("release"\)/);
   assert.match(workflow, /steps\.release_meta\.outputs\.tag/);

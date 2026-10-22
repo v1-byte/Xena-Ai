@@ -1,6 +1,8 @@
 package com.xena.ai
 
 import android.annotation.SuppressLint
+import android.content.ComponentCallbacks2
+import android.os.SystemClock
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
@@ -29,6 +31,8 @@ class MainActivity : AppCompatActivity() {
     @Volatile private var stopRequested = false
     private var firstResume = true
     @Volatile private var deletePickedSourceAfterImport = false
+    @Volatile private var lastAutoPurgeAt = 0L
+    @Volatile private var appliedTuneLabel = ""
     private val modelPicker = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         val moveSource = deletePickedSourceAfterImport
         deletePickedSourceAfterImport = false
@@ -177,19 +181,11 @@ class MainActivity : AppCompatActivity() {
         Thread {
             var success = false
             var error = ""
+            var profileNote = ""
             try {
-                success = synchronized(modelOperationLock) {
-                    LlamaBridge.loadModel(
-                        modelFile.absolutePath,
-                        AppPrefs.getNctx(this),
-                        AppPrefs.getNBatch(this),
-                        AppPrefs.getNThreads(this),
-                        true,
-                        false
-                    )
-                }
+                success = tunedLoad(modelFile)
                 error = if (success) "ok" else LlamaBridge.lastError
-                if (success) AppPrefs.saveLastModelPath(this, modelFile.absolutePath)
+                profileNote = if (success && appliedTuneLabel.isNotBlank()) " · $appliedTuneLabel" else ""
             } catch (e: Throwable) {
                 error = e.message ?: e.javaClass.simpleName
                 Log.e(TAG, "Model load failed: $error", e)
@@ -199,7 +195,7 @@ class MainActivity : AppCompatActivity() {
             val loaded = success
             val loadError = error
             runOnUiThread {
-                statusText.text = if (loaded) "Model siap — ${modelFile.name} (${ModelAutoLoader.getModelSizeMB(modelFile)})" else "Gagal memuat model: $loadError"
+                statusText.text = if (loaded) "Model siap — ${modelFile.name} (${ModelAutoLoader.getModelSizeMB(modelFile)})$profileNote" else "Gagal memuat model: $loadError"
                 topStatus.text = if (loaded) "Ready — XENA" else "Error model"
                 if (selectedCallback) notifySelectedModel(loaded, modelFile.name, loadError)
                 if (notifyUi) notifyModelReady(loaded)
@@ -226,7 +222,31 @@ class MainActivity : AppCompatActivity() {
             val available = String.format(java.util.Locale.US, "%.1f", memory.availMem / 1073741824.0)
             return "RAM bebas belum cukup: perlu sekitar ${required} GB, tersedia ${available} GB. Tutup aplikasi lain atau gunakan model lebih kecil."
         }
+        if (memory.lowMemory && modelBytes >= 1_500_000_000L) {
+            return "RAM perangkat sedang mepet. Model besar tidak dimuat agar aplikasi tetap ringan. Pakai model 1.5B atau nyalakan Server Mode Groq."
+        }
+        if (memory.availMem < 900L * 1024L * 1024L && modelBytes >= 700L * 1024L * 1024L) {
+            return "RAM bebas di bawah 900 MB. Pemuatan ditahan supaya aplikasi tidak tertutup. Bersihkan RAM atau tutup aplikasi lain."
+        }
         return null
+    }
+
+    /** Context/batch/thread diturunkan otomatis saat RAM mepet. mlock tetap mati. */
+    private fun tunedLoad(modelFile: File): Boolean {
+        val tune = RamGuard.tune(this, modelFile.length())
+        appliedTuneLabel = tune.label
+        val ok = synchronized(modelOperationLock) {
+            LlamaBridge.loadModel(
+                modelFile.absolutePath,
+                tune.nCtx,
+                tune.nBatch,
+                tune.nThreads,
+                true,
+                false
+            )
+        }
+        if (ok) AppPrefs.saveLastModelPath(this, modelFile.absolutePath)
+        return ok
     }
 
     fun useInstalledModel(modelIdOrName: String): Boolean {
@@ -323,6 +343,27 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (level < ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW) return
+        val now = SystemClock.elapsedRealtime()
+        if (now - lastAutoPurgeAt < 10_000L) return
+        lastAutoPurgeAt = now
+        stopRequested = true
+        Thread {
+            val report = synchronized(modelOperationLock) {
+                RamGuard.purge(applicationContext, if (::webView.isInitialized) webView else null)
+            }
+            runOnUiThread {
+                if (isFinishing) return@runOnUiThread
+                statusText.text = report.message
+                topStatus.text = "Mode ringan"
+                notifyModelReady(false)
+                evalJs("if(typeof window.xenaRamPurged==='function'){window.xenaRamPurged(${report.toJson()})}")
+            }
+        }.start()
+    }
+
     override fun onResume() {
         super.onResume()
         if (firstResume) {
@@ -407,15 +448,10 @@ class MainActivity : AppCompatActivity() {
                                     )
                                     return@synchronized "[XENA] $memoryWarning"
                                 }
-                                val loaded = LlamaBridge.loadModel(
-                                    f.absolutePath,
-                                    AppPrefs.getNctx(context),
-                                    AppPrefs.getNBatch(context),
-                                    AppPrefs.getNThreads(context),
-                                    true,
-                                    false
-                                )
-                                if (loaded) AppPrefs.saveLastModelPath(context, f.absolutePath)
+                                val loaded = activity.tunedLoad(f)
+                                if (!loaded) {
+                                    return@synchronized "[XENA] ${LlamaBridge.lastError}"
+                                }
                             }
                         }
                         LlamaBridge.generate(userMsg, safePrompt, temp)
@@ -637,6 +673,11 @@ class MainActivity : AppCompatActivity() {
         fun getLocalModelFiles(): String = activity.modelDownloads.localFilesJson()
 
         @android.webkit.JavascriptInterface
+        fun rescanModelFiles() {
+            ModelFileFinder.invalidate()
+        }
+
+        @android.webkit.JavascriptInterface
         fun startModelDownload(modelId: String): Boolean = activity.modelDownloads.start(modelId)
 
         @android.webkit.JavascriptInterface
@@ -656,36 +697,55 @@ class MainActivity : AppCompatActivity() {
         fun cleanResiduals(): String = activity.modelDownloads.cleanResiduals()
 
         /**
-         * Pembersih RAM: unload model lokal, System.gc(), clear WebView cache.
-         * Return JSON: { unloaded: bool, message: string }
+         * Pembersih RAM: lepas bobot llama.cpp (bukan cuma System.gc), ukur PSS,
+         * dan hapus cache yang bukan file model.
          */
         @android.webkit.JavascriptInterface
         fun cleanRam(): String {
             return try {
-                var unloaded = false
-                if (LlamaBridge.isReady()) {
-                    LlamaBridge.unload()
-                    unloaded = true
-                }
-                System.gc()
-                System.runFinalization()
-                activity.runOnUiThread {
-                    try {
-                        activity.webView.clearCache(true)
-                    } catch (_: Exception) {
-                    }
+                val report = synchronized(activity.modelOperationLock) {
+                    RamGuard.purge(activity, activity.webView)
                 }
                 activity.notifyModelReady(false)
-                JSONObject()
-                    .put("unloaded", unloaded)
-                    .put("message", if (unloaded) "Model dilepas + GC + cache dibersihkan" else "GC + cache dibersihkan (model tidak aktif)")
-                    .toString()
+                report.toJson()
             } catch (e: Exception) {
                 JSONObject()
                     .put("unloaded", false)
+                    .put("freedBytes", 0)
                     .put("message", "Gagal: ${e.message}")
                     .toString()
             }
+        }
+
+        @android.webkit.JavascriptInterface
+        fun getRamStatus(): String = RamGuard.statusJson(context)
+
+        @android.webkit.JavascriptInterface
+        fun importFoundModel(path: String): Boolean {
+            val cleaned = path.trim()
+            if (cleaned.isEmpty()) return false
+            Thread {
+                val imported = if (cleaned.startsWith("content://")) {
+                    val uri = Uri.parse(cleaned)
+                    val host = uri.authority.orEmpty()
+                    if (!host.contains("media") && !host.contains("downloads")) null
+                    else ModelAutoLoader.importFromUri(activity, uri, null)
+                } else {
+                    val file = File(cleaned)
+                    if (!file.isFile || !ModelFileFinder.isCandidate(file.name)) null
+                    else ModelAutoLoader.moveFileToPrivate(activity, file, null)
+                }
+                activity.runOnUiThread {
+                    if (imported == null) {
+                        Toast.makeText(activity, "File model tidak bisa dipakai. Pastikan GGUF valid.", Toast.LENGTH_LONG).show()
+                    } else {
+                        ModelFileFinder.invalidate()
+                        AppPrefs.saveLastModelPath(activity, imported.absolutePath)
+                        activity.loadModelFile(imported, notifyUi = true)
+                    }
+                }
+            }.start()
+            return true
         }
 
         @android.webkit.JavascriptInterface

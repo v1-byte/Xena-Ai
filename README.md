@@ -1,8 +1,9 @@
 # Xena-AI
 
-**v1.5.2** — Menambahkan WhiteRabbitNeo V3 7B Q2_K sebagai pilihan lokal baru tanpa menghapus katalog model lain. Tetap menyertakan pembersihan RAM/sisa unduhan, animasi pembersih, pintasan Model AI, dan Groq Server Mode.
+**v1.5.6** — Pembersih RAM melepas bobot llama.cpp (bukan cuma `System.gc`), mode ringan otomatis saat RAM mepet, dan pemindai file GGUF di Download / folder aplikasi. Katalog model dan Groq Server Mode dari v1.5.5 tetap ada.
 
 - Panduan Groq: [`docs/MIGRASI_GROQ_v1.5.0.md`](docs/MIGRASI_GROQ_v1.5.0.md)
+- Blueprint Pro: [`docs/BLUEPRINT_PRO.md`](docs/BLUEPRINT_PRO.md)
 - Unduh APK: [GitHub Releases](https://github.com/v1-byte/Xena-Ai/releases)
 
 ## Koneksi Groq

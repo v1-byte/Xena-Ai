@@ -247,6 +247,16 @@ class ModelDownloadManager(context: Context) {
                     .put("hasResumeValidator", !meta.getProperty("etag").isNullOrBlank() || !meta.getProperty("lastModified").isNullOrBlank())
             )
         }
+        try {
+            val discovered = org.json.JSONArray(ModelFileFinder.searchJson(appContext))
+            for (i in 0 until discovered.length()) {
+                val item = discovered.getJSONObject(i)
+                val path = item.optString("path")
+                if (path.isBlank() || !seen.add(path)) continue
+                files.put(item)
+            }
+        } catch (_: Exception) {
+        }
         return files.toString()
     }
 
@@ -552,6 +562,7 @@ class ModelDownloadManager(context: Context) {
             }
         }
 
+        ModelFileFinder.invalidate()
         return JSONObject()
             .put("deletedCount", count)
             .put("freedBytes", freed)

@@ -94,7 +94,7 @@
     }
   }
 
-  function renderLocalFiles() {
+  function renderLocalFiles(force) {
     const host = $('#modelFiles');
     if (!host) return;
     if (!window.Android || !Android.getLocalModelFiles) {
@@ -102,9 +102,10 @@
       return;
     }
     try {
+      if (force && Android.rescanModelFiles) Android.rescanModelFiles();
       const query = ($('#modelFileSearch')?.value || '').trim().toLowerCase();
       const files = JSON.parse(Android.getLocalModelFiles() || '[]');
-      const matches = files.filter((file) => [file.fileName, file.title, file.path, file.status, file.quantization]
+      const matches = files.filter((file) => [file.fileName, file.title, file.path, file.status, file.quantization, file.location]
         .some((value) => String(value || '').toLowerCase().includes(query)));
       host.innerHTML = matches.map((file) => {
         const partial = file.kind === 'partial';
@@ -114,20 +115,24 @@
         const detail = partial
           ? (file.hasResumeValidator ? 'Berkas parsial siap dilanjutkan dengan HTTP Range.' : 'Berkas parsial dipertahankan; server belum memberi validator resume.')
           : (file.headerValid ? 'Header GGUF terdeteksi.' : 'Header GGUF perlu diperiksa.');
+        const where = file.location ? `<br>Tempat: ${esc(file.location)}` : '';
         const actions = partial
           ? `<div class="btns" style="margin-top:8px"><button class="btn sm pri" onclick="startDl('${esc(file.id)}')">Lanjut Download</button><button class="btn sm" onclick="verifyDl('${esc(file.id)}')">Verifikasi Download</button></div>`
-          : '';
+          : (file.importable
+            ? `<div class="btns" style="margin-top:8px"><button class="btn sm pri" data-path="${esc(file.path)}" onclick="importFoundModel(this.dataset.path)">Pakai file ini</button></div>`
+            : '');
         return `<details style="border:1px solid var(--line);border-radius:12px;padding:10px;margin-top:8px;background:var(--card2)">
           <summary style="cursor:pointer"><b>${esc(file.fileName)}</b> · <span class="pill">${esc(file.status)}</span></summary>
-          <div class="muted" style="font-size:12px;word-break:break-all;margin-top:8px">Model: ${esc(file.title)} · ${esc(file.quantization)}<br>Ukuran: ${esc(sizeLabel)}<br>Lokasi: ${esc(file.path)}<br>${esc(detail)}</div>
+          <div class="muted" style="font-size:12px;word-break:break-all;margin-top:8px">Model: ${esc(file.title)} · ${esc(file.quantization)}<br>Ukuran: ${esc(sizeLabel)}${where}<br>Lokasi: ${esc(file.path)}<br>${esc(detail)}</div>
           <div class="muted" style="font-size:12px;margin-top:6px">GGUF berisi bobot model biner, bukan source code; verifikasi ini mengecek ukuran dan header, bukan checksum kriptografis.</div>
           ${actions}
         </details>`;
-      }).join('') || `<div class="muted" style="margin-top:8px">${query ? 'Tidak ada file yang cocok.' : 'Belum ada model tersimpan atau unduhan parsial.'} Gunakan Pilih GGUF untuk mencari file di penyimpanan Android.</div>`;
+      }).join('') || `<div class="muted" style="margin-top:8px">${query ? 'Tidak ada file yang cocok.' : 'Belum ada model tersimpan atau unduhan parsial.'} Tekan Pindai, atau gunakan Pilih GGUF.</div>`;
     } catch (error) {
       host.innerHTML = '<div class="muted">Daftar file model tidak dapat dibaca.</div>';
       if (typeof logT === 'function') logT(`Daftar file model: ${error.message}`);
     }
+    refreshRam();
   }
 
   function onTransfer(snapshot) {
@@ -225,8 +230,8 @@
     if (!ok && typeof toast === 'function') toast('Jeda unduhan terlebih dahulu atau periksa file parsial', 'bad');
     else if (typeof toast === 'function') toast('Verifikasi selesai; lihat status ukuran dan GGUF di Download Manager', 'ok');
   };
-  window.searchLocalModels = function () {
-    renderLocalFiles();
+  window.searchLocalModels = function (force) {
+    renderLocalFiles(!!force);
   };
   window.cancelDl = function () {
     if (!window.Android || !Android.cancelModelDownload || !Android.cancelModelDownload()) {
@@ -274,6 +279,33 @@
     };
   }
 
+  window.importFoundModel = function (path) {
+    if (!path || !window.Android || !Android.importFoundModel) {
+      if (typeof toast === 'function') toast('Pemakaian file model hanya di APK Android', 'bad');
+      return;
+    }
+    Android.importFoundModel(path);
+    if (typeof toast === 'function') toast('Memindahkan GGUF ke folder aplikasi, lalu memuat jika RAM cukup', 'ok');
+  };
+
+  function refreshRam() {
+    const live = $('#ramLive');
+    if (!live || !window.Android || !Android.getRamStatus) return;
+    try {
+      const ram = JSON.parse(Android.getRamStatus() || '{}');
+      live.textContent = `${ram.label || 'RAM'} · bebas ${ram.availMb || 0} MB · proses ${ram.pssMb || 0} MB${ram.loaded ? ' · model di RAM' : ''}`;
+    } catch (_) {}
+  }
+
+  window.xenaRamPurged = function (report) {
+    const status = $('#cleanStatus');
+    const freed = $('#cleanFreed');
+    if (status && report && report.message) status.textContent = report.message;
+    if (freed && report && report.freedBytes > 0 && typeof fmtBytes === 'function') freed.textContent = `${fmtBytes(report.freedBytes)} lepas`;
+    refreshRam();
+    if (typeof modelOk === 'function') modelOk(false, 'Model dilepas karena RAM mepet');
+  };
+
   // Keep the existing active-model status handling, then refresh the newly added card details.
   if (typeof window.modelOk === 'function' && !window.modelOk.__xenaRefreshWrapped) {
     const oldModelOk = window.modelOk;
@@ -289,6 +321,7 @@
   storage();
   renderCatalog();
   renderLocalFiles();
+  refreshRam();
   try {
     if (window.Android && Android.getModelTransferState) onTransfer(JSON.parse(Android.getModelTransferState() || '{}'));
   } catch (_) {}

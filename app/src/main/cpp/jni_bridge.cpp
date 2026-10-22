@@ -4,7 +4,7 @@
 #include <vector>
 #include <mutex>
 #include <algorithm>
-#include <cstring>
+#include <malloc.h>
 
 #include "llama.h"
 
@@ -108,6 +108,7 @@ JNIEXPORT void JNICALL
 Java_com_xena_ai_LlamaBridge_nativeFreeModel(JNIEnv *, jclass) {
     std::lock_guard<std::mutex> lock(g_mu);
     free_all_locked();
+    malloc_trim(0);
 }
 
 JNIEXPORT jstring JNICALL

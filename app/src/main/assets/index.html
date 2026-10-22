@@ -476,7 +476,7 @@ header,nav{transition:transform .8s cubic-bezier(.2,.8,.2,1) .1s}
   </div>
   <div class="card" id="cleanCard">
     <h4><svg class="i"><use href="#i-trash"/></svg>Pembersih · Ponsel Lebih Ringan</h4>
-    <p class="muted" style="margin-top:0">Lepas model dari RAM, hapus sisa unduhan gagal/parsial, dan bersihkan cache agar HP terasa lebih ringan.</p>
+    <p class="muted" style="margin-top:0">Lepas bobot model dari RAM (llama_free, bukan cuma GC), hapus cache, dan turunkan context otomatis saat RAM mepet.</p>
     <div class="clean-anim" id="cleanAnim" aria-hidden="true">
       <div class="clean-orb"></div>
       <div class="clean-ring"></div>
@@ -485,6 +485,7 @@ header,nav{transition:transform .8s cubic-bezier(.2,.8,.2,1) .1s}
       <div class="clean-spark s3"></div>
     </div>
     <div class="row muted" style="margin:8px 0"><span id="cleanStatus">Siap membersihkan</span><span class="sp"></span><span id="cleanFreed" style="color:var(--ok)"></span></div>
+    <p class="muted" id="ramLive" style="margin-bottom:0">Mode ringan menyala otomatis saat RAM mepet.</p>
     <div class="btns">
       <button class="btn pri" onclick="runCleanRam()"><svg class="i"><use href="#i-cpu"/></svg>Bersihkan RAM</button>
       <button class="btn" onclick="runCleanResiduals()"><svg class="i"><use href="#i-trash"/></svg>Hapus Sisa Download</button>
@@ -493,6 +494,7 @@ header,nav{transition:transform .8s cubic-bezier(.2,.8,.2,1) .1s}
   </div>
   <div class="card"><h4><svg class="i"><use href="#i-search"/></svg>Cari File Model & Lokasi</h4>
     <input class="f" id="modelFileSearch" type="search" placeholder="Cari nama file, model, lokasi, atau status…" oninput="searchLocalModels()">
+    <div class="btns"><button class="btn" onclick="searchLocalModels(true)">Pindai Download & folder model</button></div>
     <div id="modelFiles"><div class="muted">Memeriksa model tersimpan…</div></div>
     <p class="muted" style="margin-bottom:0">File GGUF berisi bobot model dalam format biner, bukan source code. Bagian detail menampilkan nama, ukuran, status, dan lokasi file.</p>
   </div>
@@ -874,7 +876,9 @@ function runCleanRam(){
     const raw=Android.cleanRam();
     const j=JSON.parse(raw||'{}');
     $('#cleanStatus').textContent=j.message||'Selesai';
-    $('#cleanFreed').textContent='';
+    $('#cleanFreed').textContent=j.freedBytes>0?fmtCleanBytes(j.freedBytes)+' lepas':'';
+    const live=$('#ramLive');
+    if(live)live.textContent=(j.light?'Mode ringan aktif':'RAM stabil')+(j.availMb?' · bebas '+j.availMb+' MB':'')+(j.afterPssMb!=null?' · proses '+j.afterPssMb+' MB':'');
     toast(j.message||'RAM dibersihkan','ok');
     playCleanAnim(true);
     try{modelOk(false,'Model dilepas dari RAM')}catch(e){}
