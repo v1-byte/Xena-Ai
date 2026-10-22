@@ -6,6 +6,21 @@
 #include <algorithm>
 #include <malloc.h>
 
+// NDK headers hide malloc_trim below the cmake API level. Declare it weakly so
+// the release build still links, and fall back to mallopt(M_PURGE).
+extern "C" {
+int malloc_trim(size_t pad) __attribute__((weak));
+int mallopt(int option, int value) __attribute__((weak));
+}
+#ifndef M_PURGE
+#define M_PURGE (-101)
+#endif
+
+static void release_native_heap() {
+    if (malloc_trim) malloc_trim(0);
+    if (mallopt) mallopt(M_PURGE, 0);
+}
+
 #include "llama.h"
 
 #define TAG "XENA-llama"
@@ -108,7 +123,7 @@ JNIEXPORT void JNICALL
 Java_com_xena_ai_LlamaBridge_nativeFreeModel(JNIEnv *, jclass) {
     std::lock_guard<std::mutex> lock(g_mu);
     free_all_locked();
-    malloc_trim(0);
+    release_native_heap();
 }
 
 JNIEXPORT jstring JNICALL
