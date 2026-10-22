@@ -1289,8 +1289,13 @@ const BOOT=[
   [88,'Almost ready…'],
   [100,'Welcome']
 ];
-let splashClosed=false,autoLoadStarted=false;
+let splashClosed=false,bootCancelled=false,autoLoadStarted=false;
 function bootError(message){
+  bootCancelled=true;
+  const lt=$('#lt'),lb=$('#lb'),lp=$('#lp');
+  if(lt)lt.textContent='Xena siap';
+  if(lb)lb.style.width='100%';
+  if(lp)lp.textContent='100%';
   try{logT&&logT('⚠️ Startup fallback: '+message)}catch(e){}
   endSplash();
 }
@@ -1319,7 +1324,7 @@ async function boot(){
   const t0=Date.now();
   let voiceDone=false;
   while(true){
-    if(document.body.classList.contains('ready'))return;
+    if(bootCancelled||document.body.classList.contains('ready'))return;
     const elapsed=Date.now()-t0;
     const p=Math.min(100,Math.round(elapsed/total*100));
     let label='Starting…';
@@ -1338,6 +1343,7 @@ async function boot(){
 function endSplash(){
   if(splashClosed)return;
   splashClosed=true;
+  bootCancelled=true;
   const splash=$('#splash');if(splash)splash.classList.add('hide');
   document.body.classList.add('ready');
   try{if(S.get('pin',''))$('#lock').classList.add('on')}catch(e){}

@@ -189,8 +189,8 @@ test('RAM cleaner frees native weights, light mode lowers context, and model sea
 });
 
 test('APK release is version-driven and verifies native llama library packaging', () => {
-  assert.match(gradle, /versionCode = 161/);
-  assert.match(gradle, /versionName = "1\.6\.1"/);
+  assert.match(gradle, /versionCode = 162/);
+  assert.match(gradle, /versionName = "1\.6\.2"/);
   assert.doesNotMatch(gradle, /versionName = "1\.4\.2"/);
   assert.match(gradle, /signingConfig = signingConfigs\.getByName\("release"\)/);
   assert.match(workflow, /steps\.release_meta\.outputs\.tag/);
@@ -228,6 +228,8 @@ test('advanced audit protections are wired end-to-end', () => {
   assert.match(html, /const total=4800/);
   assert.match(html, /window\.addEventListener\('error'/);
   assert.match(html, /function bootError/);
+  assert.match(html, /bootCancelled=true/);
+  assert.match(html, /if\(bootCancelled\|\|document\.body\.classList\.contains\('ready'\)\)return/);
   assert.match(html, /if\(!autoLoadStarted\)/);
   assert.doesNotMatch(html, /setTimeout\(loadModel,2600\)/);
   assert.match(ram, /instead of adding overlapping measurements twice/);
