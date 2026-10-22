@@ -131,6 +131,7 @@ jobs:
           cat >> release-notes.md <<'NOTES'
 
           - Model catalog: Qwen2.5-Coder 1.5B Q4_K_M, 3B Q3_K_M, 7B Q2_K, Q3_K_M, and Q4_K_M.
+          - Adds WhiteRabbitNeo V3 7B Q2_K as an additional local GGUF model; existing Qwen models and Groq Server Mode remain available.
           - Explicit continue, pause, and verify controls; resumable HTTP Range downloads preserve partial files if the server rejects resume.
           - Search installed/partial model files by name and storage path; GGUF details show file metadata instead of treating binary weights as source code.
           - Startup prepares/migrates models without loading them unless auto-load was enabled; preflight RAM checks prevent likely low-memory process kills.
@@ -138,6 +139,9 @@ jobs:
           - Conservative 6 GB RAM defaults: context 1024, batch 32, 2 threads; lower-memory load fallbacks.
           - Server Mode migrates from Hugging Face Inference to Groq Chat Completions using the currently listed production model `openai/gpt-oss-20b`.
           - Groq API key is entered in the app and encrypted with Android Keystore; no API key is included in source or APK.
+          - Chat corner menu adds a shortcut to Model AI and shows the active model.
+          - RAM cleanup unloads the local model and clears reclaimable WebView cache; residual cleanup removes failed partial downloads and invalid GGUF files without deleting the active model.
+          - The Model tab includes animated cleanup controls for RAM, residual downloads, and both together.
           - Legacy Hugging Face inference credentials and Space URL are cleared. Hugging Face remains only as a source for public local GGUF model files.
           - Existing Chat, navigation, connectors, themes, and settings remain in the app.
           - `libllama.so` is built from the pinned llama.cpp source for arm64-v8a; GGUF model weights are downloaded separately in the app.
