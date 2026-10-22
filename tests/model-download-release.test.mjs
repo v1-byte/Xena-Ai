@@ -77,18 +77,22 @@ test('catalog keeps the requested model variants and direct Hugging Face files',
     'qwen2.5-coder-7b-instruct-q4_k_m.gguf',
     'WhiteRabbitNeo_WhiteRabbitNeo-V3-7B-Q2_K.gguf',
     'WhiteRabbitNeo_WhiteRabbitNeo-V3-7B-IQ2_M.gguf',
+    'WhiteRabbitNeo_WhiteRabbitNeo-V3-7B-IQ3_XXS.gguf',
     'WhiteRabbitNeo-7B-v1.5a-Q3_K_M.gguf',
     'WhiteRabbitNeo_WhiteRabbitNeo-V3-7B-Q3_K_M.gguf',
     'WhiteRabbitNeo_WhiteRabbitNeo-V3-7B-Q4_K_M.gguf',
     'WhiteRabbitNeo_WhiteRabbitNeo-V3-7B-Q5_K_M.gguf'
   ]) assert.ok(catalog.includes(file), `missing ${file}`);
-  assert.equal((catalog.match(/https:\/\/huggingface\.co\//g) || []).length, 12);
+  assert.equal((catalog.match(/https:\/\/huggingface\.co\//g) || []).length, 13);
   assert.match(catalog, /id = "qwen3b-bughunter"/);
+  assert.match(catalog, /id = "wrn-mini"/);
+  assert.match(catalog, /id = "wrn-v3-iq3xxs"/);
   assert.match(catalog, /id = "whiterabbitneo-v3-7b-q2"/);
-  assert.match(catalog, /id = "wrn-v3-iq2m"/);
+  assert.match(catalog, /title = "WhiteRabbitNeo Mini"/);
   assert.match(catalog, /sizeBytes = 1_929_902_432L/);
   assert.match(catalog, /sizeBytes = 3_015_941_312L/);
   assert.match(catalog, /sizeBytes = 2_780_343_488L/);
+  assert.match(catalog, /sizeBytes = 3_114_515_648L/);
 });
 
 test('model downloads use resumable byte ranges and validate partials before activation', () => {
