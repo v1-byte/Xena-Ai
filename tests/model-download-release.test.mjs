@@ -148,8 +148,8 @@ test('force update still refuses same or older versions', () => {
 });
 
 test('APK release is version-driven and verifies native llama library packaging', () => {
-  assert.match(gradle, /versionCode = 150/);
-  assert.match(gradle, /versionName = "1.5.0"/);
+  assert.match(gradle, /versionCode = 151/);
+  assert.match(gradle, /versionName = "1.5.1"/);
   assert.doesNotMatch(gradle, /versionName = "1\.4\.2"/);
   assert.match(gradle, /signingConfig = signingConfigs\.getByName\("release"\)/);
   assert.match(workflow, /steps\.release_meta\.outputs\.tag/);
@@ -157,6 +157,8 @@ test('APK release is version-driven and verifies native llama library packaging'
   assert.match(workflow, /secrets\.XENA_SIGNING_KEYSTORE_BASE64/);
   assert.match(workflow, /Compare signing certificate/);
   assert.match(workflow, /lib\/arm64-v8a\/libllama\.so/);
+  assert.match(workflow, /Chat corner menu adds a shortcut to Model AI/);
+  assert.match(workflow, /RAM cleanup unloads the local model/);
   assert.doesNotMatch(workflow, /tag_name:\s*v1\.3\.5/);
   assert.match(modelUi, /bytesPerSecond/);
   assert.doesNotMatch(modelUi, /Math\.random/);

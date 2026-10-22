@@ -1,6 +1,6 @@
 # Xena-AI
 
-**v1.5.0** — Server Mode memakai Groq Chat Completions dengan model production `openai/gpt-oss-20b`. API key dimasukkan lewat aplikasi dan dienkripsi menggunakan Android Keystore; key tidak ditanam di repository atau APK. Mode GGUF lokal tetap tersedia.
+**v1.5.1** — Menambahkan pembersihan RAM dan sisa unduhan, animasi pembersih, serta pintasan Model AI dari menu chat. Server Mode memakai Groq Chat Completions; Mode GGUF lokal tetap tersedia.
 
 - Panduan Groq: [`docs/MIGRASI_GROQ_v1.5.0.md`](docs/MIGRASI_GROQ_v1.5.0.md)
 - Unduh APK: [GitHub Releases](https://github.com/v1-byte/Xena-Ai/releases)
