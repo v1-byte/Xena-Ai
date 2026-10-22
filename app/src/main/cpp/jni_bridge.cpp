@@ -57,7 +57,15 @@ Java_com_xena_ai_LlamaBridge_nativeLoadModel(
         jstring modelPath, jint n_ctx, jint n_batch, jint n_threads,
         jboolean useMmap, jboolean useMlock) {
     std::lock_guard<std::mutex> lock(g_mu);
+    if (!modelPath) {
+        set_err("Path model kosong.");
+        return JNI_FALSE;
+    }
     const char *path = env->GetStringUTFChars(modelPath, nullptr);
+    if (!path) {
+        set_err("Gagal membaca path model dari Java.");
+        return JNI_FALSE;
+    }
     LOGI("loadModel path=%s ctx=%d batch=%d thr=%d mmap=%d",
          path, (int)n_ctx, (int)n_batch, (int)n_threads, (int)useMmap);
 
@@ -136,6 +144,7 @@ Java_com_xena_ai_LlamaBridge_nativeGenerate(
     }
 
     const char *prompt = env->GetStringUTFChars(jprompt, nullptr);
+    if (!prompt) return env->NewStringUTF("[XENA] Prompt kosong atau gagal dibaca");
     std::string prompt_str = prompt ? prompt : "";
     env->ReleaseStringUTFChars(jprompt, prompt);
 
@@ -169,11 +178,14 @@ Java_com_xena_ai_LlamaBridge_nativeGenerate(
 
     auto sparams = llama_sampler_chain_default_params();
     llama_sampler *smpl = llama_sampler_chain_init(sparams);
+    if (!smpl) return env->NewStringUTF("[XENA] Sampler tidak dapat dibuat karena RAM tidak cukup");
     llama_sampler_chain_add(smpl, llama_sampler_init_top_k(40));
     llama_sampler_chain_add(smpl, llama_sampler_init_top_p(topP > 0.f ? topP : 0.9f, 1));
+    if (repeatPenalty > 1.0f) {
+        llama_sampler_chain_add(smpl, llama_sampler_init_penalties(64, repeatPenalty, 0.0f, 0.0f));
+    }
     llama_sampler_chain_add(smpl, llama_sampler_init_temp(temp > 0.f ? temp : 0.2f));
     llama_sampler_chain_add(smpl, llama_sampler_init_dist(LLAMA_DEFAULT_SEED));
-    (void)repeatPenalty;
 
     std::string out;
     out.reserve(1024);

@@ -6,6 +6,7 @@ import android.util.Log
 object Connectors {
     private const val TAG = "XENA-Connector"
     private const val PREF_NAME = "xena_connectors"
+    private val allowedIds = setOf("github", "cloudflare", "meta")
 
     data class ConnectorDef(
         val id: String,
@@ -46,20 +47,29 @@ object Connectors {
     )
 
     fun saveToken(context: Context, id: String, token: String, accountId: String? = null) {
-        val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-        prefs.edit().putString("${id}_token", token).apply()
-        if (accountId != null) {
-            prefs.edit().putString("${id}_account", accountId).apply()
-        }
+        if (id !in allowedIds || token.isBlank()) return
+        AppPrefs.setConnectorSecret(context, id, token.trim())
+        context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE).edit()
+            .putString("${id}_account", accountId.orEmpty()).apply()
         Log.d(TAG, "Saved token for $id")
     }
 
     fun getToken(context: Context, id: String): String? {
-        return context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+        if (id !in allowedIds) return null
+        val secure = AppPrefs.getConnectorSecret(context, id)
+        if (secure != null) return secure
+        // One-time migration from the old plaintext store.
+        val legacy = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
             .getString("${id}_token", null)
+        if (!legacy.isNullOrBlank()) {
+            saveToken(context, id, legacy, getAccountId(context, id))
+            context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE).edit().remove("${id}_token").apply()
+        }
+        return legacy
     }
 
     fun getAccountId(context: Context, id: String): String? {
+        if (id !in allowedIds) return null
         return context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
             .getString("${id}_account", null)
     }
@@ -73,6 +83,8 @@ object Connectors {
     }
 
     fun clearToken(context: Context, id: String) {
+        if (id !in allowedIds) return
+        AppPrefs.clearConnectorSecret(context, id)
         context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
             .edit()
             .remove("${id}_token")

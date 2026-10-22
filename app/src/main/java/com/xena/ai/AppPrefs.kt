@@ -77,6 +77,7 @@ object AppPrefs {
 
     private const val GROQ_API_KEY_PREF = "groq_api_key_encrypted"
     private const val GROQ_KEY_ALIAS = "xena_groq_api_key"
+    private const val CONNECTOR_KEY_ALIAS = "xena_connector_secrets"
 
     fun hasGroqApiKey(context: Context): Boolean = getGroqApiKey(context).isNotBlank()
 
@@ -112,6 +113,29 @@ object AppPrefs {
         getPrefs(context).edit().remove(GROQ_API_KEY_PREF).apply()
     }
 
+    /** Keystore-backed secret storage for connector credentials. */
+    fun setConnectorSecret(context: Context, name: String, value: String) {
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.ENCRYPT_MODE, getOrCreateSecretKey(CONNECTOR_KEY_ALIAS))
+        val packed = cipher.iv + cipher.doFinal(value.toByteArray(Charsets.UTF_8))
+        getPrefs(context).edit().putString("connector_secret_$name", Base64.encodeToString(packed, Base64.NO_WRAP)).apply()
+    }
+
+    fun getConnectorSecret(context: Context, name: String): String? {
+        val encoded = getPrefs(context).getString("connector_secret_$name", null) ?: return null
+        return try {
+            val packed = Base64.decode(encoded, Base64.NO_WRAP)
+            if (packed.size <= 12) return null
+            val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+            cipher.init(Cipher.DECRYPT_MODE, getOrCreateSecretKey(CONNECTOR_KEY_ALIAS), GCMParameterSpec(128, packed.copyOfRange(0, 12)))
+            String(cipher.doFinal(packed.copyOfRange(12, packed.size)), Charsets.UTF_8)
+        } catch (_: Exception) { null }
+    }
+
+    fun clearConnectorSecret(context: Context, name: String) {
+        getPrefs(context).edit().remove("connector_secret_$name").apply()
+    }
+
     /** Remove credentials and endpoint configuration saved by older Hugging Face builds. */
     fun clearLegacyHfConfig(context: Context) {
         getPrefs(context).edit()
@@ -126,12 +150,16 @@ object AppPrefs {
     }
 
     private fun getOrCreateGroqKey(): SecretKey {
+        return getOrCreateSecretKey(GROQ_KEY_ALIAS)
+    }
+
+    private fun getOrCreateSecretKey(alias: String): SecretKey {
         val keyStore = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
-        (keyStore.getKey(GROQ_KEY_ALIAS, null) as? SecretKey)?.let { return it }
+        (keyStore.getKey(alias, null) as? SecretKey)?.let { return it }
         val generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore")
         generator.init(
             KeyGenParameterSpec.Builder(
-                GROQ_KEY_ALIAS,
+                alias,
                 KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
             )
                 .setBlockModes(KeyProperties.BLOCK_MODE_GCM)

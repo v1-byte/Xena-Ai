@@ -187,8 +187,8 @@ test('RAM cleaner frees native weights, light mode lowers context, and model sea
 });
 
 test('APK release is version-driven and verifies native llama library packaging', () => {
-  assert.match(gradle, /versionCode = 158/);
-  assert.match(gradle, /versionName = "1\.5\.8"/);
+  assert.match(gradle, /versionCode = 159/);
+  assert.match(gradle, /versionName = "1\.5\.9"/);
   assert.doesNotMatch(gradle, /versionName = "1\.4\.2"/);
   assert.match(gradle, /signingConfig = signingConfigs\.getByName\("release"\)/);
   assert.match(workflow, /steps\.release_meta\.outputs\.tag/);
@@ -201,4 +201,23 @@ test('APK release is version-driven and verifies native llama library packaging'
   assert.doesNotMatch(workflow, /tag_name:\s*v1\.3\.5/);
   assert.match(modelUi, /bytesPerSecond/);
   assert.doesNotMatch(modelUi, /Math\.random/);
+});
+
+test('advanced audit protections are wired end-to-end', () => {
+  assert.match(activity, /AtomicLong\(0L\)/);
+  assert.match(activity, /window\.xenaToken/);
+  assert.match(activity, /\$chatId/);
+  assert.match(activity, /window\.xenaError/);
+  assert.match(activity, /chatExecutor\.shutdownNow/);
+  assert.match(activity, /LlamaBridge\.loadedPath/);
+  assert.match(html, /activeRequestId/);
+  assert.match(html, /KONTEKS PERCAKAPAN TERBARU/);
+  assert.match(html, /xenaToken=\(id,t\)/);
+  assert.match(groqConnector, /top_p/);
+  assert.match(groqConnector, /max_completion_tokens/);
+  assert.match(cpp, /llama_sampler_init_penalties/);
+  assert.match(cpp, /Sampler tidak dapat dibuat/);
+  assert.match(prefs, /setConnectorSecret/);
+  assert.match(connectors, /allowedIds/);
+  assert.match(ram, /instead of adding overlapping measurements twice/);
 });

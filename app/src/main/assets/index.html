@@ -748,7 +748,7 @@ function dl(name,txt,type='text/plain'){const a=document.createElement('a');a.hr
 function saveCode(b){const l=b.closest('.cb').querySelector('.cbh span').textContent;const ext={kotlin:'kt',html:'html',javascript:'js',js:'js',python:'py',css:'css',json:'json'}[l]||'txt';dl('xena-kode.'+ext,codeOf(b));toast('Disimpan ke file','ok')}
 
 /* ---------- chats ---------- */
-let chats=S.get('chats',[]),cid=S.get('cid',null),busy=false,stopFlag=false,lastPrompt='';
+let chats=S.get('chats',[]),cid=S.get('cid',null),busy=false,stopFlag=false,lastPrompt='',activeRequestId=0;
 const curChat=()=>chats.find(c=>c.id===cid);
 const fmtT=ts=>new Date(ts).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
 function persist(){S.set('chats',chats);S.set('cid',cid)}
@@ -795,11 +795,13 @@ const holder=addMsg('assistant','',Date.now());holder.querySelector('.bubble').i
 let full='';const bub=holder.querySelector('.bubble');const chatEl=$('#chat');const upd=()=>{bub.innerHTML=md(full)+'<span class="caret"></span>';if(S.get('asc',true)&&nearBottom())chatEl.scrollTop=chatEl.scrollHeight};
 const params={system:$('#sys').value,ctx:+$('#ctx').value,temp:+$('#tmp').value,threads:S.get('thr',2),top_p:S.get('topp',.9),top_k:S.get('topk',40),repeat_penalty:S.get('rep',1.1),max_tokens:S.get('maxt',1024)};
 // Prompt ke model: data GitHub nyata + instruksi jangan beri tutorial konektor
+const prior=c.msgs.filter(m=>m.role==='user'||m.role==='assistant').slice(-9,-1);
+const history=prior.length?'[KONTEKS PERCAKAPAN TERBARU]\n'+prior.map(m=>(m.role==='user'?'USER: ':'ASSISTANT: ')+m.text).join('\n')+'\n\n':'';
 const promptToModel=ghContext
-  ? ('[DATA GITHUB NYATA — hasil API, bukan tebakan]\n'+ghContext+'\n\n[PERMINTAAN USER]\n'+p+'\n\n[INSTRUKSI]\nJawab berdasarkan DATA GITHUB di atas. Jangan berikan panduan cara menghubungkan connector. Langsung ringkas hasil, status, dan langkah berikutnya yang relevan.')
-  : p;
+  ? (history+'[DATA GITHUB NYATA — hasil API, bukan tebakan]\n'+ghContext+'\n\n[PERMINTAAN USER]\n'+p+'\n\n[INSTRUKSI]\nJawab berdasarkan DATA GITHUB di atas. Jangan berikan panduan cara menghubungkan connector. Langsung ringkas hasil, status, dan langkah berikutnya yang relevan.')
+  : history+p;
 if(window.Android&&Android.chat){ /* Native: Android.chat(prompt, paramsJson) → panggil window.xenaToken(t) & window.xenaDone() */
-  await new Promise(res=>{window.xenaToken=t=>{if(stopFlag)return;full+=t;upd()};window.xenaDone=res;window.xenaError=m=>{toast(m||'Mesin error','bad');logT('❌ '+(m||'Mesin error'));res()};window.xenaStop=()=>stopFlag&&res();Android.chat(promptToModel,JSON.stringify(params))});
+  await new Promise(res=>{window.xenaToken=(id,t)=>{if(id!==activeRequestId||stopFlag)return;full+=t;upd()};window.xenaDone=id=>{if(id===activeRequestId)res()};window.xenaError=(id,code,m,retryable)=>{if(id!==activeRequestId)return;full=m||'Mesin error';upd();toast(full,'bad');logT('❌ '+code+': '+full);res()};window.xenaStop=()=>stopFlag&&res();activeRequestId=Number(Android.chat(promptToModel,JSON.stringify(params)))||0});
 }else if(ghContext){
   // Tanpa engine: tampilkan hasil tool langsung
   await sleep(200);

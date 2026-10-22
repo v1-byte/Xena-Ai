@@ -5,6 +5,7 @@ import android.util.Log
 object LlamaBridge {
     private const val TAG = "XENA-Llama"
     private var isModelLoaded = false
+    @Volatile private var loadedModelPath: String? = null
     @Volatile var lastError: String = "ok"
         private set
 
@@ -26,6 +27,9 @@ object LlamaBridge {
         try {
             System.loadLibrary("llama")
             Log.d(TAG, "libllama loaded")
+        } catch (e: LinkageError) {
+            lastError = "libllama.so gagal load: native library tidak kompatibel"
+            Log.e(TAG, lastError, e)
         } catch (e: Exception) {
             lastError = "libllama.so gagal load: ${e.message}"
             Log.e(TAG, lastError)
@@ -55,6 +59,7 @@ object LlamaBridge {
                 lastError = try { nativeLastError() } catch (_: Throwable) { if (ok) "ok" else "native gagal" }
                 if (ok) {
                     isModelLoaded = true
+                    loadedModelPath = modelPath
                     Log.d(TAG, "loaded ok with ctx=$ctx err=$lastError")
                     return true
                 }
@@ -70,6 +75,7 @@ object LlamaBridge {
             }
         }
         isModelLoaded = false
+        loadedModelPath = null
         return false
     }
 
@@ -122,11 +128,14 @@ object LlamaBridge {
         }
     }
 
+    fun loadedPath(): String? = loadedModelPath
+
     fun unload() {
         try {
             nativeFreeModel()
         } catch (_: Throwable) {
         }
         isModelLoaded = false
+        loadedModelPath = null
     }
 }

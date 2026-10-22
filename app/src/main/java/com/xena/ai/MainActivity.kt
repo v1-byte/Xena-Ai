@@ -18,6 +18,8 @@ import org.json.JSONArray
 import org.json.JSONObject
 import android.widget.Toast
 import java.io.File
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicLong
 
 class MainActivity : AppCompatActivity() {
     private val TAG = "XENA-Main"
@@ -28,7 +30,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var modelDownloads: ModelDownloadManager
     private val modelOperationLock = Any()
     @Volatile private var modelLoadInProgress = false
-    @Volatile private var stopRequested = false
+    private val chatSequence = AtomicLong(0L)
+    @Volatile private var activeChatId = 0L
+    private val chatExecutor = Executors.newSingleThreadExecutor { runnable ->
+        Thread(runnable, "xena-chat").apply { isDaemon = true }
+    }
     private var firstResume = true
     @Volatile private var deletePickedSourceAfterImport = false
     @Volatile private var lastAutoPurgeAt = 0L
@@ -381,10 +387,15 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        activeChatId = chatSequence.incrementAndGet()
+        chatExecutor.shutdownNow()
         if (::modelDownloads.isInitialized) {
             modelDownloads.pause()
             modelDownloads.setListener(null)
         }
+        try { webView.removeJavascriptInterface("Android") } catch (_: Throwable) {}
+        try { webView.removeJavascriptInterface("AndroidBridge") } catch (_: Throwable) {}
+        try { webView.stopLoading(); webView.webChromeClient = null; webView.webViewClient = null } catch (_: Throwable) {}
         super.onDestroy()
     }
 
@@ -398,7 +409,14 @@ class MainActivity : AppCompatActivity() {
         webView.settings.domStorageEnabled = true
         webView.settings.allowFileAccess = true
         webView.settings.mediaPlaybackRequiresUserGesture = false
-        webView.webViewClient = WebViewClient()
+        webView.webViewClient = object : WebViewClient() {
+            override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean {
+                val uri = Uri.parse(url)
+                val allowed = uri.scheme == "file" && uri.host == null &&
+                    url.startsWith("file:///android_asset/")
+                return !allowed
+            }
+        }
         webView.webChromeClient = WebChromeClient()
         // UI v1.2 expects window.Android
         webView.addJavascriptInterface(AndroidBridge(this), "Android")
@@ -409,32 +427,50 @@ class MainActivity : AppCompatActivity() {
 
 
     fun evalJs(js: String) {
-        try {
-            runOnUiThread { webView.evaluateJavascript(js, null) }
-        } catch (_: Exception) {
-        }
+        try { runOnUiThread {
+            try { if (!isFinishing && !isDestroyed) webView.evaluateJavascript(js, null) } catch (_: Throwable) {}
+        } } catch (_: Throwable) {}
+    }
+
+    fun isChatActive(id: Long): Boolean = id != 0L && id == activeChatId && !isFinishing && !isDestroyed
+
+    fun emitChatJs(js: String) = evalJs(js)
+
+    fun safeChatError(error: Throwable): String = when {
+        error.message?.contains("401") == true -> "Autentikasi provider gagal. Periksa API key."
+        error.message?.contains("429") == true -> "Batas penggunaan provider tercapai. Coba lagi nanti."
+        error.message?.contains("timeout", true) == true -> "Provider terlalu lama merespons. Coba lagi."
+        error is OutOfMemoryError -> "RAM tidak cukup untuk model ini. Aktifkan mode ringan atau gunakan model lebih kecil."
+        else -> "Mesin AI gagal memproses permintaan. Coba ulangi."
     }
 
     class AndroidBridge(private val activity: MainActivity) {
         private val context get() = activity
 
         @android.webkit.JavascriptInterface
-        fun chat(prompt: String, paramsJson: String) {
-            activity.stopRequested = false
-            Thread {
+        fun chat(prompt: String, paramsJson: String): Long {
+            val chatId = activity.chatSequence.incrementAndGet()
+            activity.activeChatId = chatId
+            activity.chatExecutor.execute chatTask@{
                 try {
                     var temp = AppPrefs.getTemperature(context)
+                    var topP = 0.9f
+                    var repeatPenalty = 1.1f
+                    var maxTokens = 1024
                     try {
                         val o = JSONObject(paramsJson.ifBlank { "{}" })
                         if (o.has("temperature")) temp = o.getDouble("temperature").toFloat()
                         if (o.has("temp")) temp = o.getDouble("temp").toFloat()
+                        if (o.has("top_p")) topP = o.getDouble("top_p").toFloat()
+                        if (o.has("repeat_penalty")) repeatPenalty = o.getDouble("repeat_penalty").toFloat()
+                        if (o.has("max_tokens")) maxTokens = o.getInt("max_tokens")
                     } catch (_: Exception) {
                     }
                     val safePrompt = AppPrefs.getSafeSystemPrompt(context)
                     val userMsg = extractUserMessage(prompt)
                     val out = if (AppPrefs.isServerMode(context)) {
                         // Server mode: Groq API (tidak load GGUF di HP)
-                        KonektorGroq.chat(userMsg, safePrompt, temp, AppPrefs.getGroqApiKey(context))
+                        KonektorGroq.chat(userMsg, safePrompt, temp, AppPrefs.getGroqApiKey(context), topP, maxTokens)
                     } else synchronized(activity.modelOperationLock) {
                         // Local offline fallback
                         if (!LlamaBridge.isReady()) {
@@ -456,54 +492,39 @@ class MainActivity : AppCompatActivity() {
                                 }
                             }
                         }
-                        LlamaBridge.generate(userMsg, safePrompt, temp)
+                        LlamaBridge.generate(userMsg, safePrompt, temp, topP, repeatPenalty)
                     }
-                    if (activity.stopRequested) {
-                        activity.runOnUiThread {
-                            activity.webView.evaluateJavascript(
-                                "if(typeof window.xenaDone==='function'){window.xenaDone()}",
-                                null
-                            )
-                        }
-                        return@Thread
+                    if (!activity.isChatActive(chatId)) {
+                        return@chatTask
                     }
                     // Stream-ish: send whole answer as tokens in chunks for UI
                     val chunk = 24
                     var i = 0
-                    while (i < out.length && !activity.stopRequested) {
+                    while (i < out.length && activity.isChatActive(chatId)) {
                         val end = minOf(i + chunk, out.length)
                         val part = JSONObject.quote(out.substring(i, end))
-                        activity.runOnUiThread {
-                            activity.webView.evaluateJavascript(
-                                "if(typeof window.xenaToken==='function'){window.xenaToken($part)}",
-                                null
-                            )
-                        }
+                        activity.emitChatJs("if(typeof window.xenaToken==='function'){window.xenaToken($chatId,$part)}")
                         i = end
                         try { Thread.sleep(12) } catch (_: Exception) {}
                     }
-                    activity.runOnUiThread {
-                        activity.webView.evaluateJavascript(
-                            "if(typeof window.xenaDone==='function'){window.xenaDone()}",
-                            null
-                        )
-                    }
-                } catch (e: Exception) {
-                    val err = JSONObject.quote("[XENA Error: ${e.message}]")
-                    activity.runOnUiThread {
-                        activity.webView.evaluateJavascript(
-                            "if(typeof window.xenaToken==='function'){window.xenaToken($err)};" +
-                                "if(typeof window.xenaDone==='function'){window.xenaDone()}",
-                            null
-                        )
+                    activity.emitChatJs("if(typeof window.xenaDone==='function'){window.xenaDone($chatId)}")
+                } catch (e: Throwable) {
+                    if (activity.isChatActive(chatId)) {
+                        val msg = JSONObject.quote(activity.safeChatError(e))
+                        activity.emitChatJs("if(typeof window.xenaError==='function'){window.xenaError($chatId,'engine',$msg,true)};if(typeof window.xenaDone==='function'){window.xenaDone($chatId)}")
                     }
                 }
-            }.start()
+            }
+            return chatId
         }
 
         @android.webkit.JavascriptInterface
         fun stop() {
-            activity.stopRequested = true
+            val oldId = activity.activeChatId
+            activity.activeChatId = activity.chatSequence.incrementAndGet()
+            if (oldId != 0L) {
+                activity.emitChatJs("if(typeof window.xenaDone==='function'){window.xenaDone($oldId)}")
+            }
         }
 
         @android.webkit.JavascriptInterface
@@ -649,7 +670,7 @@ class MainActivity : AppCompatActivity() {
 
         @android.webkit.JavascriptInterface
         fun getInstalledModels(): String {
-            val activePath = AppPrefs.getLastModelPath(context)
+            val activePath = LlamaBridge.loadedPath()
             val engineReady = LlamaBridge.isReady()
             val models = JSONArray()
             ModelAutoLoader.installedModels(context).forEach { file ->

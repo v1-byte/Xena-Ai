@@ -27,7 +27,14 @@ object KonektorGroq {
 
     fun isConfigured(apiKey: String): Boolean = apiKey.trim().startsWith("gsk_")
 
-    fun chat(userMessage: String, systemPrompt: String, temperature: Float = 0.2f, apiKey: String): String {
+    fun chat(
+        userMessage: String,
+        systemPrompt: String,
+        temperature: Float = 0.2f,
+        apiKey: String,
+        topP: Float = 0.9f,
+        maxTokens: Int = 1024
+    ): String {
         if (!isConfigured(apiKey)) {
             return "[XENA Groq] API key belum disimpan. Buka Atur → Koneksi Groq dan masukkan key baru dari Groq Console."
         }
@@ -38,7 +45,8 @@ object KonektorGroq {
             .put("model", MODEL)
             .put("messages", messages)
             .put("temperature", temperature.coerceIn(0.01f, 2f).toDouble())
-            .put("max_completion_tokens", 2048)
+            .put("top_p", topP.coerceIn(0.05f, 1f).toDouble())
+            .put("max_completion_tokens", maxTokens.coerceIn(64, 4096))
             .put("reasoning_effort", "low")
             .put("stream", false)
         return execute(payload, apiKey)

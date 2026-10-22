@@ -115,7 +115,9 @@ object RamGuard {
         val after = memory(context)
         val pssDropBytes = (before.pssKb - after.pssKb).coerceAtLeast(0).toLong() * 1024L
         val availGain = (after.availBytes - before.availBytes).coerceAtLeast(0L)
-        val freed = maxOf(pssDropBytes, availGain).coerceAtLeast(0L) + cacheBytes
+        // PSS/available memory already reflect reclaimed native/cache pages; report
+        // cache bytes separately instead of adding overlapping measurements twice.
+        val freed = maxOf(pssDropBytes, availGain).coerceAtLeast(0L)
         val availMb = (after.availBytes / (1024 * 1024)).toInt()
         val light = after.lowMemory || availMb < 1900
         val beforeMb = before.pssKb / 1024
