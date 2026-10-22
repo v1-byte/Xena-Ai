@@ -52,6 +52,44 @@ object KonektorGroq {
         return execute(payload, apiKey)
     }
 
+    fun chatStreaming(
+        userMessage: String,
+        systemPrompt: String,
+        temperature: Float = 0.2f,
+        apiKey: String,
+        topP: Float = 0.9f,
+        maxTokens: Int = 1024,
+        onToken: (String) -> Unit
+    ): String {
+        if (!isConfigured(apiKey)) return "[XENA Groq] API key belum disimpan."
+        val messages = JSONArray()
+            .put(JSONObject().put("role", "system").put("content", systemPrompt))
+            .put(JSONObject().put("role", "user").put("content", userMessage))
+        val payload = JSONObject()
+            .put("model", MODEL).put("messages", messages)
+            .put("temperature", temperature.coerceIn(0.01f, 2f).toDouble())
+            .put("top_p", topP.coerceIn(0.05f, 1f).toDouble())
+            .put("max_completion_tokens", maxTokens.coerceIn(64, 4096))
+            .put("reasoning_effort", "low").put("stream", true)
+        val request = Request.Builder().url(API_URL).post(payload.toString().toRequestBody(JSON_MEDIA))
+            .header("Authorization", "Bearer ${apiKey.trim()}").header("Content-Type", "application/json").build()
+        return try {
+            val result = StringBuilder()
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return execute(payload.put("stream", false), apiKey)
+                response.body?.charStream()?.buffered()?.forEachLine { line ->
+                    if (!line.startsWith("data:")) return@forEachLine
+                    val raw = line.removePrefix("data:").trim()
+                    if (raw == "[DONE]") return@forEachLine
+                    val token = try { JSONObject(raw).optJSONArray("choices")?.optJSONObject(0)
+                        ?.optJSONObject("delta")?.optString("content").orEmpty() } catch (_: Exception) { "" }
+                    if (token.isNotEmpty()) { result.append(token); onToken(token) }
+                }
+            }
+            result.toString().ifBlank { "[XENA Groq] Respons streaming kosong." }
+        } catch (e: Exception) { "[XENA Groq] Streaming gagal: ${e.message ?: "koneksi error"}" }
+    }
+
     fun ping(apiKey: String): Boolean {
         if (!isConfigured(apiKey)) return false
         val payload = JSONObject()

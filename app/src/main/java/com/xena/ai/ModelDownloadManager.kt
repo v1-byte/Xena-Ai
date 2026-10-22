@@ -7,8 +7,10 @@ import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
+import java.io.FileInputStream
 import java.net.HttpURLConnection
 import java.net.URL
+import java.security.MessageDigest
 import java.util.Properties
 import kotlin.math.max
 
@@ -70,7 +72,7 @@ class ModelDownloadManager(context: Context) {
             }
 
             val finalFile = modelFile(model)
-            if (ModelAutoLoader.isValidGguf(finalFile)) {
+            if (ModelAutoLoader.isValidGguf(finalFile) && sha256Matches(model, finalFile)) {
                 publish(Snapshot("ready", model.id, model.fileName, finalFile.length(), finalFile.length(), 0L, "Model sudah tersedia"))
                 return true
             }
@@ -83,9 +85,9 @@ class ModelDownloadManager(context: Context) {
             val partMeta = readMeta(model)
             val expectedBytes = partMeta.getProperty("total")?.toLongOrNull()?.takeIf { it > 0L } ?: model.sizeBytes
             if (part.length() >= expectedBytes) {
-                if (part.length() == expectedBytes && ModelAutoLoader.isValidGguf(part)) {
-                    if (finalFile.exists() && !ModelAutoLoader.isValidGguf(finalFile)) finalFile.delete()
-                    if (part.renameTo(finalFile) && ModelAutoLoader.isValidGguf(finalFile)) {
+                if (part.length() == expectedBytes && ModelAutoLoader.isValidGguf(part) && sha256Matches(model, part)) {
+                    if (finalFile.exists() && (!ModelAutoLoader.isValidGguf(finalFile) || !sha256Matches(model, finalFile))) finalFile.delete()
+                    if (part.renameTo(finalFile) && ModelAutoLoader.isValidGguf(finalFile) && sha256Matches(model, finalFile)) {
                         AppPrefs.saveLastModelPath(appContext, finalFile.absolutePath)
                         metaFile(model).delete()
                         appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove(KEY_PENDING_MODEL).apply()
@@ -182,7 +184,7 @@ class ModelDownloadManager(context: Context) {
         val model = pendingId?.let(ModelCatalog::get)
         if (model != null) {
             val final = modelFile(model)
-            if (ModelAutoLoader.isValidGguf(final)) {
+            if (ModelAutoLoader.isValidGguf(final) && sha256Matches(model, final)) {
                 return Snapshot("ready", model.id, model.fileName, final.length(), final.length(), 0L, "Model siap digunakan")
             }
             val partial = partFile(model).length()
@@ -279,7 +281,7 @@ class ModelDownloadManager(context: Context) {
         }
 
         val finalFile = modelFile(model)
-        if (ModelAutoLoader.isValidGguf(finalFile)) {
+        if (ModelAutoLoader.isValidGguf(finalFile) && sha256Matches(model, finalFile)) {
             prefs.edit().remove(KEY_PENDING_MODEL).apply()
             metaFile(model).delete()
             publish(Snapshot("ready", model.id, model.fileName, finalFile.length(), finalFile.length(), 0L,
@@ -311,7 +313,7 @@ class ModelDownloadManager(context: Context) {
                 "Ukuran parsial melebihi ukuran target; file dipertahankan untuk pemeriksaan"))
             return false
         }
-        if (!ModelAutoLoader.isValidGguf(part)) {
+        if (!ModelAutoLoader.isValidGguf(part) || !sha256Matches(model, part)) {
             publish(Snapshot("failed", model.id, model.fileName, size, total, 0L,
                 "Ukuran cocok tetapi header GGUF tidak valid; file dipertahankan. Tekan Batal hanya jika ingin menghapus dan mengunduh ulang"))
             return false
@@ -446,9 +448,9 @@ class ModelDownloadManager(context: Context) {
                     throw IOException("Unduhan belum lengkap (${part.length()} dari $total byte); tekan Lanjut")
                 }
                 publish(Snapshot("verifying", model.id, model.fileName, part.length(), total, 0L, "Memeriksa header GGUF…"))
-                if (!ModelAutoLoader.isValidGguf(part)) throw IOException("Berkas selesai diunduh tetapi bukan GGUF yang valid")
+                if (!ModelAutoLoader.isValidGguf(part) || !sha256Matches(model, part)) throw IOException("Berkas selesai diunduh tetapi GGUF/hash tidak valid")
                 val final = modelFile(model)
-                if (final.exists() && !ModelAutoLoader.isValidGguf(final)) final.delete()
+                if (final.exists() && (!ModelAutoLoader.isValidGguf(final) || !sha256Matches(model, final))) final.delete()
                 if (!part.renameTo(final)) throw IOException("Tidak dapat mengesahkan berkas model di penyimpanan aplikasi")
                 metaFile(model).delete()
                 AppPrefs.saveLastModelPath(appContext, final.absolutePath)
@@ -574,6 +576,23 @@ class ModelDownloadManager(context: Context) {
     private fun modelFile(model: ModelCatalog.Model): File = File(ModelAutoLoader.modelDirectory(appContext), model.fileName)
     private fun partFile(model: ModelCatalog.Model): File = File(ModelAutoLoader.modelDirectory(appContext), "${model.fileName}.part")
     private fun metaFile(model: ModelCatalog.Model): File = File(ModelAutoLoader.modelDirectory(appContext), "${model.fileName}.part.properties")
+
+    private fun sha256Matches(model: ModelCatalog.Model, file: File): Boolean {
+        val expected = model.sha256?.trim()?.lowercase() ?: return true
+        if (expected.isBlank()) return true
+        return try {
+            val digest = MessageDigest.getInstance("SHA-256")
+            FileInputStream(file).use { input ->
+                val buffer = ByteArray(1024 * 1024)
+                while (true) {
+                    val n = input.read(buffer)
+                    if (n <= 0) break
+                    digest.update(buffer, 0, n)
+                }
+            }
+            digest.digest().joinToString("") { "%02x".format(it) } == expected
+        } catch (_: Exception) { false }
+    }
 
     private fun readMeta(model: ModelCatalog.Model): Properties = Properties().apply {
         try {

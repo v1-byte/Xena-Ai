@@ -13,7 +13,8 @@ object ModelCatalog {
         val sizeBytes: Long,
         val quantization: String,
         val recommendation: String,
-        val ramNote: String
+        val ramNote: String,
+        val sha256: String? = null
     )
 
     // Byte sizes were verified from Hugging Face metadata on 2026-10-22.
@@ -172,6 +173,7 @@ object ModelCatalog {
                     .put("quantization", model.quantization)
                     .put("recommendation", model.recommendation)
                     .put("ramNote", model.ramNote)
+                    .put("sha256", model.sha256 ?: JSONObject.NULL)
             )
         }
         return array.toString()

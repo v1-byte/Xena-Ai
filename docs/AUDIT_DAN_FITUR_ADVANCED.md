@@ -62,6 +62,16 @@ Top-p dan max token diteruskan ke Groq. Repeat penalty diteruskan ke JNI dan dip
 
 Token GitHub, Cloudflare, dan Meta yang disimpan native sekarang memakai AES-GCM dengan Android Keystore dan connector ID di-allowlist. Token plaintext lama dimigrasikan sekali lalu dihapus. Tahap lanjutan yang masih direkomendasikan adalah native connector broker agar token tidak pernah berada di JS/localStorage sama sekali.
 
+## Diterapkan pada hardening v1.6.0
+
+- Native connector broker untuk uji GitHub, Cloudflare, dan Meta; token tidak dikembalikan lewat JavaScript bridge.
+- Token konektor pada UI tidak lagi disimpan di localStorage; hanya sesi memori, sedangkan penyimpanan native memakai Android Keystore.
+- Groq Server Mode memakai SSE streaming native dan callback token request-scoped.
+- Updater memvalidasi HTTPS host allowlist, batas ukuran APK, SHA-256 asset GitHub bila tersedia, package name APK, dan signing certificate.
+- Model activation memiliki hook SHA-256 katalog; entry katalog yang memiliki digest akan diverifikasi sebelum GGUF aktif.
+- Android backup dimatikan untuk mencegah secret/WebView state keluar lewat backup.
+- Password signing tidak lagi dimasukkan ke `GITHUB_ENV`; hanya tersedia pada langkah Gradle signing.
+
 ## Tahap lanjutan yang direkomendasikan
 
 1. Native connector broker: UI hanya menerima hasil API, bukan token.

@@ -16,6 +16,7 @@ import java.io.FileOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.security.MessageDigest
+import java.util.Locale
 
 /**
  * Cek GitHub Releases dan unduh APK terbaru.
@@ -35,7 +36,8 @@ object UpdateChecker {
         val body: String,
         val apkUrl: String,
         val apkName: String,
-        val versionCodeHint: Int
+        val versionCodeHint: Int,
+        val expectedSha256: String
     )
 
     fun currentVersionName(context: Context): String {
@@ -89,12 +91,13 @@ object UpdateChecker {
             val name = json.optString("name", tag)
             val notes = json.optString("body", "")
             val assets = json.optJSONArray("assets") ?: return null
-            val apkCandidates = mutableListOf<Pair<String, String>>()
+            val apkCandidates = mutableListOf<Triple<String, String, String>>()
             for (i in 0 until assets.length()) {
                 val a = assets.getJSONObject(i)
                 val n = a.optString("name", "")
                 if (n.endsWith(".apk", ignoreCase = true)) {
-                    apkCandidates += n to a.optString("browser_download_url", "")
+                    val digest = a.optString("digest", "").removePrefix("sha256:").lowercase(Locale.ROOT)
+                    apkCandidates += Triple(n, a.optString("browser_download_url", ""), digest)
                 }
             }
             val selected = apkCandidates.firstOrNull { it.first.equals("app-release.apk", true) }
@@ -102,9 +105,10 @@ object UpdateChecker {
                 ?: apkCandidates.firstOrNull()
             val apkName = selected?.first ?: "xena-update.apk"
             val apkUrl = selected?.second.orEmpty()
+            val digest = selected?.third.orEmpty()
             if (apkUrl.isBlank() || tag.isBlank()) return null
             val codeHint = tag.removePrefix("v").replace(".", "").toIntOrNull() ?: 0
-            ReleaseInfo(tag, name, notes, apkUrl, apkName, codeHint)
+            ReleaseInfo(tag, name, notes, apkUrl, apkName, codeHint, digest)
         } catch (e: Exception) {
             Log.e(TAG, "fetchLatest: ${e.message}")
             null
@@ -124,6 +128,8 @@ object UpdateChecker {
 
     fun downloadApk(context: Context, info: ReleaseInfo, onProgress: ((Int) -> Unit)? = null): File? {
         return try {
+            val uri = Uri.parse(info.apkUrl)
+            if (uri.scheme != "https" || uri.host !in setOf("github.com", "objects.githubusercontent.com", "github-releases.githubusercontent.com")) return null
             val dir = File(context.cacheDir, "updates").apply { mkdirs() }
             val out = File(dir, info.apkName)
             if (out.exists()) out.delete()
@@ -134,6 +140,8 @@ object UpdateChecker {
                 instanceFollowRedirects = true
             }
             val total = conn.contentLengthLong
+            if (total > 120L * 1024L * 1024L) return null
+            val digest = MessageDigest.getInstance("SHA-256")
             conn.inputStream.use { input ->
                 FileOutputStream(out).use { output ->
                     val buf = ByteArray(64 * 1024)
@@ -142,6 +150,7 @@ object UpdateChecker {
                         val n = input.read(buf)
                         if (n <= 0) break
                         output.write(buf, 0, n)
+                        digest.update(buf, 0, n)
                         read += n
                         if (total > 0 && onProgress != null) {
                             onProgress(((read * 100) / total).toInt().coerceIn(0, 100))
@@ -151,12 +160,19 @@ object UpdateChecker {
                 }
             }
             conn.disconnect()
-            if (out.exists() && out.length() > 100_000L) out else null
+            val actualDigest = digest.digest().joinToString("") { "%02x".format(it) }
+            if (out.exists() && out.length() > 100_000L &&
+                (info.expectedSha256.isBlank() || info.expectedSha256.equals(actualDigest, true)) &&
+                isExpectedPackage(context, out)) out else { out.delete(); null }
         } catch (e: Exception) {
             Log.e(TAG, "download: ${e.message}")
             null
         }
     }
+
+    private fun isExpectedPackage(context: Context, apk: File): Boolean = try {
+        context.packageManager.getPackageArchiveInfo(apk.absolutePath, 0)?.packageName == context.packageName
+    } catch (_: Exception) { false }
 
     fun canRequestInstall(context: Context): Boolean {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

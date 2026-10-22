@@ -468,9 +468,16 @@ class MainActivity : AppCompatActivity() {
                     }
                     val safePrompt = AppPrefs.getSafeSystemPrompt(context)
                     val userMsg = extractUserMessage(prompt)
+                    var streamedByProvider = false
                     val out = if (AppPrefs.isServerMode(context)) {
-                        // Server mode: Groq API (tidak load GGUF di HP)
-                        KonektorGroq.chat(userMsg, safePrompt, temp, AppPrefs.getGroqApiKey(context), topP, maxTokens)
+                        // Server mode: true SSE streaming; token tidak menunggu seluruh respons.
+                        streamedByProvider = true
+                        KonektorGroq.chatStreaming(userMsg, safePrompt, temp, AppPrefs.getGroqApiKey(context), topP, maxTokens) { token ->
+                            if (activity.isChatActive(chatId)) {
+                                val part = JSONObject.quote(token)
+                                activity.emitChatJs("if(typeof window.xenaToken==='function'){window.xenaToken($chatId,$part)}")
+                            }
+                        }
                     } else synchronized(activity.modelOperationLock) {
                         // Local offline fallback
                         if (!LlamaBridge.isReady()) {
@@ -497,15 +504,17 @@ class MainActivity : AppCompatActivity() {
                     if (!activity.isChatActive(chatId)) {
                         return@chatTask
                     }
-                    // Stream-ish: send whole answer as tokens in chunks for UI
-                    val chunk = 24
-                    var i = 0
-                    while (i < out.length && activity.isChatActive(chatId)) {
-                        val end = minOf(i + chunk, out.length)
-                        val part = JSONObject.quote(out.substring(i, end))
-                        activity.emitChatJs("if(typeof window.xenaToken==='function'){window.xenaToken($chatId,$part)}")
-                        i = end
-                        try { Thread.sleep(12) } catch (_: Exception) {}
+                    if (!streamedByProvider) {
+                        // Local JNI fallback: emit bounded chunks while native generation is synchronous.
+                        val chunk = 24
+                        var i = 0
+                        while (i < out.length && activity.isChatActive(chatId)) {
+                            val end = minOf(i + chunk, out.length)
+                            val part = JSONObject.quote(out.substring(i, end))
+                            activity.emitChatJs("if(typeof window.xenaToken==='function'){window.xenaToken($chatId,$part)}")
+                            i = end
+                            try { Thread.sleep(12) } catch (_: Exception) {}
+                        }
                     }
                     activity.emitChatJs("if(typeof window.xenaDone==='function'){window.xenaDone($chatId)}")
                 } catch (e: Throwable) {
@@ -790,7 +799,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         @android.webkit.JavascriptInterface
-        fun getConnectorToken(id: String): String = Connectors.getToken(context, id) ?: ""
+        fun testConnector(id: String): String = ConnectorBroker.test(context, id)
 
         @android.webkit.JavascriptInterface
         fun getConnectorAccountId(id: String): String = Connectors.getAccountId(context, id) ?: ""

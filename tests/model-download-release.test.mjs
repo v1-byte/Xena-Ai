@@ -10,6 +10,7 @@ const transfer = read('../app/src/main/java/com/xena/ai/ModelDownloadManager.kt'
 const catalog = read('../app/src/main/java/com/xena/ai/ModelCatalog.kt');
 const prefs = read('../app/src/main/java/com/xena/ai/AppPrefs.kt');
 const connectors = read('../app/src/main/java/com/xena/ai/Connectors.kt');
+const broker = read('../app/src/main/java/com/xena/ai/ConnectorBroker.kt');
 const groqConnector = read('../app/src/main/java/com/xena/ai/KonektorGroq.kt');
 const updater = read('../app/src/main/java/com/xena/ai/UpdateChecker.kt');
 const html = read('../app/src/main/assets/index.html');
@@ -187,8 +188,8 @@ test('RAM cleaner frees native weights, light mode lowers context, and model sea
 });
 
 test('APK release is version-driven and verifies native llama library packaging', () => {
-  assert.match(gradle, /versionCode = 159/);
-  assert.match(gradle, /versionName = "1\.5\.9"/);
+  assert.match(gradle, /versionCode = 160/);
+  assert.match(gradle, /versionName = "1\.6\.0"/);
   assert.doesNotMatch(gradle, /versionName = "1\.4\.2"/);
   assert.match(gradle, /signingConfig = signingConfigs\.getByName\("release"\)/);
   assert.match(workflow, /steps\.release_meta\.outputs\.tag/);
@@ -219,5 +220,15 @@ test('advanced audit protections are wired end-to-end', () => {
   assert.match(cpp, /Sampler tidak dapat dibuat/);
   assert.match(prefs, /setConnectorSecret/);
   assert.match(connectors, /allowedIds/);
+  assert.match(broker, /Tokens never cross the WebView bridge/);
+  assert.match(activity, /fun testConnector\(id: String\)/);
+  assert.doesNotMatch(activity, /fun getConnectorToken/);
+  assert.match(html, /connectorSession/);
   assert.match(ram, /instead of adding overlapping measurements twice/);
+  assert.match(updater, /expectedSha256/);
+  assert.match(updater, /isExpectedPackage/);
+  assert.match(updater, /objects\.githubusercontent\.com/);
+  assert.match(manifest, /android:allowBackup="false"/);
+  assert.doesNotMatch(workflow, /XENA_SIGNING_KEYSTORE_PASSWORD=.*>> \$GITHUB_ENV/);
+  assert.match(workflow, /steps\.signing\.outputs\.keystore_path/);
 });

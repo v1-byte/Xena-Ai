@@ -70,6 +70,7 @@ jobs:
           echo "ndk.dir=$ANDROID_HOME/ndk/26.1.10909125" >> local.properties
 
       - name: Load stable APK signing key
+        id: signing
         env:
           XENA_SIGNING_KEYSTORE_BASE64: ${{ secrets.XENA_SIGNING_KEYSTORE_BASE64 }}
           XENA_SIGNING_KEYSTORE_PASSWORD: ${{ secrets.XENA_SIGNING_KEYSTORE_PASSWORD }}
@@ -79,12 +80,14 @@ jobs:
           KEYSTORE="$RUNNER_TEMP/xena-release.jks"
           printf '%s' "$XENA_SIGNING_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE"
           chmod 600 "$KEYSTORE"
-          echo "XENA_SIGNING_KEYSTORE_PATH=$KEYSTORE" >> "$GITHUB_ENV"
-          echo "XENA_SIGNING_KEYSTORE_PASSWORD=$XENA_SIGNING_KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
-          echo "XENA_SIGNING_KEY_ALIAS=xena-release" >> "$GITHUB_ENV"
-          echo "XENA_SIGNING_KEY_PASSWORD=$XENA_SIGNING_KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+          echo "keystore_path=$KEYSTORE" >> "$GITHUB_OUTPUT"
 
       - name: Build signed release APK
+        env:
+          XENA_SIGNING_KEYSTORE_PATH: ${{ steps.signing.outputs.keystore_path }}
+          XENA_SIGNING_KEYSTORE_PASSWORD: ${{ secrets.XENA_SIGNING_KEYSTORE_PASSWORD }}
+          XENA_SIGNING_KEY_ALIAS: xena-release
+          XENA_SIGNING_KEY_PASSWORD: ${{ secrets.XENA_SIGNING_KEY_PASSWORD || secrets.XENA_SIGNING_KEYSTORE_PASSWORD }}
         run: gradle assembleRelease --stacktrace
 
       - name: Verify APK and native ARM64 llama.cpp engine

@@ -820,7 +820,8 @@ function toBottom(){const e=$('#chat');e.scrollTo({top:e.scrollHeight,behavior:'
 
 /* ===== GitHub API nyata (Contents API = commit/push tanpa git CLI) ===== */
 const GH_REPO='v1-byte/Xena-Ai';
-function ghToken(){return S.get('tok_github','')||S.get('tok_github','')}
+const connectorSession=Object.create(null);
+function ghToken(){return connectorSession.github||''}
 function ghHeaders(){
   const t=ghToken();
   if(!t) throw new Error('Token GitHub kosong — tab Konektor → GitHub → simpan PAT (scope repo)');
@@ -1147,24 +1148,25 @@ ${on(c[0])?`<div class="btns"><button class="btn sm" onclick="conTest('${c[0]}')
 <div class="card"><h4>${ic('term')}Log Console</h4><div class="term" id="term"></div><div class="btns"><button class="btn sm" onclick="LOGS.length=0;$('#term').innerHTML=''">Clear</button><button class="btn sm" onclick="dl('xena-log.txt',$('#term').innerText);">Export Log</button></div></div>`;
 LOGS.length?LOGS.forEach(paintLog):logT('Console siap.');setTimeout(()=>$('#conn').classList.add('st'),900);
 const n=CON.filter(c=>on(c[0])).length;const b=$('#conBadge');b.textContent=n;b.classList.toggle('on',n>0);$('#dCon')&&($('#dCon').textContent=n+' aktif')}
-function conTgl(k){S.set('con_'+k,!S.get('con_'+k,false));buildCon();if(S.get('con_'+k,false)){logT('✅ '+k+' terhubung');toast(k+' terhubung','ok');if(!S.get('tok_'+k,''))conTok(k)}else toast(k+' diputus')}
+function conTgl(k){S.set('con_'+k,!S.get('con_'+k,false));buildCon();if(S.get('con_'+k,false)){logT('✅ '+k+' terhubung');toast(k+' terhubung','ok');if(!connectorSession[k])conTok(k)}else toast(k+' diputus')}
 async function conTok(k){
-  const t=await ask('Token '+k+' (disimpan lokal)',S.get('tok_'+k,''),1);
+  const t=await ask('Token '+k+' (disimpan aman di perangkat)',connectorSession[k]||'',1);
   if(t===null)return;
-  S.set('tok_'+k,t);
+  connectorSession[k]=t;
   try{ if(window.Android&&Android.saveConnectorToken) Android.saveConnectorToken(k,t,''); }catch(e){}
   toast('Token disimpan','ok');
-  logT('✅ Token '+k+' disimpan (WebView + native)');
+  logT('✅ Token '+k+' disimpan native; tidak dipersistenkan di WebView');
 }
 function conDel(k){
-  S.set('tok_'+k,'');S.set('con_'+k,false);
+  delete connectorSession[k];S.set('con_'+k,false);
   try{ if(window.Android&&Android.clearConnectorToken) Android.clearConnectorToken(k); }catch(e){}
   buildCon();toast('Dihapus');
 }
 async function conTest(k){
   logT('⏳ Tes konektor '+k+'…');
   if(!navigator.onLine){logT('❌ Offline');toast('Butuh internet','bad');return}
-  const tok=S.get('tok_'+k,'');
+  if(window.Android&&Android.testConnector){try{const r=JSON.parse(Android.testConnector(k));if(r.ok){logT('✅ '+k+' OK · native broker');toast(k+' OK','ok')}else{logT('❌ '+k+': '+r.message);toast(r.message,'bad')}return}catch(e){logT('❌ Broker: '+e.message);return}}
+  const tok=connectorSession[k]||'';
   try{
     if(k==='github'){
       if(!tok){toast('Isi token GitHub dulu','bad');return}
@@ -1197,7 +1199,7 @@ async function conTest(k){
   }catch(e){logT('❌ '+k+': '+e.message);toast('Tes gagal','bad')}
 }
 async function scanQR(k){if(!('BarcodeDetector' in window)){toast('Scan QR belum didukung WebView ini — tempel token manual','bad');return conTok(k)}
-try{const st=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});const v=document.createElement('video');v.srcObject=st;v.playsInline=true;await v.play();const bd=new BarcodeDetector({formats:['qr_code']});toast('Arahkan kamera ke QR token…');const t0=Date.now();while(Date.now()-t0<20000){const r=await bd.detect(v);if(r.length){S.set('tok_'+k,r[0].rawValue);toast('Token dipindai','ok');break}await sleep(300)}st.getTracks().forEach(t=>t.stop())}catch(e){toast('Kamera tidak tersedia','bad')}}
+try{const st=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});const v=document.createElement('video');v.srcObject=st;v.playsInline=true;await v.play();const bd=new BarcodeDetector({formats:['qr_code']});toast('Arahkan kamera ke QR token…');const t0=Date.now();while(Date.now()-t0<20000){const r=await bd.detect(v);if(r.length){connectorSession[k]=r[0].rawValue;try{Android.saveConnectorToken(k,connectorSession[k],'')}catch(e){}toast('Token dipindai','ok');break}await sleep(300)}st.getTracks().forEach(t=>t.stop())}catch(e){toast('Kamera tidak tersedia','bad')}}
 
 /* ---------- pengaturan ---------- */
 const TPL={agent:'Kamu adalah Xena, asisten coding. Jawab singkat, beri kode lengkap yang siap pakai, dan jelaskan langkah perbaikan secara berurutan.',hacker:'Kamu Xena Hacker Mode: ringkas, teknis, langsung ke solusi. Hanya untuk keamanan defensif & edukasi.',guru:'Kamu Xena, guru ngoding yang sabar. Jelaskan konsep dengan analogi sederhana lalu beri contoh kode kecil.',nurut:'Kamu Xena. Ikuti instruksi pengguna secara tepat, tanpa basa-basi, dan konfirmasi hasilnya di akhir.'};
