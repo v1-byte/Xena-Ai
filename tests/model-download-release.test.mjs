@@ -187,8 +187,8 @@ test('RAM cleaner frees native weights, light mode lowers context, and model sea
 });
 
 test('APK release is version-driven and verifies native llama library packaging', () => {
-  assert.match(gradle, /versionCode = 156/);
-  assert.match(gradle, /versionName = "1.5.6"/);
+  assert.match(gradle, /versionCode = 157/);
+  assert.match(gradle, /versionName = "1\.5\.7"/);
   assert.doesNotMatch(gradle, /versionName = "1\.4\.2"/);
   assert.match(gradle, /signingConfig = signingConfigs\.getByName\("release"\)/);
   assert.match(workflow, /steps\.release_meta\.outputs\.tag/);

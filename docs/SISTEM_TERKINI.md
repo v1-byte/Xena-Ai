@@ -1,6 +1,6 @@
 # Xena-AI — Sistem Terkini
 
-**Status dokumen:** aktif, mengikuti branch `main` dan APK `v1.5.6`.
+**Status dokumen:** aktif, mengikuti branch `main` dan APK `v1.5.7`.
 
 ## Ringkasan
 
