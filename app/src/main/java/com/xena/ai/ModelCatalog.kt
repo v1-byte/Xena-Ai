@@ -90,17 +90,27 @@ object ModelCatalog {
             recommendation = "Lebih besar · dipertahankan sebagai pilihan lanjutan",
             ramNote = "Tidak direkomendasikan untuk RAM 6 GB"
         ),
-        // WhiteRabbitNeo — cybersecurity. Tidak ada varian resmi 1.5B;
-        // yang paling ringan publik ~2.8 GB (IQ2_M pada basis 7B).
+        // WhiteRabbitNeo — cybersecurity.
+        // Tidak ada basis resmi mini (1B/3B). "Mini" = quant paling kecil dari V3-7B.
         Model(
-            id = "wrn-v3-iq2m",
-            title = "WhiteRabbitNeo V3 7B",
+            id = "wrn-mini",
+            title = "WhiteRabbitNeo Mini",
             fileName = "WhiteRabbitNeo_WhiteRabbitNeo-V3-7B-IQ2_M.gguf",
             url = "https://huggingface.co/bartowski/WhiteRabbitNeo_WhiteRabbitNeo-V3-7B-GGUF/resolve/main/WhiteRabbitNeo_WhiteRabbitNeo-V3-7B-IQ2_M.gguf",
             sizeBytes = 2_780_343_488L,
             quantization = "IQ2_M",
-            recommendation = "WRN paling ringan · ~2.8 GB · mendekati kelas 1.5B untuk HP RAM rendah",
-            ramNote = "Paling hemat di keluarga WRN; kualitas lebih rendah, cocok uji / HP 4–6 GB"
+            recommendation = "WRN Mini · ~2,8 GB · paling ringan untuk HP",
+            ramNote = "Paling hemat di keluarga WRN; context 512–1024; HP 4–6 GB"
+        ),
+        Model(
+            id = "wrn-v3-iq3xxs",
+            title = "WhiteRabbitNeo Mini+",
+            fileName = "WhiteRabbitNeo_WhiteRabbitNeo-V3-7B-IQ3_XXS.gguf",
+            url = "https://huggingface.co/bartowski/WhiteRabbitNeo_WhiteRabbitNeo-V3-7B-GGUF/resolve/main/WhiteRabbitNeo_WhiteRabbitNeo-V3-7B-IQ3_XXS.gguf",
+            sizeBytes = 3_114_515_648L,
+            quantization = "IQ3_XXS",
+            recommendation = "WRN Mini+ · ~2,9 GB · sedikit lebih jernih dari Mini",
+            ramNote = "Masih kelas ringan; context 1024 disarankan"
         ),
         Model(
             id = "wrn-v15a-q3m",
