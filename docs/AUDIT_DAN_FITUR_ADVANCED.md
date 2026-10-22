@@ -94,3 +94,8 @@ Progress angka splash sekarang berhenti deterministik ketika error/error promise
 ## Performa v1.6.3
 
 Efek blur dan backdrop-filter berat pada splash dikurangi, ring/animasi dibuat GPU-friendly, dan perangkat dengan CPU <=4 core atau RAM <=4 GB otomatis memakai mode animasi ringan serta mematikan efek visual mahal.
+
+
+## Animasi v1.6.4
+
+Animasi pembuka dikembalikan dalam bentuk ringan: ring tetap bergerak, background tetap terlihat dengan opacity rendah, dan error resource nonfatal tidak lagi langsung menutup splash. Blur berat tetap tidak digunakan.

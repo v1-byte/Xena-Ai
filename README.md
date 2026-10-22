@@ -1,6 +1,6 @@
 # Xena-AI
 
-**Versi aplikasi: v1.6.3** — aplikasi Android untuk menjalankan model GGUF lokal dengan opsi Groq Server Mode. Rilis ini juga memiliki pembersih RAM native, mode ringan untuk perangkat dengan memori terbatas, pemindai model yang sudah diunduh, dan pemeriksaan pembaruan APK dari GitHub Releases.
+**Versi aplikasi: v1.6.4** — aplikasi Android untuk menjalankan model GGUF lokal dengan opsi Groq Server Mode. Rilis ini juga memiliki pembersih RAM native, mode ringan untuk perangkat dengan memori terbatas, pemindai model yang sudah diunduh, dan pemeriksaan pembaruan APK dari GitHub Releases.
 
 - APK terbaru: [GitHub Releases](https://github.com/v1-byte/Xena-Ai/releases)
 - Catatan UI terbaru: [`docs/CATATAN_UI_V1.2_RELEASE.md`](docs/CATATAN_UI_V1.2_RELEASE.md)
@@ -43,7 +43,7 @@ Mode lokal memakai katalog GGUF 1.5B/3B/7B. Download mendukung byte range/resume
 - penyimpanan app-specific Xena-AI;
 - file model yang sudah diimpor.
 
-Pada perangkat RAM terbatas, aplikasi melakukan preflight sebelum memuat model. Model yang terlalu berat dapat ditolak untuk mencegah force close. Pengaturan konservatif v1.6.3 menggunakan context 1024, batch 32, dan 2 threads sebagai baseline 6 GB; konfigurasi dapat disesuaikan dari tab **Atur**.
+Pada perangkat RAM terbatas, aplikasi melakukan preflight sebelum memuat model. Model yang terlalu berat dapat ditolak untuk mencegah force close. Pengaturan konservatif v1.6.4 menggunakan context 1024, batch 32, dan 2 threads sebagai baseline 6 GB; konfigurasi dapat disesuaikan dari tab **Atur**.
 
 ### Pembersih RAM dan mode ringan
 
