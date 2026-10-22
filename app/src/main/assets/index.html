@@ -49,7 +49,7 @@ svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.9;stro
 .amb i:nth-child(1){background:var(--accent);top:-25vmax;left:-20vmax}
 .amb i:nth-child(2){background:var(--accent2);bottom:-30vmax;right:-25vmax;animation-delay:-9s}
 @keyframes drift{to{transform:translate(8vmax,6vmax) scale(1.15)}}
-/* splash v2 cinematic 12s */
+/* splash v3: ringan dan fail-safe untuk WebView Android */
 #splash{position:fixed;inset:0;z-index:999;background:#03040a;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .9s,visibility .9s,filter .9s;overflow:hidden}
 #splash.hide{opacity:0;visibility:hidden;pointer-events:none;filter:blur(12px)}
 #splash .sp-bg{position:absolute;inset:0;pointer-events:none}
@@ -265,7 +265,7 @@ input[type=range]{width:100%;accent-color:var(--accent);height:24px}
 /* v1.2 */
 #splash{transition:opacity .7s,visibility .7s,transform .7s cubic-bezier(.6,0,.2,1),filter .7s}
 #splash.hide{transform:scale(1.08);filter:blur(8px)}
-#splash::before{content:"";position:absolute;width:60vmin;height:60vmin;border-radius:50%;background:radial-gradient(circle,color-mix(in srgb,var(--accent) 35%,transparent),transparent 65%);animation:breathe 3s ease-in-out infinite}
+#splash::before{content:"";position:absolute;width:60vmin;height:60vmin;border-radius:50%;background:radial-gradient(circle,rgba(168,85,247,.28),transparent 65%);animation:breathe 3s ease-in-out infinite}
 @keyframes breathe{50%{transform:scale(1.25);opacity:.6}}
 #splash svg.logo{position:relative}
 symbol{overflow:visible}
@@ -1289,6 +1289,13 @@ const BOOT=[
   [88,'Almost ready…'],
   [100,'Welcome']
 ];
+let splashClosed=false,autoLoadStarted=false;
+function bootError(message){
+  try{logT&&logT('⚠️ Startup fallback: '+message)}catch(e){}
+  endSplash();
+}
+window.addEventListener('error',e=>{if(!document.body.classList.contains('ready'))bootError(e.message||'UI error')});
+window.addEventListener('unhandledrejection',e=>{if(!document.body.classList.contains('ready'))bootError(e.reason?.message||'Promise error')});
 function speakWelcome(){
   try{
     if(!window.speechSynthesis)return;
@@ -1306,9 +1313,9 @@ function speakWelcome(){
   }catch(e){}
 }
 async function boot(){
-  if(!S.get('splash',true))return endSplash();
-  // ~12 second cinematic timeline
-  const total=12000;
+  try{if(!S.get('splash',true))return endSplash()}catch(e){return bootError(e.message||'Pengaturan splash rusak')}
+  // Splash maksimal 4.8 detik; tidak boleh menahan aplikasi jika WebView lambat.
+  const total=4800;
   const t0=Date.now();
   let voiceDone=false;
   while(true){
@@ -1317,17 +1324,25 @@ async function boot(){
     const p=Math.min(100,Math.round(elapsed/total*100));
     let label='Starting…';
     for(const [th,tx] of BOOT){if(p>=th)label=tx}
-    $('#lt').textContent=label;
-    $('#lb').style.width=p+'%';
-    $('#lp').textContent=p+'%';
+    const lt=$('#lt'),lb=$('#lb'),lp=$('#lp');
+    if(lt)lt.textContent=label;
+    if(lb)lb.style.width=p+'%';
+    if(lp)lp.textContent=p+'%';
     // Voice after title animation (~2.2s)
     if(!voiceDone && elapsed>=2200){voiceDone=true;speakWelcome()}
     if(elapsed>=total)break;
-    await sleep(120);
+    await sleep(100);
   }
   endSplash()
 }
-function endSplash(){if(document.body.classList.contains('ready'))return;$('#splash').classList.add('hide');document.body.classList.add('ready');if(S.get('pin',''))$('#lock').classList.add('on')}
+function endSplash(){
+  if(splashClosed)return;
+  splashClosed=true;
+  const splash=$('#splash');if(splash)splash.classList.add('hide');
+  document.body.classList.add('ready');
+  try{if(S.get('pin',''))$('#lock').classList.add('on')}catch(e){}
+  if(!autoLoadStarted){autoLoadStarted=true;try{if(S.get('auto',false))setTimeout(()=>{try{loadModel()}catch(e){bootError(e.message)}},350)}catch(e){}}
+}
 
 
 /* ---------- v1.4: kartu bisa dilipat ---------- */
@@ -1442,9 +1457,9 @@ if(!S.get('ram6defaults136',false)){if(+S.get('ctx',1024)===2048)S.set('ctx',102
 $('#sys').value=S.get('sys',TPL.agent);saveSys();$('#ctx').value=S.get('ctx',1024);$('#tmp').value=S.get('tmp',.2);slide();buildThr();storage();$('#swAuto').classList.toggle('on',S.get('auto',false));$('#mSpd').textContent=S.get('spd','–')+(S.get('spd')?' tok/s':' tok/s');
 initFold();buildCon();net();if(!curChat()&&chats.length)cid=chats[0].id;renderChat();$('#navInd').style.transform='translateX(0)';
 document.querySelector('meta[name=theme-color]').content=getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
-if(S.get('auto',false))setTimeout(loadModel,2600);
-boot()}
-init();
+}
+try{init()}catch(e){bootError(e.message||'Gagal menyiapkan UI')}
+try{boot().catch(e=>bootError(e.message||'Gagal menjalankan splash'))}catch(e){bootError(e.message||'Startup error')}
 </script>
 <script src="model-manager.js"></script>
 </body>

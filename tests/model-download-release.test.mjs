@@ -157,7 +157,8 @@ test('startup honors opt-in auto-load and blocks likely low-RAM model kills befo
   assert.match(activity, /memory\.availMem < requiredBytes/);
   assert.match(activity, /val memoryWarning = activity\.modelLoadMemoryWarning\(f\)/);
   assert.match(activity, /activity\.loadModelFile\(f, notifyUi = false\)/);
-  assert.match(html, /if\(S\.get\('auto',false\)\)setTimeout\(loadModel,2600\)/);
+  assert.match(html, /if\(!autoLoadStarted\)/);
+  assert.match(html, /setTimeout\(\(\)=>\{try\{loadModel\(\)\}/);
 });
 
 test('force update still refuses same or older versions', () => {
@@ -188,8 +189,8 @@ test('RAM cleaner frees native weights, light mode lowers context, and model sea
 });
 
 test('APK release is version-driven and verifies native llama library packaging', () => {
-  assert.match(gradle, /versionCode = 160/);
-  assert.match(gradle, /versionName = "1\.6\.0"/);
+  assert.match(gradle, /versionCode = 161/);
+  assert.match(gradle, /versionName = "1\.6\.1"/);
   assert.doesNotMatch(gradle, /versionName = "1\.4\.2"/);
   assert.match(gradle, /signingConfig = signingConfigs\.getByName\("release"\)/);
   assert.match(workflow, /steps\.release_meta\.outputs\.tag/);
@@ -224,6 +225,11 @@ test('advanced audit protections are wired end-to-end', () => {
   assert.match(activity, /fun testConnector\(id: String\)/);
   assert.doesNotMatch(activity, /fun getConnectorToken/);
   assert.match(html, /connectorSession/);
+  assert.match(html, /const total=4800/);
+  assert.match(html, /window\.addEventListener\('error'/);
+  assert.match(html, /function bootError/);
+  assert.match(html, /if\(!autoLoadStarted\)/);
+  assert.doesNotMatch(html, /setTimeout\(loadModel,2600\)/);
   assert.match(ram, /instead of adding overlapping measurements twice/);
   assert.match(updater, /expectedSha256/);
   assert.match(updater, /isExpectedPackage/);

@@ -62,7 +62,7 @@ Top-p dan max token diteruskan ke Groq. Repeat penalty diteruskan ke JNI dan dip
 
 Token GitHub, Cloudflare, dan Meta yang disimpan native sekarang memakai AES-GCM dengan Android Keystore dan connector ID di-allowlist. Token plaintext lama dimigrasikan sekali lalu dihapus. Tahap lanjutan yang masih direkomendasikan adalah native connector broker agar token tidak pernah berada di JS/localStorage sama sekali.
 
-## Diterapkan pada hardening v1.6.0
+## Diterapkan pada hardening v1.6.1
 
 - Native connector broker untuk uji GitHub, Cloudflare, dan Meta; token tidak dikembalikan lewat JavaScript bridge.
 - Token konektor pada UI tidak lagi disimpan di localStorage; hanya sesi memori, sedangkan penyimpanan native memakai Android Keystore.
@@ -81,3 +81,8 @@ Token GitHub, Cloudflare, dan Meta yang disimpan native sekarang memakai AES-GCM
 5. WorkManager/app-scoped downloader agar download tidak hidup di Activity.
 6. Protected release job, immutable action SHA, SBOM, CodeQL, secret scan, dan artifact attestation.
 7. Instrumentation test untuk rotation, process death, OOM, updater, bridge origin, dan credential migration.
+
+
+## Startup v1.6.1
+
+Splash dipersingkat menjadi maksimal 4,8 detik, memiliki fallback untuk JavaScript error/unhandled rejection, dan tidak lagi mengunci layar apabila init UI gagal. Auto-load model dipindahkan setelah splash selesai agar pembukaan aplikasi tidak tersendat oleh native model loading.
