@@ -487,6 +487,79 @@ class ModelDownloadManager(context: Context) {
         if (cancelled || Thread.currentThread().isInterrupted) throw IOException("Unduhan dibatalkan")
     }
 
+    /**
+     * Hapus sisa unduhan gagal/parsial (.part + .properties) dan berkas GGUF tidak valid.
+     * Tidak menghapus model yang sedang aktif atau unduhan yang sedang berjalan.
+     * @return JSON ringkasan: deletedCount, freedBytes, details[]
+     */
+    fun cleanResiduals(): String {
+        val details = JSONArray()
+        var freed = 0L
+        var count = 0
+        val dir = ModelAutoLoader.modelDirectory(appContext)
+        if (!dir.isDirectory) {
+            return JSONObject()
+                .put("deletedCount", 0)
+                .put("freedBytes", 0L)
+                .put("details", details)
+                .put("message", "Folder model tidak ditemukan")
+                .toString()
+        }
+
+        // Jangan ganggu unduhan aktif
+        val activePart = if (worker?.isAlive == true && activeModelId.isNotBlank()) {
+            ModelCatalog.get(activeModelId)?.let { partFile(it).absolutePath }
+        } else null
+
+        val lastPath = AppPrefs.getLastModelPath(appContext)
+
+        dir.listFiles()?.forEach { file ->
+            if (!file.isFile) return@forEach
+            val name = file.name
+            val path = file.absolutePath
+            if (path == activePart) return@forEach
+            if (path == lastPath && ModelAutoLoader.isValidGguf(file)) return@forEach
+
+            val isPart = name.endsWith(".part")
+            val isMeta = name.endsWith(".part.properties")
+            val isInvalidGguf = name.endsWith(".gguf", ignoreCase = true) && !ModelAutoLoader.isValidGguf(file)
+
+            if (isPart || isMeta || isInvalidGguf) {
+                val size = file.length()
+                if (file.delete()) {
+                    freed += size
+                    count++
+                    details.put(
+                        JSONObject()
+                            .put("name", name)
+                            .put("bytes", size)
+                            .put("kind", when {
+                                isPart -> "partial"
+                                isMeta -> "meta"
+                                else -> "invalid-gguf"
+                            })
+                    )
+                }
+            }
+        }
+
+        // Bersihkan pending flag jika tidak ada part lagi
+        if (count > 0) {
+            appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                .edit().remove(KEY_PENDING_MODEL).apply()
+            if (worker?.isAlive != true) {
+                publish(Snapshot("idle", "", "", 0L, 0L, 0L, "Sisa unduhan dibersihkan"))
+            }
+        }
+
+        return JSONObject()
+            .put("deletedCount", count)
+            .put("freedBytes", freed)
+            .put("details", details)
+            .put("message", if (count == 0) "Tidak ada sisa unduhan atau file rusak" else "Berhasil membersihkan $count berkas")
+            .toString()
+    }
+
     private fun modelFile(model: ModelCatalog.Model): File = File(ModelAutoLoader.modelDirectory(appContext), model.fileName)
     private fun partFile(model: ModelCatalog.Model): File = File(ModelAutoLoader.modelDirectory(appContext), "${model.fileName}.part")
     private fun metaFile(model: ModelCatalog.Model): File = File(ModelAutoLoader.modelDirectory(appContext), "${model.fileName}.part.properties")

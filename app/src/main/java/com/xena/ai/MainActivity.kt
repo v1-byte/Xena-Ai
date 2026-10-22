@@ -651,6 +651,43 @@ class MainActivity : AppCompatActivity() {
         @android.webkit.JavascriptInterface
         fun verifyModelDownload(modelId: String): Boolean = activity.modelDownloads.verifyDownload(modelId)
 
+        /** Hapus sisa unduhan parsial/gagal + GGUF rusak. Return JSON ringkasan. */
+        @android.webkit.JavascriptInterface
+        fun cleanResiduals(): String = activity.modelDownloads.cleanResiduals()
+
+        /**
+         * Pembersih RAM: unload model lokal, System.gc(), clear WebView cache.
+         * Return JSON: { unloaded: bool, message: string }
+         */
+        @android.webkit.JavascriptInterface
+        fun cleanRam(): String {
+            return try {
+                var unloaded = false
+                if (LlamaBridge.isReady()) {
+                    LlamaBridge.unload()
+                    unloaded = true
+                }
+                System.gc()
+                System.runFinalization()
+                activity.runOnUiThread {
+                    try {
+                        activity.webView.clearCache(true)
+                    } catch (_: Exception) {
+                    }
+                }
+                activity.notifyModelReady(false)
+                JSONObject()
+                    .put("unloaded", unloaded)
+                    .put("message", if (unloaded) "Model dilepas + GC + cache dibersihkan" else "GC + cache dibersihkan (model tidak aktif)")
+                    .toString()
+            } catch (e: Exception) {
+                JSONObject()
+                    .put("unloaded", false)
+                    .put("message", "Gagal: ${e.message}")
+                    .toString()
+            }
+        }
+
         @android.webkit.JavascriptInterface
         fun useModel(modelIdOrName: String): Boolean = activity.useInstalledModel(modelIdOrName)
 

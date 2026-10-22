@@ -17,6 +17,16 @@ Migrasi ini menghapus konektor inference HF dan konfigurasi Space lama. Hugging 
 
 Mode lokal memakai katalog GGUF 1.5B/3B/7B yang bisa diunduh dari tab **Model**. Di HP dengan RAM 6 GB, profil awal memakai context 1024, batch 32, dan 2 threads. Model lokal tidak diperlukan saat Server Mode aktif.
 
+## Pembersih RAM & sisa unduhan
+
+Di tab **Model** (atau menu sudut FAB di chat):
+
+- **Bersihkan RAM** — unload model lokal, `System.gc()`, clear cache WebView.
+- **Hapus Sisa Download** — hapus `.part` / `.part.properties` dan GGUF tidak valid (tidak menyentuh model aktif).
+- **Bersihkan Semua** — keduanya, dengan animasi orb + spark.
+
+Tombol **Model AI** di menu sudut FAB membuka tab Model dan menampilkan label model aktif.
+
 ## Build lokal
 
 Butuh JDK 17, Android SDK, NDK 26, dan CMake 3.22:

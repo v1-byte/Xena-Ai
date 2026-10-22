@@ -256,6 +256,24 @@
     }
   };
 
+  // Pembersih residual / RAM — UI utama di index.html; jaga agar callable dari mana saja
+  if (typeof window.runCleanResiduals !== 'function') {
+    window.runCleanResiduals = function () {
+      if (!window.Android || !Android.cleanResiduals) {
+        if (typeof toast === 'function') toast('Pembersih sisa download hanya di APK', 'bad');
+        return;
+      }
+      try {
+        const j = JSON.parse(Android.cleanResiduals() || '{}');
+        if (typeof toast === 'function') toast(j.message || 'Selesai', 'ok');
+        renderLocalFiles();
+        renderCatalog();
+      } catch (e) {
+        if (typeof toast === 'function') toast('Gagal membersihkan: ' + e.message, 'bad');
+      }
+    };
+  }
+
   // Keep the existing active-model status handling, then refresh the newly added card details.
   if (typeof window.modelOk === 'function' && !window.modelOk.__xenaRefreshWrapped) {
     const oldModelOk = window.modelOk;

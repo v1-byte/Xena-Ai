@@ -197,8 +197,25 @@ input[type=range]{width:100%;accent-color:var(--accent);height:24px}
 .fab .menu button{display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:20px;background:var(--card);border:1px solid var(--line);white-space:nowrap;opacity:0;transform:translateY(14px) scale(.8);transition:.25s}
 .fab.open .menu{pointer-events:auto}
 .fab.open .menu button{opacity:1;transform:none}
-.fab.open .menu button:nth-child(3){transition-delay:.04s}.fab.open .menu button:nth-child(2){transition-delay:.08s}.fab.open .menu button:nth-child(1){transition-delay:.12s}
+.fab.open .menu button:nth-child(6){transition-delay:.02s}
+.fab.open .menu button:nth-child(5){transition-delay:.05s}
+.fab.open .menu button:nth-child(4){transition-delay:.08s}
+.fab.open .menu button:nth-child(3){transition-delay:.11s}
+.fab.open .menu button:nth-child(2){transition-delay:.14s}
+.fab.open .menu button:nth-child(1){transition-delay:.17s}
 .fab .menu svg{color:var(--accent)}
+/* clean animation */
+.clean-anim{position:relative;height:72px;margin:12px 0 4px;display:grid;place-items:center;opacity:.35;transition:opacity .35s}
+.clean-anim.run{opacity:1}
+.clean-orb{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));box-shadow:0 0 22px color-mix(in srgb,var(--accent) 70%,transparent);animation:orbPulse 1.4s ease-in-out infinite}
+.clean-ring{position:absolute;width:56px;height:56px;border-radius:50%;border:2px solid color-mix(in srgb,var(--accent) 55%,transparent);animation:ring 2.2s linear infinite}
+.clean-spark{position:absolute;width:6px;height:6px;border-radius:50%;background:var(--accent2);opacity:0}
+.clean-anim.run .clean-spark{animation:spFloat 1.1s ease-in-out infinite}
+.clean-spark.s1{top:10px;left:28%}
+.clean-spark.s2{top:18px;right:30%;animation-delay:.2s!important}
+.clean-spark.s3{bottom:12px;left:42%;animation-delay:.4s!important}
+@keyframes cleanPop{0%{transform:scale(.6);opacity:0}40%{transform:scale(1.08);opacity:1}100%{transform:scale(1);opacity:1}}
+#cleanCard.done .clean-anim{animation:cleanPop .45s ease}
 #toBottom{position:absolute;left:50%;bottom:116px;transform:translateX(-50%) scale(0);width:36px;height:36px;border-radius:50%;background:var(--card);border:1px solid var(--line);display:grid;place-items:center;transition:.25s;z-index:4}
 #toBottom.on{transform:translateX(-50%) scale(1)}
 /* sidebar / overlays */
@@ -389,6 +406,8 @@ header,nav{transition:transform .8s cubic-bezier(.2,.8,.2,1) .1s}
   <button id="toBottom" onclick="toBottom()"><svg class="i"><use href="#i-down"/></svg></button>
   <div class="fab" id="fab">
     <div class="menu">
+      <button onclick="fabGo('model')"><svg class="i"><use href="#i-cpu"/></svg><span id="fabModelLabel">Model AI</span></button>
+      <button onclick="fabGo('clean')"><svg class="i"><use href="#i-trash"/></svg>Bersihkan RAM</button>
       <button onclick="fabGo('file')"><svg class="i"><use href="#i-clip"/></svg>Upload File</button>
       <button onclick="fabGo('theme')"><svg class="i"><use href="#i-palette"/></svg>Edit UI</button>
       <button onclick="fabGo('gh')"><svg class="i"><use href="#i-github"/></svg>GitHub</button>
@@ -454,6 +473,23 @@ header,nav{transition:transform .8s cubic-bezier(.2,.8,.2,1) .1s}
       <button class="btn dng" id="dlCancel" onclick="cancelDl()"><svg class="i"><use href="#i-x"/></svg>Batal</button>
     </div>
     <p class="muted" style="margin-bottom:0">Lanjut memakai HTTP Range dan menyimpan berkas parsial. Verifikasi mengecek ukuran unduhan serta header GGUF; jeda dulu sebelum verifikasi.</p>
+  </div>
+  <div class="card" id="cleanCard">
+    <h4><svg class="i"><use href="#i-trash"/></svg>Pembersih · Ponsel Lebih Ringan</h4>
+    <p class="muted" style="margin-top:0">Lepas model dari RAM, hapus sisa unduhan gagal/parsial, dan bersihkan cache agar HP terasa lebih ringan.</p>
+    <div class="clean-anim" id="cleanAnim" aria-hidden="true">
+      <div class="clean-orb"></div>
+      <div class="clean-ring"></div>
+      <div class="clean-spark s1"></div>
+      <div class="clean-spark s2"></div>
+      <div class="clean-spark s3"></div>
+    </div>
+    <div class="row muted" style="margin:8px 0"><span id="cleanStatus">Siap membersihkan</span><span class="sp"></span><span id="cleanFreed" style="color:var(--ok)"></span></div>
+    <div class="btns">
+      <button class="btn pri" onclick="runCleanRam()"><svg class="i"><use href="#i-cpu"/></svg>Bersihkan RAM</button>
+      <button class="btn" onclick="runCleanResiduals()"><svg class="i"><use href="#i-trash"/></svg>Hapus Sisa Download</button>
+      <button class="btn dng" onclick="runCleanAll()"><svg class="i"><use href="#i-bolt"/></svg>Bersihkan Semua</button>
+    </div>
   </div>
   <div class="card"><h4><svg class="i"><use href="#i-search"/></svg>Cari File Model & Lokasi</h4>
     <input class="f" id="modelFileSearch" type="search" placeholder="Cari nama file, model, lokasi, atau status…" oninput="searchLocalModels()">
@@ -713,7 +749,76 @@ function quick(i){const q=QUICK[i][2];if(q.startsWith('/'))runCmd(q);else if(q==
 function attach(el){const f=el.files[0];if(!f)return;if(f.size>200000){toast('File terlalu besar (maks 200 KB)','bad');return}const r=new FileReader();r.onload=()=>{inp.value=`Tolong periksa & perbaiki file ${f.name}:\n\`\`\`\n${r.result}\n\`\`\``;resize();toast('File dilampirkan: '+f.name,'ok')};r.readAsText(f);el.value=''}
 let rec=null;function voice(){const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){toast('Suara tidak didukung di perangkat ini','bad');return}if(rec){rec.stop();return}rec=new SR();rec.lang='id-ID';rec.interimResults=true;$('#micB').style.color='var(--err)';rec.onresult=e=>{inp.value=[...e.results].map(r=>r[0].transcript).join('');resize()};rec.onend=()=>{rec=null;$('#micB').style.color=''};rec.onerror=()=>toast('Mikrofon error','bad');rec.start();toast('Mendengarkan…')}
 $('#chat').addEventListener('scroll',()=>$('#toBottom').classList.toggle('on',!nearBottom()));
-function fabGo(w){$('#fab').classList.remove('open');if(w==='file')$('#file').click();if(w==='theme'){tab(3);setTimeout(()=>$('#themes').scrollIntoView({behavior:'smooth'}),400)}if(w==='gh')tab(2);if(w==='set')tab(3)}
+function fabGo(w){
+  $('#fab').classList.remove('open');
+  if(w==='file')$('#file').click();
+  if(w==='theme'){tab(3);setTimeout(()=>$('#themes')&&$('#themes').scrollIntoView({behavior:'smooth'}),400)}
+  if(w==='gh')tab(2);
+  if(w==='set')tab(3);
+  if(w==='model'){tab(1);setTimeout(()=>{const el=$('#activeModelName');if(el)el.scrollIntoView({behavior:'smooth',block:'center'})},350)}
+  if(w==='clean'){tab(1);setTimeout(()=>{const el=$('#cleanCard');if(el)el.scrollIntoView({behavior:'smooth',block:'center'});runCleanRam()},400)}
+}
+function fmtCleanBytes(n){
+  if(!n||n<=0)return '0 B';
+  const u=['B','KB','MB','GB'];let i=0,v=n;
+  while(v>=1024&&i<u.length-1){v/=1024;i++}
+  return (i?v.toFixed(1):v)+' '+u[i];
+}
+function playCleanAnim(done){
+  const a=$('#cleanAnim'),c=$('#cleanCard');
+  if(!a||!c)return;
+  a.classList.add('run');c.classList.remove('done');
+  setTimeout(()=>{a.classList.remove('run');if(done)c.classList.add('done')},done?1600:900);
+}
+function runCleanRam(){
+  if(!window.Android||!Android.cleanRam){toast('Pembersih RAM hanya di APK Android','bad');return}
+  playCleanAnim(false);
+  $('#cleanStatus').textContent='Membersihkan RAM…';
+  try{
+    const raw=Android.cleanRam();
+    const j=JSON.parse(raw||'{}');
+    $('#cleanStatus').textContent=j.message||'Selesai';
+    $('#cleanFreed').textContent='';
+    toast(j.message||'RAM dibersihkan','ok');
+    playCleanAnim(true);
+    try{modelOk(false,'Model dilepas dari RAM')}catch(e){}
+    try{storage()}catch(e){}
+    updateFabModelLabel(false);
+  }catch(e){toast('Gagal: '+e.message,'bad');$('#cleanStatus').textContent='Gagal'}
+}
+function runCleanResiduals(){
+  if(!window.Android||!Android.cleanResiduals){toast('Pembersih sisa download hanya di APK','bad');return}
+  playCleanAnim(false);
+  $('#cleanStatus').textContent='Menghapus sisa unduhan…';
+  try{
+    const raw=Android.cleanResiduals();
+    const j=JSON.parse(raw||'{}');
+    const freed=fmtCleanBytes(j.freedBytes||0);
+    $('#cleanStatus').textContent=j.message||'Selesai';
+    $('#cleanFreed').textContent=j.deletedCount?(freed+' dibebaskan'):'';
+    toast((j.message||'Selesai')+(j.deletedCount?' · '+freed:''),'ok');
+    playCleanAnim(true);
+    if(typeof renderLocalFiles==='function')renderLocalFiles();
+    if(typeof renderCatalog==='function')renderCatalog();
+    try{storage()}catch(e){}
+  }catch(e){toast('Gagal: '+e.message,'bad');$('#cleanStatus').textContent='Gagal'}
+}
+function updateFabModelLabel(ready){
+  const el=$('#fabModelLabel');
+  if(!el)return;
+  let name='Model AI';
+  try{
+    if(window.Android&&Android.getModelInfo){
+      const j=JSON.parse(Android.getModelInfo()||'{}');
+      if(j.name||j.fileName)name=(j.name||j.fileName).replace(/\.gguf$/i,'').slice(0,18);
+    }
+  }catch(e){}
+  el.textContent=ready?('✓ '+name):name;
+}
+function runCleanAll(){
+  runCleanResiduals();
+  setTimeout(runCleanRam,500);
+}
 
 /* ---------- sidebar / palette ---------- */
 function openSide(){renderHist();$('#side').classList.add('on');$('#shade').classList.add('on')}
@@ -755,6 +860,7 @@ function modelOk(ok,err){
     $('#mState').textContent='Gagal muat ke engine';
     toast(msg,'bad');
     logT('❌ '+msg);
+    try{updateFabModelLabel(false)}catch(e){}
     return;
   }
   let ready=true;
@@ -774,6 +880,7 @@ function modelOk(ok,err){
   $('#mState').textContent='Siap dipakai (engine)';
   toast('Model siap di engine','ok');
   logT('✅ Model dimuat di native engine');
+  try{updateFabModelLabel(true)}catch(e){}
 }
 function cancelDl(){if(!dlT)return;clearInterval(dlT);dlT=null;dlP=0;$('#dlBar').style.width=0;$('#dlPct').textContent='0%';$('#dlSpd').textContent='';$('#dlName').textContent='Tidak ada unduhan aktif';toast('Unduhan dibatalkan')}
 async function bench(){toast('Menjalankan benchmark…');$('#mSpd').textContent='…';await sleep(1500);const v=(6+Math.random()*4).toFixed(1);$('#mSpd').textContent=v+' tok/s';S.set('spd',v);toast('Kecepatan: '+v+' tok/s','ok')}
