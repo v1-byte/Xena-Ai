@@ -145,6 +145,10 @@ jobs:
           - Legacy Hugging Face inference credentials and Space URL are cleared. Hugging Face remains only as a source for public local GGUF model files.
           - Existing Chat, navigation, connectors, themes, and settings remain in the app.
           - `libllama.so` is built from the pinned llama.cpp source for arm64-v8a; GGUF model weights are downloaded separately in the app.
+          - In-app APK updater checks the latest GitHub Release, selects `app-release.apk`, verifies its signing certificate, and opens the Android installer; Android confirmation is still required.
+          - Update flow resumes after the user enables Android's "Install unknown apps" permission, and stable signing keeps future updates compatible without deleting local data or models.
+          - Current UI is the four-tab full-screen interface: Chat, Model, Konektor, and Atur, with dark/light/hacker/cyberpunk themes and the current model manager controls.
+          - Documentation is synchronized in `README.md`, `docs/SISTEM_TERKINI.md`, and `docs/CATATAN_UI_V1.2_RELEASE.md`.
 
           ### Install
           Download `app-release.apk` and install on the Android device. Android may ask once to allow installation from this source.

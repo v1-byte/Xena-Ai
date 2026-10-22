@@ -1,6 +1,23 @@
-# Xena-AI Blueprint Pro v2.0
+# Xena-AI Blueprint Pro v2.0 — Roadmap
 
-Catatan rencana. Yang sudah masuk di v1.5.6: pembersih RAM native, mode ringan saat RAM mepet, dan pemindai file model yang sudah diunduh. Sisa redesign (Room, navigasi baru, GitHub OAuth) belum diganti di APK ini supaya aplikasi yang jalan tidak rusak.
+> **Penting:** dokumen ini adalah blueprint dan roadmap, bukan daftar fitur yang seluruhnya sudah aktif.
+
+## Status implementasi saat ini — v1.5.6
+
+Fitur berikut sudah aktif di branch `main` dan APK release terbaru:
+
+- UI WebView full-screen empat tab: Chat, Model, Konektor, dan Atur.
+- Tema dark, light, hacker, dan cyberpunk dengan splash, status jaringan, kartu, progress, dan animasi thinking.
+- Model manager dengan download resumable, pause/resume/cancel, validasi GGUF, impor SAF, pencarian file model, benchmark, dan peringatan RAM.
+- Pembersih RAM native: unload llama.cpp, native trim, clear cache WebView, dan mode ringan melalui `onTrimMemory`.
+- Groq Server Mode dengan API key yang disimpan melalui Android Keystore.
+- GitHub connector dan push kode dari code block menggunakan token lokal pengguna.
+- Auto-update APK dari GitHub Releases dengan verifikasi signing certificate dan installer Android resmi.
+- Workflow release berbasis versi yang membangun `app-release.apk` dengan stable signing key.
+
+Lihat [`SISTEM_TERKINI.md`](SISTEM_TERKINI.md) dan [`CATATAN_UI_V1.2_RELEASE.md`](CATATAN_UI_V1.2_RELEASE.md) untuk dokumentasi fitur yang benar-benar aktif.
+
+Bagian setelah status ini tetap dipertahankan sebagai ide desain dan roadmap V2.0. Item seperti Room, Hilt, WorkManager penuh, OAuth GitHub, Material You native, dan silent update bukan bagian dari APK v1.5.6.
 
 ================================================================================
 XENA-AI SATU FILE FULL PRO - SEMUA JADI SATU (V2.0)
@@ -325,4 +342,3 @@ Cara Menang: Jangan lawan PocketPal di stabilitas lokal saja, tapi tawarkan Hybr
 
 
 ================================================================================
-
