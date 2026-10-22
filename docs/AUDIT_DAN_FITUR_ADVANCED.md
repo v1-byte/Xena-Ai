@@ -83,9 +83,14 @@ Token GitHub, Cloudflare, dan Meta yang disimpan native sekarang memakai AES-GCM
 7. Instrumentation test untuk rotation, process death, OOM, updater, bridge origin, dan credential migration.
 
 
-## Startup v1.6.2
+## Startup v1.6.3
 
 Splash dipersingkat menjadi maksimal 4,8 detik, memiliki fallback untuk JavaScript error/unhandled rejection, dan tidak lagi mengunci layar apabila init UI gagal. Auto-load model dipindahkan setelah splash selesai agar pembukaan aplikasi tidak tersendat oleh native model loading.
 
 
 Progress angka splash sekarang berhenti deterministik ketika error/error promise terjadi; splash langsung menampilkan status selesai dan ditutup.
+
+
+## Performa v1.6.3
+
+Efek blur dan backdrop-filter berat pada splash dikurangi, ring/animasi dibuat GPU-friendly, dan perangkat dengan CPU <=4 core atau RAM <=4 GB otomatis memakai mode animasi ringan serta mematikan efek visual mahal.

@@ -159,6 +159,9 @@ test('startup honors opt-in auto-load and blocks likely low-RAM model kills befo
   assert.match(activity, /activity\.loadModelFile\(f, notifyUi = false\)/);
   assert.match(html, /if\(!autoLoadStarted\)/);
   assert.match(html, /setTimeout\(\(\)=>\{try\{loadModel\(\)\}/);
+  assert.match(html, /function applyPerformanceGuard/);
+  assert.match(html, /document\.documentElement\.dataset\.anim='lite'/);
+  assert.doesNotMatch(html, /filter:blur\(70px\)/);
 });
 
 test('force update still refuses same or older versions', () => {
@@ -189,8 +192,8 @@ test('RAM cleaner frees native weights, light mode lowers context, and model sea
 });
 
 test('APK release is version-driven and verifies native llama library packaging', () => {
-  assert.match(gradle, /versionCode = 162/);
-  assert.match(gradle, /versionName = "1\.6\.2"/);
+  assert.match(gradle, /versionCode = 163/);
+  assert.match(gradle, /versionName = "1\.6\.3"/);
   assert.doesNotMatch(gradle, /versionName = "1\.4\.2"/);
   assert.match(gradle, /signingConfig = signingConfigs\.getByName\("release"\)/);
   assert.match(workflow, /steps\.release_meta\.outputs\.tag/);
