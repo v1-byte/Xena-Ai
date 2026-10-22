@@ -158,8 +158,8 @@ test('force update still refuses same or older versions', () => {
 });
 
 test('APK release is version-driven and verifies native llama library packaging', () => {
-  assert.match(gradle, /versionCode = 153/);
-  assert.match(gradle, /versionName = "1.5.3"/);
+  assert.match(gradle, /versionCode = 154/);
+  assert.match(gradle, /versionName = "1.5.4"/);
   assert.doesNotMatch(gradle, /versionName = "1\.4\.2"/);
   assert.match(gradle, /signingConfig = signingConfigs\.getByName\("release"\)/);
   assert.match(workflow, /steps\.release_meta\.outputs\.tag/);

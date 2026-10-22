@@ -14,20 +14,17 @@
 [data-theme=gold]{--bg:#120e06;--bg2:#1a1408;--card:#241c0c;--card2:#2e2410;--line:#4a3a18;--text:#fff6e0;--muted:#c4a574;--accent:#f59e0b;--accent2:#fbbf24;--logo:#ffe8a0}
 [data-theme=ocean]{--bg:#020617;--bg2:#0b1224;--card:#111b33;--card2:#172554;--line:#1e3a5f;--text:#e0f2fe;--muted:#7dd3fc;--accent:#38bdf8;--accent2:#818cf8;--logo:#fff}
 [data-theme=neon]{--bg:#050505;--bg2:#0a0a0a;--card:#111;--card2:#1a1a1a;--line:#2a2a2a;--text:#f8fafc;--muted:#94a3b8;--accent:#f43f5e;--accent2:#22d3ee;--logo:#fff}
-/* Thinking HD animation */
-.think-wrap{display:flex;flex-direction:column;gap:10px;min-width:160px}
-.think-orb{width:52px;height:52px;border-radius:50%;position:relative;margin:4px auto;background:radial-gradient(circle at 30% 30%,var(--accent2),var(--accent));box-shadow:0 0 24px color-mix(in srgb,var(--accent) 55%,transparent);animation:orbPulse 1.6s ease-in-out infinite}
-.think-orb::before,.think-orb::after{content:"";position:absolute;inset:-6px;border-radius:50%;border:2px solid color-mix(in srgb,var(--accent) 40%,transparent);animation:ring 1.8s linear infinite}
-.think-orb::after{inset:-14px;animation-duration:2.4s;opacity:.5}
-.think-label{font-size:12px;color:var(--muted);text-align:center;letter-spacing:.04em}
-.think-bar{height:3px;border-radius:3px;background:var(--card2);overflow:hidden;margin-top:2px}
-.think-bar b{display:block;height:100%;width:35%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:3px;animation:thinkSlide 1.1s ease-in-out infinite}
-.think-steps{font-size:11px;color:var(--muted);line-height:1.5}
-.think-steps span{display:inline-block;opacity:.35;margin-right:6px;transition:.3s}
-.think-steps span.on{opacity:1;color:var(--accent)}
-@keyframes orbPulse{50%{transform:scale(1.08);filter:brightness(1.15)}}
-@keyframes ring{to{transform:rotate(360deg)}}
-@keyframes thinkSlide{0%{transform:translateX(-120%)}100%{transform:translateX(320%)}}
+/* Thinking — compact, text-scale, professional */
+.think-wrap{display:inline-flex;align-items:center;gap:8px;padding:2px 0;min-height:20px;line-height:1.35}
+.think-dots{display:inline-flex;align-items:center;gap:3px;flex:none}
+.think-dots i{width:4px;height:4px;border-radius:50%;background:var(--accent);opacity:.35;animation:thinkDot 1.1s ease-in-out infinite}
+.think-dots i:nth-child(2){animation-delay:.15s;background:var(--accent2)}
+.think-dots i:nth-child(3){animation-delay:.3s}
+.think-label{font-size:12.5px;color:var(--muted);letter-spacing:.02em;white-space:nowrap}
+.think-steps{display:inline-flex;gap:5px;margin-left:2px;font-size:11px;color:var(--muted)}
+.think-steps span{opacity:.3;transition:opacity .25s,color .25s}
+.think-steps span.on{opacity:1;color:var(--accent);font-weight:500}
+@keyframes thinkDot{0%,80%,100%{transform:translateY(0);opacity:.3}40%{transform:translateY(-3px);opacity:1}}
 /* Glass cards HD */
 .card{backdrop-filter:blur(12px);box-shadow:0 8px 32px rgba(0,0,0,.18)}
 .msg.assistant .bubble{box-shadow:0 4px 20px rgba(0,0,0,.12)}
@@ -645,8 +642,8 @@ try{
 let ghContext='';
 try{ ghContext=await ghRunTools(p)||''; }catch(e){ logT('❌ ghRunTools '+e.message); }
 
-const holder=addMsg('assistant','',Date.now());holder.querySelector('.bubble').innerHTML=`<div class="think-wrap"><div class="think-orb"></div><div class="think-label">Xena sedang berpikir…</div><div class="think-bar"><b></b></div><div class="think-steps" id="thSteps"><span class="on">baca</span><span>analisis</span><span>kode</span><span>jawab</span></div></div>`;
-(function cycleThink(){const steps=holder.querySelectorAll('#thSteps span');if(!steps.length||!busy)return;let i=0;const t=setInterval(()=>{if(!busy||!holder.isConnected){clearInterval(t);return}steps.forEach((s,k)=>s.classList.toggle('on',k===i));i=(i+1)%steps.length},700);holder._thinkT=t})();holder.querySelector('.qa')?.remove();
+const holder=addMsg('assistant','',Date.now());holder.querySelector('.bubble').innerHTML=`<div class="think-wrap"><span class="think-dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="think-label">Menulis</span><span class="think-steps" id="thSteps"><span class="on">baca</span><span>analisis</span><span>jawab</span></span></div>`;
+(function cycleThink(){const steps=holder.querySelectorAll('#thSteps span');if(!steps.length||!busy)return;let i=0;const t=setInterval(()=>{if(!busy||!holder.isConnected){clearInterval(t);return}steps.forEach((s,k)=>s.classList.toggle('on',k===i));i=(i+1)%steps.length},650);holder._thinkT=t})();holder.querySelector('.qa')?.remove();
 let full='';const bub=holder.querySelector('.bubble');const chatEl=$('#chat');const upd=()=>{bub.innerHTML=md(full)+'<span class="caret"></span>';if(S.get('asc',true)&&nearBottom())chatEl.scrollTop=chatEl.scrollHeight};
 const params={system:$('#sys').value,ctx:+$('#ctx').value,temp:+$('#tmp').value,threads:S.get('thr',2),top_p:S.get('topp',.9),top_k:S.get('topk',40),repeat_penalty:S.get('rep',1.1),max_tokens:S.get('maxt',1024)};
 // Prompt ke model: data GitHub nyata + instruksi jangan beri tutorial konektor
