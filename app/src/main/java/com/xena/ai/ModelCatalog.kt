@@ -68,6 +68,58 @@ object ModelCatalog {
             quantization = "Q4_K_M",
             recommendation = "Lebih besar · dipertahankan sebagai pilihan lanjutan",
             ramNote = "Tidak direkomendasikan untuk RAM 6 GB"
+        ),
+        // WhiteRabbitNeo — cybersecurity. Tidak ada varian resmi 1.5B;
+        // yang paling ringan publik ~2.8 GB (IQ2_M pada basis 7B).
+        Model(
+            id = "wrn-v3-iq2m",
+            title = "WhiteRabbitNeo V3 7B",
+            fileName = "WhiteRabbitNeo_WhiteRabbitNeo-V3-7B-IQ2_M.gguf",
+            url = "https://huggingface.co/bartowski/WhiteRabbitNeo_WhiteRabbitNeo-V3-7B-GGUF/resolve/main/WhiteRabbitNeo_WhiteRabbitNeo-V3-7B-IQ2_M.gguf",
+            sizeBytes = 2_780_343_488L,
+            quantization = "IQ2_M",
+            recommendation = "WRN paling ringan · ~2.8 GB · mendekati kelas 1.5B untuk HP RAM rendah",
+            ramNote = "Paling hemat di keluarga WRN; kualitas lebih rendah, cocok uji / HP 4–6 GB"
+        ),
+        Model(
+            id = "wrn-v15a-q3m",
+            title = "WhiteRabbitNeo 7B v1.5a",
+            fileName = "WhiteRabbitNeo-7B-v1.5a-Q3_K_M.gguf",
+            url = "https://huggingface.co/bartowski/WhiteRabbitNeo-7B-v1.5a-GGUF/resolve/main/WhiteRabbitNeo-7B-v1.5a-Q3_K_M.gguf",
+            sizeBytes = 3_299_351_776L,
+            quantization = "Q3_K_M",
+            recommendation = "WRN v1.5a ringan · ~3.3 GB · seimbang ukuran/kualitas",
+            ramNote = "RAM 6 GB: context 1024, tutup app lain"
+        ),
+        Model(
+            id = "wrn-v3-q3m",
+            title = "WhiteRabbitNeo V3 7B",
+            fileName = "WhiteRabbitNeo_WhiteRabbitNeo-V3-7B-Q3_K_M.gguf",
+            url = "https://huggingface.co/bartowski/WhiteRabbitNeo_WhiteRabbitNeo-V3-7B-GGUF/resolve/main/WhiteRabbitNeo_WhiteRabbitNeo-V3-7B-Q3_K_M.gguf",
+            sizeBytes = 3_808_392_384L,
+            quantization = "Q3_K_M",
+            recommendation = "WRN V3 menengah · ~3.8 GB",
+            ramNote = "RAM 6–8 GB; turunkan context jika OOM"
+        ),
+        Model(
+            id = "wrn-v3-q4m",
+            title = "WhiteRabbitNeo V3 7B",
+            fileName = "WhiteRabbitNeo_WhiteRabbitNeo-V3-7B-Q4_K_M.gguf",
+            url = "https://huggingface.co/bartowski/WhiteRabbitNeo_WhiteRabbitNeo-V3-7B-GGUF/resolve/main/WhiteRabbitNeo_WhiteRabbitNeo-V3-7B-Q4_K_M.gguf",
+            sizeBytes = 4_683_074_752L,
+            quantization = "Q4_K_M",
+            recommendation = "WRN V3 kualitas baik · ~4.7 GB · rekomendasi umum",
+            ramNote = "Ideal RAM 8 GB+; di 6 GB sering ketat"
+        ),
+        Model(
+            id = "wrn-v3-q5m",
+            title = "WhiteRabbitNeo V3 7B",
+            fileName = "WhiteRabbitNeo_WhiteRabbitNeo-V3-7B-Q5_K_M.gguf",
+            url = "https://huggingface.co/bartowski/WhiteRabbitNeo_WhiteRabbitNeo-V3-7B-GGUF/resolve/main/WhiteRabbitNeo_WhiteRabbitNeo-V3-7B-Q5_K_M.gguf",
+            sizeBytes = 5_444_832_448L,
+            quantization = "Q5_K_M",
+            recommendation = "WRN V3 kualitas tinggi · ~5.4 GB",
+            ramNote = "Butuh RAM 8–12 GB; tidak untuk HP 6 GB"
         )
     )
 
