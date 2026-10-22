@@ -19,6 +19,7 @@ object ModelAutoLoader {
     private val preferredNames = listOf(
         "qwen2.5-coder-7b-instruct-q3_k_m.gguf",
         "qwen2.5-coder-7b-instruct-q2_k.gguf",
+        "WhiteRabbitNeo_WhiteRabbitNeo-V3-7B-Q2_K.gguf",
         "qwen2.5-coder-3b-instruct-q3_k_m.gguf",
         "qwen2.5-coder-1.5b-instruct-q4_k_m.gguf",
         "qwen2.5-coder-7b-instruct-q4_k_m.gguf"

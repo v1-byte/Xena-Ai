@@ -218,7 +218,7 @@ class MainActivity : AppCompatActivity() {
         val gib = 1024L * 1024L * 1024L
         val modelBytes = modelFile.length()
         if (memory.totalMem <= 6L * gib + gib / 2L && modelBytes >= 3L * gib) {
-            return "Model 7B ini terlalu berat untuk perangkat RAM 6 GB; pemuatan dihentikan agar aplikasi tidak tertutup. Gunakan Qwen 1.5B atau 3B."
+            return "Model 7B ini terlalu berat untuk perangkat dengan RAM terbatas; pemuatan dihentikan agar aplikasi tidak tertutup. Coba model yang lebih kecil."
         }
         val requiredBytes = modelBytes + gib
         if (memory.availMem < requiredBytes) {

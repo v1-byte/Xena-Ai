@@ -73,9 +73,12 @@ test('catalog keeps the requested model variants and direct Hugging Face files',
     'qwen2.5-coder-3b-instruct-q3_k_m.gguf',
     'qwen2.5-coder-7b-instruct-q2_k.gguf',
     'qwen2.5-coder-7b-instruct-q3_k_m.gguf',
-    'qwen2.5-coder-7b-instruct-q4_k_m.gguf'
+    'qwen2.5-coder-7b-instruct-q4_k_m.gguf',
+    'WhiteRabbitNeo_WhiteRabbitNeo-V3-7B-Q2_K.gguf'
   ]) assert.ok(catalog.includes(file), `missing ${file}`);
-  assert.equal((catalog.match(/https:\/\/huggingface\.co\//g) || []).length, 5);
+  assert.equal((catalog.match(/https:\/\/huggingface\.co\//g) || []).length, 6);
+  assert.match(catalog, /id = "whiterabbitneo-v3-7b-q2"/);
+  assert.match(catalog, /sizeBytes = 3_015_941_312L/);
 });
 
 test('model downloads use resumable byte ranges and validate partials before activation', () => {
@@ -148,8 +151,8 @@ test('force update still refuses same or older versions', () => {
 });
 
 test('APK release is version-driven and verifies native llama library packaging', () => {
-  assert.match(gradle, /versionCode = 151/);
-  assert.match(gradle, /versionName = "1.5.1"/);
+  assert.match(gradle, /versionCode = 152/);
+  assert.match(gradle, /versionName = "1.5.2"/);
   assert.doesNotMatch(gradle, /versionName = "1\.4\.2"/);
   assert.match(gradle, /signingConfig = signingConfigs\.getByName\("release"\)/);
   assert.match(workflow, /steps\.release_meta\.outputs\.tag/);

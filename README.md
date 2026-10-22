@@ -1,6 +1,6 @@
 # Xena-AI
 
-**v1.5.1** — Menambahkan pembersihan RAM dan sisa unduhan, animasi pembersih, serta pintasan Model AI dari menu chat. Server Mode memakai Groq Chat Completions; Mode GGUF lokal tetap tersedia.
+**v1.5.2** — Menambahkan WhiteRabbitNeo V3 7B Q2_K sebagai pilihan lokal baru tanpa menghapus katalog model lain. Tetap menyertakan pembersihan RAM/sisa unduhan, animasi pembersih, pintasan Model AI, dan Groq Server Mode.
 
 - Panduan Groq: [`docs/MIGRASI_GROQ_v1.5.0.md`](docs/MIGRASI_GROQ_v1.5.0.md)
 - Unduh APK: [GitHub Releases](https://github.com/v1-byte/Xena-Ai/releases)
@@ -16,6 +16,8 @@ Migrasi ini menghapus konektor inference HF dan konfigurasi Space lama. Hugging 
 ## Mode lokal
 
 Mode lokal memakai katalog GGUF 1.5B/3B/7B yang bisa diunduh dari tab **Model**. Di HP dengan RAM 6 GB, profil awal memakai context 1024, batch 32, dan 2 threads. Model lokal tidak diperlukan saat Server Mode aktif.
+
+WhiteRabbitNeo V3 7B Q2_K tersedia sebagai pilihan lokal tambahan (unduhan sekitar 3,02 GB). Model 7B memerlukan ruang penyimpanan dan RAM bebas yang memadai; pemuatan dapat ditolak pada perangkat dengan memori tidak cukup.
 
 ## Pembersih RAM & sisa unduhan
 

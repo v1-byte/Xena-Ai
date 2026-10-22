@@ -131,6 +131,7 @@ jobs:
           cat >> release-notes.md <<'NOTES'
 
           - Model catalog: Qwen2.5-Coder 1.5B Q4_K_M, 3B Q3_K_M, 7B Q2_K, Q3_K_M, and Q4_K_M.
+          - Adds WhiteRabbitNeo V3 7B Q2_K as an additional local GGUF model; existing Qwen models and Groq Server Mode remain available.
           - Explicit continue, pause, and verify controls; resumable HTTP Range downloads preserve partial files if the server rejects resume.
           - Search installed/partial model files by name and storage path; GGUF details show file metadata instead of treating binary weights as source code.
           - Startup prepares/migrates models without loading them unless auto-load was enabled; preflight RAM checks prevent likely low-memory process kills.

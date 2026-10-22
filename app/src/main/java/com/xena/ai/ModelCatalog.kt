@@ -16,7 +16,7 @@ object ModelCatalog {
         val ramNote: String
     )
 
-    // Byte sizes were verified from Hugging Face Content-Range on 2026-10-20.
+    // Byte sizes were verified from Hugging Face metadata on 2026-10-22.
     // UI labels are approximate; the transfer displays the server-reported size.
     private val models = listOf(
         Model(
@@ -48,6 +48,16 @@ object ModelCatalog {
             quantization = "Q2_K",
             recommendation = "7B paling kecil · lebih lambat dan kualitas kuantisasi lebih rendah",
             ramNote = "Berat untuk RAM 6 GB; tutup aplikasi lain"
+        ),
+        Model(
+            id = "whiterabbitneo-v3-7b-q2",
+            title = "WhiteRabbitNeo V3 7B",
+            fileName = "WhiteRabbitNeo_WhiteRabbitNeo-V3-7B-Q2_K.gguf",
+            url = "https://huggingface.co/bartowski/WhiteRabbitNeo_WhiteRabbitNeo-V3-7B-GGUF/resolve/main/WhiteRabbitNeo_WhiteRabbitNeo-V3-7B-Q2_K.gguf",
+            sizeBytes = 3_015_941_312L,
+            quantization = "Q2_K",
+            recommendation = "WhiteRabbitNeo lokal · unduhan sekitar 3,02 GB",
+            ramNote = "Model 7B cukup berat; perlu ruang penyimpanan dan RAM bebas yang memadai"
         ),
         Model(
             id = "qwen7b-q3",
