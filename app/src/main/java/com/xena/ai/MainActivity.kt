@@ -355,7 +355,7 @@ class MainActivity : AppCompatActivity() {
         val now = SystemClock.elapsedRealtime()
         if (now - lastAutoPurgeAt < 10_000L) return
         lastAutoPurgeAt = now
-        stopRequested = true
+        activeChatId = chatSequence.incrementAndGet()
         Thread {
             val report = synchronized(modelOperationLock) {
                 RamGuard.purge(applicationContext, if (::webView.isInitialized) webView else null)
@@ -395,7 +395,7 @@ class MainActivity : AppCompatActivity() {
         }
         try { webView.removeJavascriptInterface("Android") } catch (_: Throwable) {}
         try { webView.removeJavascriptInterface("AndroidBridge") } catch (_: Throwable) {}
-        try { webView.stopLoading(); webView.webChromeClient = null; webView.webViewClient = null } catch (_: Throwable) {}
+        try { webView.stopLoading(); webView.webChromeClient = null } catch (_: Throwable) {}
         super.onDestroy()
     }
 
