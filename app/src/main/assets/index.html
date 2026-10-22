@@ -633,18 +633,33 @@ async function answer0(p){busy=true;stopFlag=false;setSend(true);const c=curChat
 try{
   let ready=false;
   if(window.Android&&Android.isModelReady) ready=!!Android.isModelReady();
+  // Server mode Groq tidak butuh GGUF
+  try{ if(window.Android&&Android.isServerMode&&Android.isServerMode()) ready=true; }catch(e){}
   if(!ready && window.Android&&Android.loadModel){
     toast('Memuat engine dulu…','ok');
     await new Promise(res=>{window.xenaModelReady=function(ok){modelOk(ok);res();};Android.loadModel();setTimeout(res,90000);});
   }
 }catch(e){}
 
+// Jalankan tool GitHub nyata jika pesan meminta tugas repo (bukan tutorial konektor)
+let ghContext='';
+try{ ghContext=await ghRunTools(p)||''; }catch(e){ logT('❌ ghRunTools '+e.message); }
+
 const holder=addMsg('assistant','',Date.now());holder.querySelector('.bubble').innerHTML=`<div class="think-wrap"><div class="think-orb"></div><div class="think-label">Xena sedang berpikir…</div><div class="think-bar"><b></b></div><div class="think-steps" id="thSteps"><span class="on">baca</span><span>analisis</span><span>kode</span><span>jawab</span></div></div>`;
 (function cycleThink(){const steps=holder.querySelectorAll('#thSteps span');if(!steps.length||!busy)return;let i=0;const t=setInterval(()=>{if(!busy||!holder.isConnected){clearInterval(t);return}steps.forEach((s,k)=>s.classList.toggle('on',k===i));i=(i+1)%steps.length},700);holder._thinkT=t})();holder.querySelector('.qa')?.remove();
 let full='';const bub=holder.querySelector('.bubble');const chatEl=$('#chat');const upd=()=>{bub.innerHTML=md(full)+'<span class="caret"></span>';if(S.get('asc',true)&&nearBottom())chatEl.scrollTop=chatEl.scrollHeight};
 const params={system:$('#sys').value,ctx:+$('#ctx').value,temp:+$('#tmp').value,threads:S.get('thr',2),top_p:S.get('topp',.9),top_k:S.get('topk',40),repeat_penalty:S.get('rep',1.1),max_tokens:S.get('maxt',1024)};
+// Prompt ke model: data GitHub nyata + instruksi jangan beri tutorial konektor
+const promptToModel=ghContext
+  ? ('[DATA GITHUB NYATA — hasil API, bukan tebakan]\n'+ghContext+'\n\n[PERMINTAAN USER]\n'+p+'\n\n[INSTRUKSI]\nJawab berdasarkan DATA GITHUB di atas. Jangan berikan panduan cara menghubungkan connector. Langsung ringkas hasil, status, dan langkah berikutnya yang relevan.')
+  : p;
 if(window.Android&&Android.chat){ /* Native: Android.chat(prompt, paramsJson) → panggil window.xenaToken(t) & window.xenaDone() */
-  await new Promise(res=>{window.xenaToken=t=>{if(stopFlag)return;full+=t;upd()};window.xenaDone=res;window.xenaError=m=>{toast(m||'Mesin error','bad');logT('❌ '+(m||'Mesin error'));res()};window.xenaStop=()=>stopFlag&&res();Android.chat(p,JSON.stringify(params))});
+  await new Promise(res=>{window.xenaToken=t=>{if(stopFlag)return;full+=t;upd()};window.xenaDone=res;window.xenaError=m=>{toast(m||'Mesin error','bad');logT('❌ '+(m||'Mesin error'));res()};window.xenaStop=()=>stopFlag&&res();Android.chat(promptToModel,JSON.stringify(params))});
+}else if(ghContext){
+  // Tanpa engine: tampilkan hasil tool langsung
+  await sleep(200);
+  full=ghContext+'\n\n_Data diambil langsung dari GitHub API dengan token konektor._';
+  upd();
 }else{await sleep(500);const words=demoReply(p).split(/(\s+)/);for(const w of words){if(stopFlag)break;full+=w;upd();await sleep(S.get('spdms',30)*(.7+Math.random()*.6))}}
 bub.innerHTML=md(full||'(dihentikan)');addQA(holder,full);
 c.msgs.push({role:'assistant',text:full||'(dihentikan)',ts:Date.now()});persist();busy=false;setSend(false)}
@@ -732,12 +747,93 @@ async function ghWriteFromChat(path,code,msg){
     return true;
   }catch(e){logT('❌ '+e.message);toast(e.message,'bad');return false}
 }
+/** Deteksi tugas GitHub di pesan user lalu jalankan API nyata (bukan tutorial). */
+async function ghRunTools(userText){
+  if(!ghToken()) return null;
+  const t=userText.toLowerCase();
+  const wantsGh=/github|repo|issue|pull request|\bpr\b|commit|branch|workflow|actions|push|release|file di repo|isi file|list file|daftar file|baca kode|status repo/.test(t);
+  if(!wantsGh) return null;
+  const parts=[];
+  try{
+    logT('⏳ GitHub tool: ambil data nyata…');
+    const repo=await ghApi('/repos/'+GH_REPO);
+    parts.push('## Repo '+repo.full_name);
+    parts.push('- default_branch: '+repo.default_branch);
+    parts.push('- stars: '+repo.stargazers_count+' · open issues: '+repo.open_issues_count);
+    parts.push('- updated: '+repo.updated_at);
+    if(/issue/.test(t)){
+      const issues=await ghApi('/repos/'+GH_REPO+'/issues?state=open&per_page=8');
+      parts.push('\n## Open issues');
+      (Array.isArray(issues)?issues:[]).forEach(i=>{ if(!i.pull_request) parts.push('- #'+i.number+' '+i.title+' ('+i.user?.login+')'); });
+    }
+    if(/\bpr\b|pull request|pull-request/.test(t)){
+      const prs=await ghApi('/repos/'+GH_REPO+'/pulls?state=open&per_page=8');
+      parts.push('\n## Open PRs');
+      (Array.isArray(prs)?prs:[]).forEach(p=>parts.push('- #'+p.number+' '+p.title+' @'+p.user?.login));
+    }
+    if(/commit|riwayat|history/.test(t)){
+      const commits=await ghApi('/repos/'+GH_REPO+'/commits?per_page=6');
+      parts.push('\n## Commits terbaru');
+      (Array.isArray(commits)?commits:[]).forEach(c=>parts.push('- '+(c.sha||'').slice(0,7)+' '+(c.commit?.message||'').split('\n')[0]));
+    }
+    if(/release|apk|versi/.test(t)){
+      const rel=await ghApi('/repos/'+GH_REPO+'/releases?per_page=3');
+      parts.push('\n## Releases');
+      (Array.isArray(rel)?rel:[]).forEach(r=>parts.push('- '+r.tag_name+' · '+r.name+' · '+(r.assets||[]).map(a=>a.name).join(', ')));
+    }
+    if(/workflow|actions|build/.test(t)){
+      const runs=await ghApi('/repos/'+GH_REPO+'/actions/runs?per_page=5');
+      parts.push('\n## Actions runs');
+      (runs.workflow_runs||[]).forEach(r=>parts.push('- '+r.name+' · '+r.status+'/'+(r.conclusion||'-')+' · '+(r.head_sha||'').slice(0,7)));
+    }
+    const pathMatch=userText.match(/(?:baca|isi|tampilkan|show|read)\s+[`']?([a-zA-Z0-9_./-]+\.[a-zA-Z0-9]+)[`']?/i)
+      || userText.match(/[`']([a-zA-Z0-9_./-]+\.(kt|js|html|md|json|yml|yaml|gradle|kts|txt|cpp|h))[`']/i);
+    if(pathMatch){
+      try{
+        const f=await ghGetFile(pathMatch[1]);
+        parts.push('\n## File `'+pathMatch[1]+'`\n```\n'+(f.text||'').slice(0,6000)+'\n```');
+      }catch(e){parts.push('\n## File: gagal baca '+pathMatch[1]+' — '+e.message)}
+    }
+    if(/list file|daftar file|isi folder|contents of|struktur/.test(t)){
+      const folderMatch=userText.match(/(?:folder|dir|path)\s+[`']?([a-zA-Z0-9_./-]+)[`']?/i);
+      const path=(folderMatch&&folderMatch[1])||'';
+      const list=await ghList(path);
+      parts.push('\n## Isi '+(path||'/'));
+      (Array.isArray(list)?list:[]).slice(0,40).forEach(x=>parts.push('- ['+x.type+'] '+x.path+(x.size?' ('+x.size+' B)':'')));
+    }
+    const writeMatch=userText.match(/(?:tulis|update|push|simpan)\s+(?:ke\s+)?(?:file\s+)?[`']?([a-zA-Z0-9_./-]+\.[a-zA-Z0-9]+)[`']?\s*(?:dengan|isi|:)\s*([\s\S]+)/i);
+    if(writeMatch){
+      try{
+        const r=await ghWriteFile(writeMatch[1],writeMatch[2].trim(),'chore: update '+writeMatch[1]+' via Xena chat');
+        parts.push('\n## Write OK `'+writeMatch[1]+'` commit '+(r.commit?.sha||'').slice(0,7));
+      }catch(e){parts.push('\n## Write gagal: '+e.message)}
+    }
+    if(/dispatch|trigger build|jalankan build|build apk/.test(t)){
+      try{ await ghDispatch('build.yml','main'); parts.push('\n## Actions: workflow build.yml di-dispatch ke main'); }
+      catch(e){ parts.push('\n## Dispatch gagal: '+e.message); }
+    }
+    logT('✅ GitHub tool selesai');
+    return parts.join('\n');
+  }catch(e){
+    logT('❌ GitHub tool: '+e.message);
+    return '## GitHub error\n'+e.message+'\n\nPastikan token ada scope `repo` (dan `workflow` bila trigger Actions).';
+  }
+}
 
 
 /* ---------- input ---------- */
 const inp=$('#inp');
 function resize(){inp.style.height='auto';inp.style.height=Math.min(inp.scrollHeight,130)+'px'}
-const CMDS=[['/fix','Fix libllama.so','wrench','Bantu fix libllama.so tidak ditemukan di APK saya'],['/github','Tambah connector GitHub','github','Cara menambah connector GitHub ke Xena-Ai?'],['/auto','Buat auto mode','bolt','Buat auto mode yang memuat model otomatis saat APK dibuka'],['/push','Push ke GitHub','push','__push'],['/clear','Hapus chat','trash','__clear']];
+const CMDS=[
+  ['/fix','Fix libllama.so','wrench','Bantu fix libllama.so tidak ditemukan di APK saya'],
+  ['/github','Status GitHub','github','Tampilkan status repo GitHub, issue terbuka, commit terbaru, dan release'],
+  ['/issues','Open issues','github','Tampilkan daftar issue terbuka di repo GitHub'],
+  ['/commits','Commits','github','Tampilkan commit terbaru di repo GitHub'],
+  ['/release','Releases','github','Tampilkan release dan APK terbaru di GitHub'],
+  ['/auto','Buat auto mode','bolt','Buat auto mode yang memuat model otomatis saat APK dibuka'],
+  ['/push','Push ke GitHub','push','__push'],
+  ['/clear','Hapus chat','trash','__clear']
+];
 inp.addEventListener('input',()=>{resize();const v=inp.value;if(v.startsWith('/')){const f=CMDS.filter(c=>c[0].startsWith(v.split(' ')[0]));$('#slash').innerHTML=f.map(c=>`<button onclick="runCmd('${c[0]}')">${ic(c[2])}<b>${c[0]}</b><span class="muted">${c[1]}</span></button>`).join('');$('#slash').classList.toggle('on',f.length>0)}else slashHide()});
 inp.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&S.get('ent',!/Android|iPhone/i.test(navigator.userAgent))){e.preventDefault();sendOrStop()}});
 function slashHide(){$('#slash').classList.remove('on')}
@@ -903,8 +999,19 @@ ${on(c[0])?`<div class="btns"><button class="btn sm" onclick="conTest('${c[0]}')
 LOGS.length?LOGS.forEach(paintLog):logT('Console siap.');setTimeout(()=>$('#conn').classList.add('st'),900);
 const n=CON.filter(c=>on(c[0])).length;const b=$('#conBadge');b.textContent=n;b.classList.toggle('on',n>0);$('#dCon')&&($('#dCon').textContent=n+' aktif')}
 function conTgl(k){S.set('con_'+k,!S.get('con_'+k,false));buildCon();if(S.get('con_'+k,false)){logT('✅ '+k+' terhubung');toast(k+' terhubung','ok');if(!S.get('tok_'+k,''))conTok(k)}else toast(k+' diputus')}
-async function conTok(k){const t=await ask('Token '+k+' (disimpan lokal)',S.get('tok_'+k,''),1);if(t!==null){S.set('tok_'+k,t);toast('Token disimpan','ok')}}
-function conDel(k){S.set('tok_'+k,'');S.set('con_'+k,false);buildCon();toast('Dihapus')}
+async function conTok(k){
+  const t=await ask('Token '+k+' (disimpan lokal)',S.get('tok_'+k,''),1);
+  if(t===null)return;
+  S.set('tok_'+k,t);
+  try{ if(window.Android&&Android.saveConnectorToken) Android.saveConnectorToken(k,t,''); }catch(e){}
+  toast('Token disimpan','ok');
+  logT('✅ Token '+k+' disimpan (WebView + native)');
+}
+function conDel(k){
+  S.set('tok_'+k,'');S.set('con_'+k,false);
+  try{ if(window.Android&&Android.clearConnectorToken) Android.clearConnectorToken(k); }catch(e){}
+  buildCon();toast('Dihapus');
+}
 async function conTest(k){
   logT('⏳ Tes konektor '+k+'…');
   if(!navigator.onLine){logT('❌ Offline');toast('Butuh internet','bad');return}
