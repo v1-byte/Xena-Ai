@@ -47,8 +47,8 @@ object ModelCatalog {
             url = "https://huggingface.co/mmp2055/Qwen2.5-VL-3B-uncensored-bughunter-v9/resolve/main/Qwen2.5-VL-3B-uncensored-bughunter-v9.Q4_K_M.gguf",
             sizeBytes = 1_929_902_432L,
             quantization = "Q4_K_M",
-            recommendation = "Bug bounty & security · ~1,9 GB · RAM 2 GB+",
-            ramNote = "Aktif ~2,5 GB RAM; context 1024 disarankan. Text-only (tanpa mmproj vision)."
+            recommendation = "★ Ethical hacking / bug bounty ringan · loss rendah (Q4) · RAM 2 GB+",
+            ramNote = "Aktif ~2,5 GB RAM; context 1024. Text-only. Cocok server/web testing di HP."
         ),
         Model(
             id = "qwen7b-q2",
@@ -99,7 +99,7 @@ object ModelCatalog {
             url = "https://huggingface.co/bartowski/WhiteRabbitNeo_WhiteRabbitNeo-V3-7B-GGUF/resolve/main/WhiteRabbitNeo_WhiteRabbitNeo-V3-7B-IQ2_M.gguf",
             sizeBytes = 2_780_343_488L,
             quantization = "IQ2_M",
-            recommendation = "WRN Mini · ~2,8 GB · paling ringan untuk HP",
+            recommendation = "WRN Mini · ethical hacking hemat · ~2,8 GB · loss lebih tinggi (IQ2)",
             ramNote = "Paling hemat di keluarga WRN; context 512–1024; HP 4–6 GB"
         ),
         Model(
@@ -109,7 +109,7 @@ object ModelCatalog {
             url = "https://huggingface.co/bartowski/WhiteRabbitNeo_WhiteRabbitNeo-V3-7B-GGUF/resolve/main/WhiteRabbitNeo_WhiteRabbitNeo-V3-7B-IQ3_XXS.gguf",
             sizeBytes = 3_114_515_648L,
             quantization = "IQ3_XXS",
-            recommendation = "WRN Mini+ · ~2,9 GB · sedikit lebih jernih dari Mini",
+            recommendation = "WRN Mini+ · ethical hacking ringan · loss lebih rendah dari Mini",
             ramNote = "Masih kelas ringan; context 1024 disarankan"
         ),
         Model(
@@ -139,8 +139,8 @@ object ModelCatalog {
             url = "https://huggingface.co/bartowski/WhiteRabbitNeo_WhiteRabbitNeo-V3-7B-GGUF/resolve/main/WhiteRabbitNeo_WhiteRabbitNeo-V3-7B-Q4_K_M.gguf",
             sizeBytes = 4_683_074_752L,
             quantization = "Q4_K_M",
-            recommendation = "WRN V3 kualitas baik · ~4.7 GB · rekomendasi umum",
-            ramNote = "Ideal RAM 8 GB+; di 6 GB sering ketat"
+            recommendation = "★ Ethical hacking / server security · loss rendah (Q4) · rekomendasi utama",
+            ramNote = "Ideal RAM 8 GB+; di 6 GB sering ketat — turunkan context ke 512–1024"
         ),
         Model(
             id = "wrn-v3-q5m",
@@ -149,7 +149,7 @@ object ModelCatalog {
             url = "https://huggingface.co/bartowski/WhiteRabbitNeo_WhiteRabbitNeo-V3-7B-GGUF/resolve/main/WhiteRabbitNeo_WhiteRabbitNeo-V3-7B-Q5_K_M.gguf",
             sizeBytes = 5_444_832_448L,
             quantization = "Q5_K_M",
-            recommendation = "WRN V3 kualitas tinggi · ~5.4 GB",
+            recommendation = "★ Ethical hacking max quality · loss paling rendah (Q5) · ~5,4 GB",
             ramNote = "Butuh RAM 8–12 GB; tidak untuk HP 6 GB"
         )
     )
