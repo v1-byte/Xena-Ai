@@ -386,6 +386,22 @@ header,nav{transition:transform .8s cubic-bezier(.2,.8,.2,1) .1s}
 [data-bg=grid] .amb i{display:none}
 [data-bg=grid] .amb{background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);background-size:34px 34px;opacity:.35}
 
+
+/* Model radio list — satu aktif */
+.model-radio-list{display:flex;flex-direction:column;gap:6px;max-height:42vh;overflow-y:auto}
+.model-radio{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:12px 12px;border-radius:14px;border:1px solid var(--line);background:var(--card2);color:var(--text);cursor:pointer;transition:border-color .2s,background .2s}
+.model-radio:active{transform:scale(.99)}
+.model-radio.on{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,var(--card2))}
+.model-radio .mr-dot{width:18px;height:18px;border-radius:50%;border:2px solid var(--muted);flex:none;position:relative}
+.model-radio.on .mr-dot{border-color:var(--accent)}
+.model-radio.on .mr-dot::after{content:"";position:absolute;inset:3px;border-radius:50%;background:var(--accent)}
+.model-radio .mr-body{flex:1;min-width:0}
+.model-radio .mr-body b{display:block;font-size:13px;font-weight:600;word-break:break-all}
+.model-radio .mr-body span{display:block;font-size:11px;color:var(--muted);margin-top:2px}
+.model-radio .mr-badge{font-size:10px;font-weight:700;letter-spacing:.04em;color:var(--ok);flex:none}
+.model-radio.busy .mr-badge{color:var(--accent2)}
+.model-radio.err .mr-badge{color:var(--err)}
+
 /* Download Manager Pro — full width, no clip */
 .dl-pro{padding:14px!important;width:100%;max-width:100%;box-sizing:border-box;background:linear-gradient(145deg,color-mix(in srgb,var(--card) 94%,var(--accent) 6%),var(--card))!important;overflow:visible!important}
 .dl-pro *{box-sizing:border-box}
@@ -979,29 +995,35 @@ header{border-bottom:1px solid var(--line)}
 <!-- ===== MODEL ===== -->
 <section class="tab" id="t1"><div class="scroll">
   <div class="sec-label">Model aktif</div>
-  <div class="card"><h4><svg class="i"><use href="#i-cpu"/></svg>Model Aktif</h4>
-    <div class="row"><b id="activeModelName" style="word-break:break-all">Memeriksa model…</b></div>
-    <div class="row" style="margin-top:6px"><span class="dot off" id="mDot"></span><span id="mState" class="muted">Belum dimuat</span><span class="sp"></span><span class="pill" id="activeModelPill">—</span></div>
-    <div class="stats" style="margin-top:10px">
-      <div class="stat"><span class="muted">Ukuran</span><b id="activeModelSize">—</b></div>
-      <div class="stat"><span class="muted">Kuantisasi</span><b id="activeModelQuant">—</b></div>
-      <div class="stat"><span class="muted">Profil RAM</span><b>1024 / 32 / 2</b></div>
-      <div class="stat"><span class="muted">Kecepatan</span><b id="mSpd">– tok/s</b></div>
+  <div class="card" id="activeModelCard">
+    <h4><svg class="i"><use href="#i-cpu"/></svg>Model Aktif</h4>
+    <div class="seg" id="engineModeSeg" style="margin:8px 0 12px">
+      <button type="button" id="modeLocalBtn" class="on" onclick="setEngineMode(false)">Lokal</button>
+      <button type="button" id="modeServerBtn" onclick="setEngineMode(true)">Groq Server</button>
     </div>
-    <p class="muted callout">Pilih model lalu otomatis dimuat ke engine. Di RAM 6 GB utamakan model kecil (1.5B–3B / Mini), bukan 7B penuh.</p>
-    <div class="btns" style="display:flex;flex-direction:column;gap:8px">
-      <button class="btn pri lg" style="width:100%" onclick="openModelPicker()"><svg class="i"><use href="#i-bolt"/></svg>Pilih &amp; Muat Model</button>
-      <button class="btn" style="width:100%" onclick="selectModelFromDownloads()"><svg class="i"><use href="#i-folder"/></svg>Impor file GGUF</button>
+    <div id="serverModePanel" style="display:none;margin-bottom:12px">
+      <div class="row" style="margin-bottom:6px"><span class="dot" id="mDot"></span><span id="mState" class="muted">Server Mode</span><span class="sp"></span><span class="pill" id="activeModelPill">Groq</span></div>
+      <b id="activeModelName" style="display:block;margin-bottom:8px;word-break:break-all">Groq</b>
+      <p class="muted" style="margin:0 0 8px;font-size:12px">Chat memakai API Groq (tanpa file GGUF di HP). Simpan API key di bawah atau di tab Atur.</p>
+      <input type="password" id="quickGroqKey" placeholder="gsk_… API key Groq" style="width:100%;margin-bottom:8px;padding:10px;border-radius:12px;border:1px solid var(--line);background:var(--card2);color:var(--text)">
+      <div class="btns"><button class="btn pri" style="flex:1" onclick="quickSaveGroq()">Simpan &amp; Aktifkan</button></div>
     </div>
-    <details style="margin-top:10px">
-      <summary class="muted" style="cursor:pointer;font-size:12px">Lainnya (opsional)</summary>
-      <div class="btns acts" style="margin-top:8px">
-        <button class="btn sm" onclick="loadModel(true)"><svg class="i"><use href="#i-bolt"/></svg>Muat ulang</button>
-        <button class="btn sm" onclick="bench()"><svg class="i"><use href="#i-flask"/></svg>Tes kecepatan</button>
-        <button class="btn sm" onclick="moveModelFromDownloads()"><svg class="i"><use href="#i-save"/></svg>Pindah ke internal</button>
+    <div id="localModePanel">
+      <div class="row" style="margin-bottom:8px"><span class="dot off" id="mDotLocal"></span><span id="mStateLocal" class="muted">Pilih satu model di bawah</span><span class="sp"></span><span class="pill" id="activeModelPillLocal">—</span></div>
+      <div class="stats" style="margin:8px 0 10px">
+        <div class="stat"><span class="muted">Ukuran</span><b id="activeModelSize">—</b></div>
+        <div class="stat"><span class="muted">Kuantisasi</span><b id="activeModelQuant">—</b></div>
+        <div class="stat"><span class="muted">Kecepatan</span><b id="mSpd">– tok/s</b></div>
       </div>
-    </details>
+      <p class="muted" style="margin:0 0 8px;font-size:12px">Ketuk satu model untuk mengaktifkannya. Hanya satu yang aktif.</p>
+      <div id="modelRadioList" class="model-radio-list"><div class="muted">Memuat daftar model…</div></div>
+      <div class="btns" style="margin-top:12px">
+        <button class="btn" style="flex:1" onclick="selectModelFromDownloads()"><svg class="i"><use href="#i-folder"/></svg>Impor GGUF</button>
+        <button class="btn sm" onclick="refreshModelRadioList(true)" title="Segarkan"><svg class="i"><use href="#i-refresh"/></svg></button>
+      </div>
+    </div>
   </div>
+
   <div class="card"><h4><svg class="i"><use href="#i-box"/></svg>Penyimpanan Model</h4>
     <div class="bar"><b id="stBar" style="width:0"></b></div>
     <div class="row muted"><span id="stUsed">Memeriksa penyimpanan aplikasi…</span><span class="sp"></span><span id="stFree" style="color:var(--ok)">— bebas</span></div>
@@ -1151,7 +1173,7 @@ function toast(m,t){const d=document.createElement('div');d.className='toast';d.
 
 /* ---------- tabs ---------- */
 let cur=0;
-function tab(i){cur=i;$$('.tab').forEach((t,k)=>t.classList.toggle('active',k===i));$$('#nav button').forEach((b,k)=>b.classList.toggle('active',k===i));$('#navInd').style.transform=`translateX(${i*100}%)`;if(i===3)dash();if(i)$$('#t'+i+' .card').forEach((e,k)=>e.style.setProperty('--n',Math.min(k,9)));closeAll();$('#fab').classList.remove('open')}
+function tab(i){cur=i;$$('.tab').forEach((t,k)=>t.classList.toggle('active',k===i));$$('#nav button').forEach((b,k)=>b.classList.toggle('active',k===i));$('#navInd').style.transform=`translateX(${i*100}%)`;if(i===3)dash();if(i===1){try{syncModeUI();refreshModelRadioList(false)}catch(e){}}if(i)$$('#t'+i+' .card').forEach((e,k)=>e.style.setProperty('--n',Math.min(k,9)));closeAll();$('#fab').classList.remove('open')}
 
 /* ---------- theme ---------- */
 const THEMES=[['dark','Dark','#07090f','#a855f7','#22d3ee','#121a2c'],['hacker','Hacker','#000','#00ff41','#00ff41','#07110a'],['light','Light','#f5f7fb','#7c3aed','#22d3ee','#ffffff'],['cyberpunk','Cyber','#12061f','#ff2bd6','#00f0ff','#26104a'],['aurora','Aurora','#061018','#22d3ee','#a3e635','#0f2430'],['gold','Gold','#120e06','#f59e0b','#fbbf24','#241c0c'],['ocean','Ocean','#020617','#38bdf8','#818cf8','#111b33'],['neon','Neon','#050505','#f43f5e','#22d3ee','#111111']];
@@ -1524,142 +1546,190 @@ let tx=null;document.addEventListener('touchstart',e=>{tx=e.touches[0].clientX<2
 function tgl(k,el){const v=!S.get(k,false);S.set(k,v);el.classList.toggle('on',v);toast(v?'Auto load aktif':'Auto load mati','ok')}
 
 /** Buka pemilih model aktif (tombol di tab Model + header Chat) */
-function openModelPicker(){
+function syncModeUI(){
+  let server=false;
+  try{ if(window.Android&&Android.isServerMode) server=!!Android.isServerMode(); }catch(e){}
+  const lb=$('#modeLocalBtn'), sb=$('#modeServerBtn');
+  if(lb) lb.classList.toggle('on', !server);
+  if(sb) sb.classList.toggle('on', server);
+  const sp=$('#serverModePanel'), lp=$('#localModePanel');
+  if(sp) sp.style.display = server ? 'block' : 'none';
+  if(lp) lp.style.display = server ? 'none' : 'block';
+  // mirror dots for server panel
+  if(server){
+    const ready = !!(window.Android&&Android.isModelReady&&Android.isModelReady());
+    const d=$('#mDot'); if(d){ d.className = ready?'dot':'dot bad'; d.dataset.l = ready?1:''; }
+    const st=$('#mState'); if(st) st.textContent = ready ? 'Groq siap' : 'API key diperlukan';
+    try{
+      const info=JSON.parse((Android.getModelInfo&&Android.getModelInfo())||'{}');
+      if($('#activeModelName')) $('#activeModelName').textContent = info.name || 'Groq Server';
+    }catch(e){}
+  }else{
+    refreshModelRadioList(false);
+  }
+  try{ updateFabModelLabel(!server && !!(window.Android&&Android.isModelReady&&Android.isModelReady())); }catch(e){}
+}
+
+function setEngineMode(server){
+  if(!window.Android||!Android.setServerMode){ toast('Hanya di APK','bad'); return; }
+  Android.setServerMode(!!server);
+  toast(server ? 'Mode Groq Server' : 'Mode Lokal','ok');
+  syncModeUI();
+  if(!server) refreshModelRadioList(true);
+}
+
+function quickSaveGroq(){
+  const key=($('#quickGroqKey')&&$('#quickGroqKey').value||'').trim();
+  if(!key){ toast('Masukkan Groq API key (gsk_…)','bad'); return; }
+  if(!key.startsWith('gsk_')){ toast('Format key tidak dikenali','bad'); return; }
+  if(!window.Android||!Android.setGroqApiKey){ toast('Bridge tidak tersedia','bad'); return; }
+  Android.setGroqApiKey(key);
+  if(Android.setServerMode) Android.setServerMode(true);
+  if($('#quickGroqKey')) $('#quickGroqKey').value='';
+  toast('Groq diaktifkan','ok');
+  syncModeUI();
+  try{ if(Android.pingGroqServer) Android.pingGroqServer(); }catch(e){}
+}
+
+function refreshModelRadioList(force){
+  const host=$('#modelRadioList');
+  if(!host) return;
   let items=[];
   try{
     if(window.Android&&Android.getInstalledModels){
       items=JSON.parse(Android.getInstalledModels()||'[]');
-    }else if(window.Android&&Android.listInstalledModels){
-      items=JSON.parse(Android.listInstalledModels()||'[]');
     }
-  }catch(e){logT&&logT('picker: '+e.message)}
+  }catch(e){}
   if(!items.length){
-    try{
-      document.querySelectorAll('#modelCatalog [data-model-id]').forEach(card=>{
-        const id=card.getAttribute('data-model-id');
-        const title=card.querySelector('b')?.textContent||id;
-        const installed=!!card.querySelector('.btn:not(.pri),[class*="dl-btn-done"],[class*="dl-btn-use"]');
-        if(installed||(card.textContent||'').match(/Aktif|Gunakan|Tersimpan/i))
-          items.push({id,title,fileName:title,active:false,installed:true});
-      });
-    }catch(e){}
-  }
-  items=items.filter(m=>m&&(m.installed!==false||m.active||m.fileName));
-  if(!items.length){
-    toast('Belum ada model. Unduh dari katalog atau impor file GGUF.','ok');
-    tab(1);
-    setTimeout(()=>{const el=document.getElementById('modelCatalog');if(el)el.scrollIntoView({behavior:'smooth',block:'start'})},200);
+    host.innerHTML='<div class="muted" style="padding:8px 0">Belum ada model di HP. Unduh dari katalog di bawah, atau Impor GGUF.</div>';
+    setLocalStatus(false,'Belum ada model','—');
     return;
   }
-  let overlay=document.getElementById('modelPickerOverlay');
-  if(overlay) overlay.remove();
-  overlay=document.createElement('div');
-  overlay.id='modelPickerOverlay';
-  overlay.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center;padding:12px';
-  overlay.innerHTML=`<div style="background:var(--card);border:1px solid var(--line);border-radius:18px 18px 12px 12px;width:100%;max-width:420px;max-height:75vh;overflow:auto;padding:14px">
-    <div class="row" style="margin-bottom:8px"><b style="font-size:16px">Pilih & Muat Model</b><span class="sp"></span><button class="ib" id="modelPickerClose" aria-label="Tutup"><svg class="i"><use href="#i-x"/></svg></button></div>
-    <p class="muted" style="margin:0 0 10px;font-size:12px">Ketuk satu model — langsung dimuat ke engine. Tidak perlu tombol terpisah.</p>
-    <div id="modelPickerList"></div>
-    <div class="btns" style="margin-top:12px">
-      <button class="btn" style="flex:1" id="modelPickerOther"><svg class="i"><use href="#i-folder"/></svg>Impor GGUF dari file</button>
-    </div>
-  </div>`;
-  document.body.appendChild(overlay);
-  overlay.querySelector('#modelPickerClose').onclick=()=>overlay.remove();
-  overlay.querySelector('#modelPickerOther').onclick=()=>{overlay.remove();selectModelFromDownloads()};
-  overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.remove()});
-  const list=overlay.querySelector('#modelPickerList');
-  list.innerHTML=items.map(m=>{
-    const name=m.title||m.fileName||m.id||'Model';
-    const sub=m.fileName&&m.fileName!==name?m.fileName:(m.quantization||'');
-    const size=m.sizeBytes?(' · '+((Number(m.sizeBytes)/1073741824)>=1?(Number(m.sizeBytes)/1073741824).toFixed(2)+' GB':(Number(m.sizeBytes)/1048576).toFixed(0)+' MB')):'';
-    const active=m.active?' <span class="pill">Aktif</span>':'';
-    const id=(m.id||m.fileName||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-    return `<button type="button" class="btn" style="width:100%;justify-content:flex-start;text-align:left;margin-top:6px;padding:12px" data-mid="${id}">
-      <div style="flex:1;min-width:0"><b style="display:block;word-break:break-all">${esc(name)}</b>
-      <span class="muted" style="font-size:11px;word-break:break-all">${esc(sub)}${size}</span></div>${active}
+  let activeId='';
+  items.forEach(m=>{ if(m.active) activeId=m.id||m.fileName; });
+  host.innerHTML=items.map(m=>{
+    const id=String(m.id||m.fileName||'');
+    const name=m.title||m.fileName||id;
+    const quant=m.quantization||'GGUF';
+    const size=m.sizeBytes? (Number(m.sizeBytes)>=1073741824?(Number(m.sizeBytes)/1073741824).toFixed(2)+' GB':Math.round(Number(m.sizeBytes)/1048576)+' MB') : '';
+    const on=!!m.active;
+    const badge=on?'AKTIF':'';
+    return `<button type="button" class="model-radio${on?' on':''}" data-mid="${esc(id)}" onclick="selectExclusiveModel('${id.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')">
+      <span class="mr-dot" aria-hidden="true"></span>
+      <span class="mr-body"><b>${esc(name)}</b><span>${esc(quant)}${size?' · '+size:''}</span></span>
+      ${badge?`<span class="mr-badge">${badge}</span>`:''}
     </button>`;
   }).join('');
-  list.querySelectorAll('button[data-mid]').forEach(btn=>{
-    btn.onclick=()=>pickModel(btn.getAttribute('data-mid'));
-  });
+  if(activeId){
+    setLocalStatus(true,'Siap dipakai', items.find(x=>x.active)?.quantization||'OK');
+  }else{
+    setLocalStatus(false,'Pilih satu model','—');
+  }
 }
 
-function pickModel(id){
-  const ov=document.getElementById('modelPickerOverlay');
-  if(ov) ov.remove();
-  if(!id) return;
-  $('#mDot').dataset.l=''; $('#mDot').className='dot off';
-  $('#mState').textContent='Memuat model ke engine…';
-  toast('Memuat model — tunggu beberapa detik','ok');
-  logT('⏳ Memuat model: '+id);
-  try{
-    const btn=document.getElementById('hdrModelBtn');
-    if(btn) btn.textContent=(id.length>14?id.slice(0,12)+'…':id);
-  }catch(e){}
-  // useModel = pilih + load native (satu langkah)
-  if(window.Android&&Android.useModel){
-    window.xenaSelectedModelReady=function(ok,name,error){
-      if(ok){
-        modelOk(true);
-        try{if($('#activeModelName'))$('#activeModelName').textContent=name||id}catch(e){}
-      }else{
-        modelOk(false, error||'Gagal memuat model');
-      }
-      try{if(typeof renderCatalog==='function')renderCatalog()}catch(e){}
-    };
-    window.xenaModelReady=modelOk;
-    const ok=Android.useModel(String(id));
-    if(!ok){
-      // fallback: loadModel biasa
-      if(Android.loadModel) Android.loadModel();
-      else modelOk(false,'Model tidak ditemukan di folder app');
-    }
-    return;
-  }
-  if(typeof useInstalledModel==='function'){
-    useInstalledModel(id);
-    if(window.Android&&Android.loadModel) setTimeout(()=>Android.loadModel(),300);
-    return;
-  }
-  toast('Pilih model hanya di APK Xena','bad');
+function setLocalStatus(ok, state, pill){
+  const d=$('#mDotLocal')||$('#mDot');
+  const st=$('#mStateLocal')||$('#mState');
+  const p=$('#activeModelPillLocal')||$('#activeModelPill');
+  if(d){ d.className = ok?'dot':(state&&/gagal|error/i.test(state)?'dot bad':'dot off'); d.dataset.l=ok?1:''; }
+  if(st) st.textContent=state||'';
+  if(p) p.textContent=pill||'—';
 }
+
+/** Pilih satu model — yang lain otomatis nonaktif. */
+function selectExclusiveModel(id){
+  if(!id) return;
+  // UI: tandai segera
+  $$('#modelRadioList .model-radio').forEach(el=>{
+    const on=el.getAttribute('data-mid')===id;
+    el.classList.toggle('on', on);
+    const b=el.querySelector('.mr-badge');
+    if(on){
+      if(!b){ const s=document.createElement('span'); s.className='mr-badge'; s.textContent='MEMUAT…'; el.appendChild(s); }
+      else b.textContent='MEMUAT…';
+      el.classList.add('busy'); el.classList.remove('err');
+    }else if(b) b.remove();
+  });
+  setLocalStatus(false,'Memuat…','…');
+  toast('Mengaktifkan model…','ok');
+  if(!window.Android||!Android.useModel){
+    toast('Hanya di APK','bad');
+    return;
+  }
+  window.xenaSelectedModelReady=function(ok,name,error){
+    if(ok){
+      modelOk(true);
+      setLocalStatus(true,'Siap dipakai','AKTIF');
+      if($('#activeModelName')) $('#activeModelName').textContent=name||id;
+      try{ const btn=$('#hdrModelBtn'); if(btn) btn.textContent=(name||id).slice(0,12); }catch(e){}
+      refreshModelRadioList(true);
+    }else{
+      modelOk(false, error||'Gagal memuat');
+      setLocalStatus(false, (error||'Gagal').slice(0,48), 'GAGAL');
+      $$('#modelRadioList .model-radio').forEach(el=>{
+        if(el.getAttribute('data-mid')===id){ el.classList.add('err'); el.classList.remove('busy');
+          const b=el.querySelector('.mr-badge'); if(b) b.textContent='GAGAL'; }
+      });
+    }
+  };
+  window.xenaModelReady=function(ok){ window.xenaSelectedModelReady(ok,'', ok?'':'Gagal'); };
+  try{
+    const ok=Android.useModel(String(id));
+    if(!ok && Android.loadModel) Android.loadModel();
+  }catch(e){
+    modelOk(false, e.message||'Error');
+  }
+}
+
+function openModelPicker(){
+  // kompatibilitas: fokus ke daftar radio
+  tab(1);
+  syncModeUI();
+  refreshModelRadioList(true);
+  const el=$('#modelRadioList');
+  if(el) el.scrollIntoView({behavior:'smooth',block:'center'});
+}
+
+function pickModel(id){ selectExclusiveModel(id); }
 
 async function loadModel(force){
-  let nativeReady=false;
-  try{ if(window.Android&&Android.isModelReady) nativeReady=!!Android.isModelReady(); }catch(e){}
-  if(!force && nativeReady){ modelOk(true); return toast('Model sudah siap di engine','ok'); }
-  $('#mDot').dataset.l=''; $('#mDot').className='dot off';
-  $('#mState').textContent='Memuat model ke engine…';
-  toast('Memuat model ke engine…','ok');
-  if(window.Android&&Android.loadModel){
-    window.xenaModelReady=modelOk;
-    try{ Android.loadModel(); }catch(e){ modelOk(false, e.message||'Gagal panggil loadModel'); }
+  let server=false;
+  try{ if(window.Android&&Android.isServerMode) server=!!Android.isServerMode(); }catch(e){}
+  if(server){
+    let ready=false;
+    try{ ready=!!(Android.isModelReady&&Android.isModelReady()); }catch(e){}
+    if(ready){ toast('Groq sudah siap','ok'); setLocalStatus(true,'Groq siap','Groq'); }
+    else toast('Simpan Groq API key dulu','bad');
+    syncModeUI();
     return;
   }
-  $('#mState').textContent='Bridge native tidak ada';
-  toast('Buka di APK Xena-AI, bukan browser','bad');
-  logT('❌ Android.loadModel tidak tersedia');
+  let nativeReady=false;
+  try{ if(window.Android&&Android.isModelReady) nativeReady=!!Android.isModelReady(); }catch(e){}
+  if(!force && nativeReady){ modelOk(true); return toast('Model sudah siap','ok'); }
+  // muat model yang ditandai aktif / terakhir
+  let id='';
+  try{
+    const items=JSON.parse((Android.getInstalledModels&&Android.getInstalledModels())||'[]');
+    const act=items.find(x=>x.active)||items[0];
+    if(act) id=act.id||act.fileName;
+  }catch(e){}
+  if(id) return selectExclusiveModel(id);
+  toast('Pilih model di daftar dulu','bad');
+  refreshModelRadioList(true);
 }
 
 function modelOk(ok,err){
   if(ok===false||ok===0||ok==='false'){
-    $('#mDot').dataset.l='';
-    $('#mDot').className='dot bad';
     let msg=(err&&err!=='ok')?String(err):'';
     if(!msg||msg==='ok'){
       try{ if(window.Android&&Android.getLastError) msg=Android.getLastError()||''; }catch(e){}
     }
-    if(!msg) msg='Engine gagal load — cek RAM / ukuran model';
-    try{
-      if(window.Android&&Android.engineStatus){
-        const st=JSON.parse(Android.engineStatus()||'{}');
-        if(st.serverMode) msg='Server Mode aktif — matikan di Atur untuk pakai model lokal. '+msg;
-        else if(st.libraryOk===false) msg='libllama.so tidak termuat. Install ulang APK. '+msg;
-        if(st.diagnose) logT('🔎 '+st.diagnose);
-      }
-    }catch(e){}
-    $('#mState').textContent='Gagal muat';
+    // Pesan bersih, tidak dobel
+    if(/Server Mode/i.test(msg) && /API key/i.test(msg)){
+      msg='Groq API key belum disimpan. Isi key atau pilih mode Lokal.';
+    }
+    if(!msg) msg='Gagal memuat model';
+    setLocalStatus(false,'Gagal muat','GAGAL');
     toast(msg,'bad');
     logT('❌ '+msg);
     try{updateFabModelLabel(false)}catch(e){}
@@ -1668,31 +1738,28 @@ function modelOk(ok,err){
   let ready=true;
   try{ if(window.Android&&Android.isModelReady) ready=!!Android.isModelReady(); }catch(e){}
   if(!ready && window.Android){
-    // beri jeda singkat — load async kadang belum set flag
     setTimeout(()=>{
-      let r2=false,e2='';
-      try{ r2=!!Android.isModelReady(); e2=(Android.getLastError&&Android.getLastError())||''; }catch(e){}
+      let r2=false;
+      try{ r2=!!Android.isModelReady(); }catch(e){}
       if(r2){
-        $('#mDot').dataset.l=1; $('#mDot').className='dot';
-        $('#mState').textContent='Siap dipakai';
+        setLocalStatus(true,'Siap dipakai','AKTIF');
         toast('Model siap','ok');
         try{updateFabModelLabel(true)}catch(e){}
+        refreshModelRadioList(false);
       }else{
-        $('#mDot').dataset.l=''; $('#mDot').className='dot bad';
-        $('#mState').textContent='Belum siap';
-        toast(e2||'Engine belum siap. Pilih model kecil atau bersihkan RAM.','bad');
-        logT('❌ isModelReady=false '+(e2||''));
-        try{updateFabModelLabel(false)}catch(e){}
+        let e2='';
+        try{ e2=(Android.getLastError&&Android.getLastError())||''; }catch(e){}
+        setLocalStatus(false,'Belum siap','—');
+        toast(e2||'Engine belum siap','bad');
       }
-    },600);
+    },500);
     return;
   }
-  $('#mDot').dataset.l=1;
-  $('#mDot').className='dot';
-  $('#mState').textContent='Siap dipakai';
+  setLocalStatus(true,'Siap dipakai','AKTIF');
   toast('Model siap','ok');
-  logT('✅ Model dimuat di engine');
+  logT('✅ Model siap');
   try{updateFabModelLabel(true)}catch(e){}
+  refreshModelRadioList(false);
 }
 
 function dlSet(id,value){const e=$(id);if(e)e.textContent=value}
@@ -2114,7 +2181,7 @@ async function dlDoneRender(manual){
 /* ---------- init ---------- */
 
 window.xenaUpdateProgress=function(pct,msg){try{if(typeof toast==='function')toast(msg||('Update '+pct+'%'),'ok');logT&&logT('⬆ '+(msg||pct));}catch(e){}};
-function init(){S.set('tok_hf','');S.set('con_hf',false);S.set('tok_huggingface','');S.set('con_huggingface',false);applySettings();buildSettings();loadGroqSettings();buildThemes();const th=S.get('theme','dark');document.documentElement.dataset.theme=th;$$('.th').forEach(b=>b.classList.toggle('active',b.dataset.t===th));const ac=S.get('accent',null);if(ac){setAccent(ac);$('#accPick').value=ac}
+function init(){try{syncModeUI()}catch(e){}S.set('tok_hf','');S.set('con_hf',false);S.set('tok_huggingface','');S.set('con_huggingface',false);applySettings();buildSettings();loadGroqSettings();buildThemes();const th=S.get('theme','dark');document.documentElement.dataset.theme=th;$$('.th').forEach(b=>b.classList.toggle('active',b.dataset.t===th));const ac=S.get('accent',null);if(ac){setAccent(ac);$('#accPick').value=ac}
 applyPerformanceGuard();
 if(!S.get('ram6defaults136',false)){if(+S.get('ctx',1024)===2048)S.set('ctx',1024);if(+S.get('thr',2)===4)S.set('thr',2);S.set('ram6defaults136',true)}
 $('#sys').value=S.get('sys',TPL.agent);saveSys();$('#ctx').value=S.get('ctx',1024);$('#tmp').value=S.get('tmp',.2);slide();buildThr();storage();$('#swAuto').classList.toggle('on',S.get('auto',false));$('#mSpd').textContent=S.get('spd','–')+(S.get('spd')?' tok/s':' tok/s');
