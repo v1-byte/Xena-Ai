@@ -98,7 +98,7 @@ object ModelFileFinder {
 
     private fun describeFile(file: File, appDir: String): JSONObject {
         val partial = !file.name.endsWith(".gguf", ignoreCase = true)
-        val headerValid = !partial && file.length() >= 50_000_000L && ModelAutoLoader.isValidGguf(file)
+        val headerValid = !partial && file.length() >= 50_000_000L // skip header IO di list path
         val inApp = file.absolutePath.startsWith(appDir)
         val inDownload = file.absolutePath.contains("/Download")
         val location = when {

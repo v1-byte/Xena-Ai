@@ -57,6 +57,13 @@ class MainActivity : AppCompatActivity() {
         modelDownloads.setListener { snapshot ->
             runOnUiThread { publishTransfer(snapshot) }
         }
+        ModelInventory.setListener { _, _ ->
+            runOnUiThread {
+                evalJs("if(typeof window.xenaInventoryReady==='function'){window.xenaInventoryReady()}")
+            }
+        }
+        // Prefetch daftar model di background — tab Model tidak scan di UI thread
+        Thread({ ModelInventory.schedule(this@MainActivity, force = true) }, "xena-inv-boot").start()
 
         AppPrefs.getSafeSystemPrompt(this)
         AppPrefs.clearLegacyHfConfig(this)
@@ -681,35 +688,20 @@ class MainActivity : AppCompatActivity() {
         fun getModelCatalog(): String = ModelCatalog.toJson()
 
         @android.webkit.JavascriptInterface
-        fun getInstalledModels(): String {
-            val activePath = LlamaBridge.loadedPath()
-            val engineReady = LlamaBridge.isReady()
-            val models = JSONArray()
-            ModelAutoLoader.installedModels(context).forEach { file ->
-                val spec = ModelCatalog.byFileName(file.name)
-                models.put(
-                    JSONObject()
-                        .put("id", spec?.id ?: file.name)
-                        .put("title", spec?.title ?: file.name)
-                        .put("fileName", file.name)
-                        .put("sizeBytes", file.length())
-                        .put("quantization", spec?.quantization ?: "GGUF")
-                        .put("installed", true)
-                        .put("active", engineReady && activePath == file.absolutePath)
-                )
-            }
-            return models.toString()
-        }
+        fun getInstalledModels(): String =
+            ModelInventory.installedJson(context, force = false)
 
         @android.webkit.JavascriptInterface
         fun getModelTransferState(): String = activity.modelDownloads.currentSnapshot().toJson()
 
         @android.webkit.JavascriptInterface
-        fun getLocalModelFiles(): String = activity.modelDownloads.localFilesJson()
+        fun getLocalModelFiles(): String =
+            ModelInventory.localFilesJson(context, force = false)
 
         @android.webkit.JavascriptInterface
         fun rescanModelFiles() {
-            ModelFileFinder.invalidate()
+            ModelInventory.invalidate()
+            ModelInventory.schedule(context, force = true)
         }
 
         @android.webkit.JavascriptInterface

@@ -197,8 +197,8 @@ test('RAM cleaner frees native weights, light mode lowers context, and model sea
 });
 
 test('APK release is version-driven and verifies native llama library packaging', () => {
-  assert.match(gradle, /versionCode = 168/);
-  assert.match(gradle, /versionName = "1.6.8"/);
+  assert.match(gradle, /versionCode = 169/);
+  assert.match(gradle, /versionName = "1.6.9"/);
   assert.doesNotMatch(gradle, /versionName = "1\.4\.2"/);
   assert.match(gradle, /signingConfig = signingConfigs\.getByName\("release"\)/);
   assert.match(workflow, /steps\.release_meta\.outputs\.tag/);
@@ -219,7 +219,7 @@ test('advanced audit protections are wired end-to-end', () => {
   assert.match(activity, /\$chatId/);
   assert.match(activity, /window\.xenaError/);
   assert.match(activity, /chatExecutor\.shutdownNow/);
-  assert.match(activity, /LlamaBridge\.loadedPath/);
+  assert.match(activity, /ModelInventory/);
   assert.match(html, /activeRequestId/);
   assert.match(html, /KONTEKS PERCAKAPAN TERBARU/);
   assert.match(html, /xenaToken=\(id,t\)/);

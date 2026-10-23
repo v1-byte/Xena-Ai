@@ -49,13 +49,16 @@
     }
   }
 
+  let _catalogBusy = false;
   function renderCatalog() {
     const host = $('#modelCatalog');
     if (!host) return;
+    if (_catalogBusy) return;
     if (!window.Android || !Android.getModelCatalog || !Android.getInstalledModels) {
       host.innerHTML = '<div class="muted">Katalog unduhan tersedia di aplikasi Android.</div>';
       return;
     }
+    _catalogBusy = true;
     try {
       const catalog = JSON.parse(Android.getModelCatalog() || '[]');
       const installed = JSON.parse(Android.getInstalledModels() || '[]');
@@ -91,6 +94,8 @@
     } catch (error) {
       host.innerHTML = '<div class="muted">Katalog model tidak dapat dibaca di perangkat ini.</div>';
       if (typeof logT === 'function') logT(`Katalog model: ${error.message}`);
+    } finally {
+      _catalogBusy = false;
     }
   }
 
@@ -230,6 +235,14 @@
   }
 
   window.xenaModelTransferState = onTransfer;
+  window.xenaInventoryReady = function () {
+    requestAnimationFrame(function () {
+      try { storage(); } catch (_) {}
+      try { renderCatalog(); } catch (_) {}
+      try { renderLocalFiles(); } catch (_) {}
+    });
+  };
+
   window.xenaModelImported = function (name) {
     if (typeof logT === 'function') logT(`Model diimpor: ${name}`);
     renderCatalog();

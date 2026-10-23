@@ -217,63 +217,8 @@ class ModelDownloadManager(context: Context) {
     }
 
     fun localFilesJson(): String {
-        val files = JSONArray()
-        val seen = hashSetOf<String>()
-        ModelAutoLoader.installedModels(appContext).forEach { file ->
-            if (!seen.add(file.absolutePath)) return@forEach
-            val spec = ModelCatalog.byFileName(file.name)
-            files.put(
-                JSONObject()
-                    .put("id", spec?.id ?: file.name)
-                    .put("title", spec?.title ?: file.name)
-                    .put("fileName", file.name)
-                    .put("path", file.absolutePath)
-                    .put("kind", "installed")
-                    .put("status", "Tersimpan")
-                    .put("bytes", file.length())
-                    .put("expectedBytes", file.length())
-                    .put("quantization", spec?.quantization ?: "GGUF")
-                    .put("modifiedAt", file.lastModified())
-                    .put("headerValid", ModelAutoLoader.isValidGguf(file))
-            )
-        }
-        ModelCatalog.all().forEach { model ->
-            val partial = partFile(model)
-            if (!partial.isFile || !seen.add(partial.absolutePath)) return@forEach
-            val meta = readMeta(model)
-            val expected = meta.getProperty("total")?.toLongOrNull()?.takeIf { it > 0L } ?: model.sizeBytes
-            val status = when {
-                worker?.isAlive == true && activeModelId == model.id && !paused -> "Sedang diunduh"
-                (paused || latest.state == "paused") && latest.modelId == model.id -> "Dijeda"
-                partial.length() >= expected -> "Siap diverifikasi"
-                else -> "Parsial · bisa dilanjutkan"
-            }
-            files.put(
-                JSONObject()
-                    .put("id", model.id)
-                    .put("title", model.title)
-                    .put("fileName", "${model.fileName}.part")
-                    .put("path", partial.absolutePath)
-                    .put("kind", "partial")
-                    .put("status", status)
-                    .put("bytes", partial.length())
-                    .put("expectedBytes", expected)
-                    .put("quantization", model.quantization)
-                    .put("modifiedAt", partial.lastModified())
-                    .put("hasResumeValidator", !meta.getProperty("etag").isNullOrBlank() || !meta.getProperty("lastModified").isNullOrBlank())
-            )
-        }
-        try {
-            val discovered = org.json.JSONArray(ModelFileFinder.searchJson(appContext))
-            for (i in 0 until discovered.length()) {
-                val item = discovered.getJSONObject(i)
-                val path = item.optString("path")
-                if (path.isBlank() || !seen.add(path)) continue
-                files.put(item)
-            }
-        } catch (_: Exception) {
-        }
-        return files.toString()
+        // Always from background inventory — never scan MediaStore on UI thread.
+        return ModelInventory.localFilesJson(appContext, force = false)
     }
 
     /** Verify completeness and GGUF header without discarding an incomplete part file. */
@@ -579,6 +524,7 @@ class ModelDownloadManager(context: Context) {
         }
 
         ModelFileFinder.invalidate()
+        ModelInventory.invalidate()
         return JSONObject()
             .put("deletedCount", count)
             .put("freedBytes", freed)
