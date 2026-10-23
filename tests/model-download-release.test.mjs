@@ -35,7 +35,7 @@ test('the existing app sections and primary navigation remain in place', () => {
   for (const id of ['t0', 't1', 't2', 't3']) assert.match(html, new RegExp(`id="${id}"`));
   for (const tab of ['Chat', 'Model', 'Konektor', 'Atur']) assert.ok(html.includes(tab));
   assert.match(html, /id="modelCatalog"/);
-  assert.match(html, /onclick="loadModel\(\)"/);
+  assert.match(html, /openModelPicker/);
   assert.match(html, /onclick="bench\(\)"/);
   assert.match(html, /onclick="startDl\('qwen7b-q3'\)"/);
   assert.match(html, /onclick="startDl\('qwen7b-q4'\)"/);
@@ -197,8 +197,8 @@ test('RAM cleaner frees native weights, light mode lowers context, and model sea
 });
 
 test('APK release is version-driven and verifies native llama library packaging', () => {
-  assert.match(gradle, /versionCode = 172/);
-  assert.match(gradle, /versionName = "1.6.12"/);
+  assert.match(gradle, /versionCode = 173/);
+  assert.match(gradle, /versionName = "1.6.13"/);
   assert.doesNotMatch(gradle, /versionName = "1\.4\.2"/);
   assert.match(gradle, /signingConfig = signingConfigs\.getByName\("release"\)/);
   assert.match(workflow, /steps\.release_meta\.outputs\.tag/);

@@ -80,7 +80,7 @@
         const isBusy = transferStatus.modelId === model.id && ['downloading', 'paused', 'failed', 'moving', 'importing', 'verifying'].includes(transferStatus.state);
         const canResume = isBusy && Number(transferStatus.bytes) > 0;
         const action = isInstalled
-          ? `<button class="btn sm ${model.active ? '' : 'pri'}" onclick="useInstalledModel('${esc(model.id)}')">${model.active ? 'Aktif' : 'Gunakan'}</button>`
+          ? `<button class="btn sm ${model.active ? '' : 'pri'}" onclick="useInstalledModel('${esc(model.id)}')">${model.active ? 'Aktif ✓' : 'Pakai'}</button>`
           : `<button class="btn pri" style="flex:1;border-radius:12px;padding:11px" onclick="startDl('${esc(model.id)}')">${canResume ? 'Lanjut' : 'Download'}</button>`;
         const recommendation = model.recommendation || 'Model GGUF terpasang';
         const ramNote = model.ramNote || '';

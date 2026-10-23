@@ -988,19 +988,19 @@ header{border-bottom:1px solid var(--line)}
       <div class="stat"><span class="muted">Profil RAM</span><b>1024 / 32 / 2</b></div>
       <div class="stat"><span class="muted">Kecepatan</span><b id="mSpd">– tok/s</b></div>
     </div>
-    <p class="muted callout">Model 7B tetap dapat gagal dimuat di RAM 6 GB; mulai dengan 1.5B bila terjadi kehabisan memori.</p>
-    <div class="btns" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-      <button class="btn pri lg" onclick="openModelPicker()"><svg class="i"><use href="#i-folder"/></svg>Pilih Model</button>
-      <button class="btn pri lg" onclick="loadModel()"><svg class="i"><use href="#i-bolt"/></svg>Muat Model</button>
+    <p class="muted callout">Pilih model lalu otomatis dimuat ke engine. Di RAM 6 GB utamakan model kecil (1.5B–3B / Mini), bukan 7B penuh.</p>
+    <div class="btns" style="display:flex;flex-direction:column;gap:8px">
+      <button class="btn pri lg" style="width:100%" onclick="openModelPicker()"><svg class="i"><use href="#i-bolt"/></svg>Pilih &amp; Muat Model</button>
+      <button class="btn" style="width:100%" onclick="selectModelFromDownloads()"><svg class="i"><use href="#i-folder"/></svg>Impor file GGUF</button>
     </div>
-    <div class="btns acts">
-      <button class="btn" onclick="bench()"><svg class="i"><use href="#i-flask"/></svg>Tes Kecepatan</button>
-      <button class="btn" onclick="showActiveModelDetails()"><svg class="i"><use href="#i-info"/></svg>Detail</button>
-      <button class="btn" onclick="toast('Membuka folder model…')"><svg class="i"><use href="#i-folder"/></svg>Folder</button>
-      <button class="btn" onclick="selectModelFromDownloads()"><svg class="i"><use href="#i-folder"/></svg>Pilih GGUF</button>
-      <button class="btn" onclick="moveModelFromDownloads()"><svg class="i"><use href="#i-save"/></svg>Pindah ke Internal</button>
-      <button class="btn dng" onclick="toast('Konfirmasi hapus lewat aplikasi','bad')"><svg class="i"><use href="#i-trash"/></svg>Hapus</button>
-    </div>
+    <details style="margin-top:10px">
+      <summary class="muted" style="cursor:pointer;font-size:12px">Lainnya (opsional)</summary>
+      <div class="btns acts" style="margin-top:8px">
+        <button class="btn sm" onclick="loadModel(true)"><svg class="i"><use href="#i-bolt"/></svg>Muat ulang</button>
+        <button class="btn sm" onclick="bench()"><svg class="i"><use href="#i-flask"/></svg>Tes kecepatan</button>
+        <button class="btn sm" onclick="moveModelFromDownloads()"><svg class="i"><use href="#i-save"/></svg>Pindah ke internal</button>
+      </div>
+    </details>
   </div>
   <div class="card"><h4><svg class="i"><use href="#i-box"/></svg>Penyimpanan Model</h4>
     <div class="bar"><b id="stBar" style="width:0"></b></div>
@@ -1527,106 +1527,131 @@ function tgl(k,el){const v=!S.get(k,false);S.set(k,v);el.classList.toggle('on',v
 function openModelPicker(){
   let items=[];
   try{
-    if(window.Android&&Android.listInstalledModels){
+    if(window.Android&&Android.getInstalledModels){
+      items=JSON.parse(Android.getInstalledModels()||'[]');
+    }else if(window.Android&&Android.listInstalledModels){
       items=JSON.parse(Android.listInstalledModels()||'[]');
-    }else if(window.Android&&Android.getModelInfo){
-      const info=JSON.parse(Android.getModelInfo()||'{}');
-      if(info&&info.name) items=[{id:info.id||'active',title:info.name,fileName:info.name,active:true,sizeBytes:info.sizeBytes||0}];
     }
-  }catch(e){}
-  // Fallback: ambil dari katalog yang sudah di-render
+  }catch(e){logT&&logT('picker: '+e.message)}
   if(!items.length){
     try{
       document.querySelectorAll('#modelCatalog [data-model-id]').forEach(card=>{
         const id=card.getAttribute('data-model-id');
         const title=card.querySelector('b')?.textContent||id;
-        const file=card.querySelector('.muted')?.textContent||'';
-        const isActive=!!card.querySelector('.btn:not(.pri)');
-        items.push({id,title,fileName:file,active:isActive});
+        const installed=!!card.querySelector('.btn:not(.pri),[class*="dl-btn-done"],[class*="dl-btn-use"]');
+        if(installed||(card.textContent||'').match(/Aktif|Gunakan|Tersimpan/i))
+          items.push({id,title,fileName:title,active:false,installed:true});
       });
     }catch(e){}
   }
+  items=items.filter(m=>m&&(m.installed!==false||m.active||m.fileName));
   if(!items.length){
-    // Arahkan ke Pilih GGUF bila belum ada model terpasang
-    toast('Belum ada model terpasang. Gunakan Pilih GGUF atau unduh dari katalog.','ok');
+    toast('Belum ada model. Unduh dari katalog atau impor file GGUF.','ok');
     tab(1);
-    setTimeout(()=>{try{selectModelFromDownloads()}catch(e){}},300);
+    setTimeout(()=>{const el=document.getElementById('modelCatalog');if(el)el.scrollIntoView({behavior:'smooth',block:'start'})},200);
     return;
   }
-  // Modal sederhana
   let overlay=document.getElementById('modelPickerOverlay');
-  if(!overlay){
-    overlay=document.createElement('div');
-    overlay.id='modelPickerOverlay';
-    overlay.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center;padding:12px';
-    overlay.innerHTML=`<div style="background:var(--card);border:1px solid var(--line);border-radius:18px 18px 12px 12px;width:100%;max-width:420px;max-height:70vh;overflow:auto;padding:14px">
-      <div class="row" style="margin-bottom:10px"><b style="font-size:16px">Pilih Model Aktif</b><span class="sp"></span><button class="ib" id="modelPickerClose"><svg class="i"><use href="#i-x"/></svg></button></div>
-      <div id="modelPickerList"></div>
-      <div class="btns" style="margin-top:12px">
-        <button class="btn" style="flex:1" id="modelPickerOther"><svg class="i"><use href="#i-folder"/></svg>Pilih GGUF lain</button>
-      </div>
-    </div>`;
-    overlay.querySelector('#modelPickerClose').onclick=()=>overlay.remove();
-    overlay.querySelector('#modelPickerOther').onclick=()=>{overlay.remove();selectModelFromDownloads()};
-    document.body.appendChild(overlay);
-    overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.remove()});
-  }
-  const list=document.getElementById('modelPickerList');
+  if(overlay) overlay.remove();
+  overlay=document.createElement('div');
+  overlay.id='modelPickerOverlay';
+  overlay.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center;padding:12px';
+  overlay.innerHTML=`<div style="background:var(--card);border:1px solid var(--line);border-radius:18px 18px 12px 12px;width:100%;max-width:420px;max-height:75vh;overflow:auto;padding:14px">
+    <div class="row" style="margin-bottom:8px"><b style="font-size:16px">Pilih & Muat Model</b><span class="sp"></span><button class="ib" id="modelPickerClose" aria-label="Tutup"><svg class="i"><use href="#i-x"/></svg></button></div>
+    <p class="muted" style="margin:0 0 10px;font-size:12px">Ketuk satu model — langsung dimuat ke engine. Tidak perlu tombol terpisah.</p>
+    <div id="modelPickerList"></div>
+    <div class="btns" style="margin-top:12px">
+      <button class="btn" style="flex:1" id="modelPickerOther"><svg class="i"><use href="#i-folder"/></svg>Impor GGUF dari file</button>
+    </div>
+  </div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#modelPickerClose').onclick=()=>overlay.remove();
+  overlay.querySelector('#modelPickerOther').onclick=()=>{overlay.remove();selectModelFromDownloads()};
+  overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.remove()});
+  const list=overlay.querySelector('#modelPickerList');
   list.innerHTML=items.map(m=>{
     const name=m.title||m.fileName||m.id||'Model';
-    const sub=m.fileName&&m.fileName!==name?m.fileName:'';
+    const sub=m.fileName&&m.fileName!==name?m.fileName:(m.quantization||'');
+    const size=m.sizeBytes?(' · '+((Number(m.sizeBytes)/1073741824)>=1?(Number(m.sizeBytes)/1073741824).toFixed(2)+' GB':(Number(m.sizeBytes)/1048576).toFixed(0)+' MB')):'';
     const active=m.active?' <span class="pill">Aktif</span>':'';
-    return `<button class="btn" style="width:100%;justify-content:flex-start;text-align:left;margin-top:6px;padding:12px" onclick="pickModel('${(m.id||'').replace(/'/g,"\\'")}')">
-      <div style="flex:1;min-width:0"><b style="display:block;word-break:break-all">${esc(name)}</b>${sub?`<span class="muted" style="font-size:11px;word-break:break-all">${esc(sub)}</span>`:''}</div>${active}
+    const id=(m.id||m.fileName||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    return `<button type="button" class="btn" style="width:100%;justify-content:flex-start;text-align:left;margin-top:6px;padding:12px" data-mid="${id}">
+      <div style="flex:1;min-width:0"><b style="display:block;word-break:break-all">${esc(name)}</b>
+      <span class="muted" style="font-size:11px;word-break:break-all">${esc(sub)}${size}</span></div>${active}
     </button>`;
   }).join('');
-  // pastikan overlay terlihat
-  if(!overlay.parentNode) document.body.appendChild(overlay);
+  list.querySelectorAll('button[data-mid]').forEach(btn=>{
+    btn.onclick=()=>pickModel(btn.getAttribute('data-mid'));
+  });
 }
 
 function pickModel(id){
   const ov=document.getElementById('modelPickerOverlay');
   if(ov) ov.remove();
   if(!id) return;
+  $('#mDot').dataset.l=''; $('#mDot').className='dot off';
+  $('#mState').textContent='Memuat model ke engine…';
+  toast('Memuat model — tunggu beberapa detik','ok');
+  logT('⏳ Memuat model: '+id);
+  try{
+    const btn=document.getElementById('hdrModelBtn');
+    if(btn) btn.textContent=(id.length>14?id.slice(0,12)+'…':id);
+  }catch(e){}
+  // useModel = pilih + load native (satu langkah)
+  if(window.Android&&Android.useModel){
+    window.xenaSelectedModelReady=function(ok,name,error){
+      if(ok){
+        modelOk(true);
+        try{if($('#activeModelName'))$('#activeModelName').textContent=name||id}catch(e){}
+      }else{
+        modelOk(false, error||'Gagal memuat model');
+      }
+      try{if(typeof renderCatalog==='function')renderCatalog()}catch(e){}
+    };
+    window.xenaModelReady=modelOk;
+    const ok=Android.useModel(String(id));
+    if(!ok){
+      // fallback: loadModel biasa
+      if(Android.loadModel) Android.loadModel();
+      else modelOk(false,'Model tidak ditemukan di folder app');
+    }
+    return;
+  }
   if(typeof useInstalledModel==='function'){
     useInstalledModel(id);
-    toast('Model dipilih. Tekan Muat Model jika belum dimuat.','ok');
-    // update label header
-    try{
-      const btn=document.getElementById('hdrModelBtn');
-      if(btn) btn.textContent=(id.length>14?id.slice(0,12)+'…':id);
-    }catch(e){}
-    // refresh status
-    setTimeout(()=>{try{if(window.renderCatalog)renderCatalog()}catch(e){}},400);
-  }else{
-    toast('Pilih model hanya tersedia di APK','bad');
+    if(window.Android&&Android.loadModel) setTimeout(()=>Android.loadModel(),300);
+    return;
   }
+  toast('Pilih model hanya di APK Xena','bad');
 }
 
 async function loadModel(force){
-  // Cek status native dulu — jangan percaya flag UI saja
   let nativeReady=false;
   try{ if(window.Android&&Android.isModelReady) nativeReady=!!Android.isModelReady(); }catch(e){}
-  if(!force && nativeReady){ modelOk(true); return toast('Model sudah dimuat di engine','ok'); }
+  if(!force && nativeReady){ modelOk(true); return toast('Model sudah siap di engine','ok'); }
   $('#mDot').dataset.l=''; $('#mDot').className='dot off';
   $('#mState').textContent='Memuat model ke engine…';
-  toast('Memuat model 3.55 GB ke RAM — tunggu 15–60 detik','ok');
+  toast('Memuat model ke engine…','ok');
   if(window.Android&&Android.loadModel){
     window.xenaModelReady=modelOk;
-    try{ Android.loadModel(); }catch(e){ modelOk(false); toast('Gagal panggil loadModel: '+e.message,'bad'); }
+    try{ Android.loadModel(); }catch(e){ modelOk(false, e.message||'Gagal panggil loadModel'); }
     return;
   }
-  // Tanpa bridge native: jangan pura-pura sukses
   $('#mState').textContent='Bridge native tidak ada';
   toast('Buka di APK Xena-AI, bukan browser','bad');
   logT('❌ Android.loadModel tidak tersedia');
 }
+
 function modelOk(ok,err){
   if(ok===false||ok===0||ok==='false'){
     $('#mDot').dataset.l='';
     $('#mDot').className='dot bad';
-    const msg=(err&&err!=='ok')?err:'Engine gagal load';
-    $('#mState').textContent='Gagal muat ke engine';
+    let msg=(err&&err!=='ok')?String(err):'';
+    if(!msg||msg==='ok'){
+      try{ if(window.Android&&Android.getLastError) msg=Android.getLastError()||''; }catch(e){}
+    }
+    if(!msg) msg='Engine gagal load — cek RAM / ukuran model';
+    $('#mState').textContent='Gagal muat';
     toast(msg,'bad');
     logT('❌ '+msg);
     try{updateFabModelLabel(false)}catch(e){}
@@ -1635,22 +1660,33 @@ function modelOk(ok,err){
   let ready=true;
   try{ if(window.Android&&Android.isModelReady) ready=!!Android.isModelReady(); }catch(e){}
   if(!ready && window.Android){
-    let e2='';
-    try{e2=Android.getLastError&&Android.getLastError()}catch(e){}
-    $('#mDot').dataset.l='';
-    $('#mDot').className='dot bad';
-    $('#mState').textContent='Belum ready di engine';
-    toast(e2||'Engine belum siap. Tekan Muat Model.','bad');
-    logT('❌ isModelReady=false '+(e2||''));
+    // beri jeda singkat — load async kadang belum set flag
+    setTimeout(()=>{
+      let r2=false,e2='';
+      try{ r2=!!Android.isModelReady(); e2=(Android.getLastError&&Android.getLastError())||''; }catch(e){}
+      if(r2){
+        $('#mDot').dataset.l=1; $('#mDot').className='dot';
+        $('#mState').textContent='Siap dipakai';
+        toast('Model siap','ok');
+        try{updateFabModelLabel(true)}catch(e){}
+      }else{
+        $('#mDot').dataset.l=''; $('#mDot').className='dot bad';
+        $('#mState').textContent='Belum siap';
+        toast(e2||'Engine belum siap. Pilih model kecil atau bersihkan RAM.','bad');
+        logT('❌ isModelReady=false '+(e2||''));
+        try{updateFabModelLabel(false)}catch(e){}
+      }
+    },600);
     return;
   }
   $('#mDot').dataset.l=1;
   $('#mDot').className='dot';
-  $('#mState').textContent='Siap dipakai (engine)';
-  toast('Model siap di engine','ok');
-  logT('✅ Model dimuat di native engine');
+  $('#mState').textContent='Siap dipakai';
+  toast('Model siap','ok');
+  logT('✅ Model dimuat di engine');
   try{updateFabModelLabel(true)}catch(e){}
 }
+
 function dlSet(id,value){const e=$(id);if(e)e.textContent=value}
 function cancelDl(){
   if(window.Android&&Android.cancelModelDownload){Android.cancelModelDownload();toast('Membatalkan unduhan…');return}
