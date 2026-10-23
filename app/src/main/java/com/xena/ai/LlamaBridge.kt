@@ -1,12 +1,15 @@
 package com.xena.ai
 
 import android.util.Log
+import java.io.File
 
 object LlamaBridge {
     private const val TAG = "XENA-Llama"
     @Volatile private var isModelLoaded = false
     @Volatile private var loadedModelPath: String? = null
     @Volatile var lastError: String = "ok"
+        private set
+    @Volatile var libraryOk: Boolean = false
         private set
 
     external fun nativeLoadModel(
@@ -27,17 +30,23 @@ object LlamaBridge {
     init {
         try {
             System.loadLibrary("llama")
+            libraryOk = true
             Log.d(TAG, "libllama loaded")
         } catch (e: LinkageError) {
-            lastError = "libllama.so gagal load: native library tidak kompatibel"
+            libraryOk = false
+            lastError = "libllama.so gagal load: native library tidak kompatibel dengan perangkat ini"
             Log.e(TAG, lastError, e)
         } catch (e: Exception) {
+            libraryOk = false
             lastError = "libllama.so gagal load: ${e.message}"
             Log.e(TAG, lastError)
         }
     }
 
-    /** Coba preset konservatif untuk ponsel 6 GB, lalu turunkan context jika perlu. */
+    /**
+     * Coba beberapa preset context + mmap on/off.
+     * Banyak HP gagal hanya karena mmap di storage app atau context terlalu besar.
+     */
     @Synchronized
     fun loadModel(
         modelPath: String,
@@ -47,36 +56,81 @@ object LlamaBridge {
         useMmap: Boolean = true,
         useMlock: Boolean = false
     ): Boolean {
-        val attempts = listOf(
-            Triple(n_ctx.coerceIn(512, 2048), n_batch.coerceIn(16, 32), n_threads.coerceIn(1, 4)),
-            Triple(768, 24, 2),
-            Triple(512, 16, 1)
-        ).distinct()
+        if (!libraryOk) {
+            lastError = "libllama.so tidak tersedia. Install ulang APK arm64-v8a."
+            return false
+        }
+        val file = File(modelPath)
+        if (!file.isFile) {
+            lastError = "File model tidak ada: $modelPath"
+            return false
+        }
+        if (file.length() < 1_000_000L) {
+            lastError = "File model terlalu kecil (${file.length()} byte) — unduhan belum selesai?"
+            return false
+        }
 
-        for ((ctx, batch, thr) in attempts) {
-            try {
-                Log.d(TAG, "try load $modelPath ctx=$ctx batch=$batch thr=$thr")
-                val ok = nativeLoadModel(modelPath, ctx, batch, thr, useMmap, useMlock)
-                lastError = try { nativeLastError() } catch (_: Throwable) { if (ok) "ok" else "native gagal" }
-                if (ok) {
-                    isModelLoaded = true
-                    loadedModelPath = modelPath
-                    Log.d(TAG, "loaded ok with ctx=$ctx err=$lastError")
-                    return true
+        // Lepas model lama dulu agar RAM longgar
+        try {
+            nativeFreeModel()
+        } catch (_: Throwable) {
+        }
+        isModelLoaded = false
+        loadedModelPath = null
+        try {
+            System.gc()
+        } catch (_: Throwable) {
+        }
+
+        val ctxList = listOf(
+            n_ctx.coerceIn(256, 2048),
+            768,
+            512,
+            384,
+            256
+        ).distinct()
+        val batchList = listOf(n_batch.coerceIn(8, 64), 24, 16, 8).distinct()
+        val thrList = listOf(n_threads.coerceIn(1, 4), 2, 1).distinct()
+        // mmap true dulu (hemat RAM), lalu false (lebih kompatibel di sebagian storage)
+        val mmapModes = listOf(useMmap, !useMmap).distinct()
+
+        for (mmap in mmapModes) {
+            for (ctx in ctxList) {
+                for (batch in batchList.take(2)) {
+                    for (thr in thrList.take(2)) {
+                        try {
+                            Log.d(TAG, "try load $modelPath ctx=$ctx batch=$batch thr=$thr mmap=$mmap")
+                            val ok = nativeLoadModel(modelPath, ctx, batch, thr, mmap, false)
+                            lastError = try {
+                                nativeLastError()
+                            } catch (_: Throwable) {
+                                if (ok) "ok" else "native gagal tanpa pesan"
+                            }
+                            if (ok) {
+                                isModelLoaded = true
+                                loadedModelPath = modelPath
+                                Log.d(TAG, "loaded ok ctx=$ctx mmap=$mmap err=$lastError")
+                                return true
+                            }
+                            Log.e(TAG, "fail ctx=$ctx mmap=$mmap: $lastError")
+                        } catch (e: UnsatisfiedLinkError) {
+                            lastError = "Native symbol hilang: ${e.message}"
+                            Log.e(TAG, lastError)
+                            isModelLoaded = false
+                            return false
+                        } catch (e: Exception) {
+                            lastError = "Load exception: ${e.message}"
+                            Log.e(TAG, lastError)
+                        }
+                    }
                 }
-                Log.e(TAG, "attempt failed ctx=$ctx: $lastError")
-            } catch (e: UnsatisfiedLinkError) {
-                lastError = "Native symbol missing: ${e.message}"
-                Log.e(TAG, lastError)
-                isModelLoaded = false
-                return false
-            } catch (e: Exception) {
-                lastError = "Load exception: ${e.message}"
-                Log.e(TAG, lastError)
             }
         }
         isModelLoaded = false
         loadedModelPath = null
+        if (lastError.isBlank() || lastError == "ok") {
+            lastError = "Semua percobaan load gagal. Tutup app lain, pakai model lebih kecil, atau nyalakan Server Mode Groq."
+        }
         return false
     }
 
@@ -140,8 +194,25 @@ object LlamaBridge {
         loadedModelPath = null
     }
 
-    /** Interrupts the current native decode without waiting for its model mutex. */
     fun cancelGeneration() {
-        try { nativeCancelGeneration() } catch (_: Throwable) { }
+        try {
+            nativeCancelGeneration()
+        } catch (_: Throwable) {
+        }
+    }
+
+    /** Diagnosa singkat untuk UI / log. */
+    fun diagnose(modelPath: String? = null): String {
+        val sb = StringBuilder()
+        sb.append("lib=").append(if (libraryOk) "ok" else "FAIL")
+        sb.append(" ready=").append(isReady())
+        sb.append(" err=").append(lastError)
+        if (!modelPath.isNullOrBlank()) {
+            val f = File(modelPath)
+            sb.append(" file=").append(if (f.isFile) "yes" else "no")
+            sb.append(" size=").append(if (f.isFile) f.length() else 0)
+        }
+        loadedModelPath?.let { sb.append(" loaded=").append(File(it).name) }
+        return sb.toString()
     }
 }

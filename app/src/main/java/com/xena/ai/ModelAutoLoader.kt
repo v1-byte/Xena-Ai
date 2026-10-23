@@ -266,9 +266,34 @@ object ModelAutoLoader {
 
     fun modelFileForId(context: Context, idOrName: String): File? {
         val catalogName = ModelCatalog.get(idOrName)?.fileName
-        val name = catalogName ?: safeGgufName(idOrName) ?: return null
-        val candidates = listOf(File(modelDirectory(context), name), File(context.filesDir, name))
-        return candidates.firstOrNull { isValidGguf(it) }
+        val names = linkedSetOf<String>()
+        catalogName?.let { names += it }
+        safeGgufName(idOrName)?.let { names += it }
+        if (idOrName.endsWith(".gguf", true)) names += idOrName.substringAfterLast('/')
+        // Juga cocokkan nama file dari daftar terpasang
+        val dirs = listOfNotNull(modelDirectory(context), context.filesDir, context.getExternalFilesDir(null))
+            .distinctBy { it.absolutePath }
+        for (dir in dirs) {
+            val list = try { dir.listFiles() } catch (_: Exception) { null } ?: continue
+            for (f in list) {
+                if (!f.isFile) continue
+                val n = f.name
+                if (!n.endsWith(".gguf", true)) continue
+                if (names.any { n.equals(it, true) || n.contains(it.removeSuffix(".gguf"), true) }) {
+                    if (f.length() >= 1_000_000L) return f
+                }
+                // id katalog sering short; cocokkan dengan fileName katalog
+                val spec = ModelCatalog.get(idOrName)
+                if (spec != null && n.equals(spec.fileName, true) && f.length() >= 1_000_000L) return f
+            }
+        }
+        for (name in names) {
+            for (dir in dirs) {
+                val f = File(dir, name)
+                if (f.isFile && f.length() >= 1_000_000L) return f
+            }
+        }
+        return null
     }
 
     fun getModelSizeMB(context: Context): String = getModelSizeMB(findInstalledModel(context))

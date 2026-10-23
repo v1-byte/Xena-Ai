@@ -230,10 +230,11 @@ class MainActivity : AppCompatActivity() {
             return "Model 7B ini terlalu berat untuk perangkat dengan RAM terbatas; pemuatan dihentikan agar aplikasi tidak tertutup. Coba model yang lebih kecil."
         }
         val requiredBytes = modelBytes + gib
-        if (memory.availMem < requiredBytes) {
-            val required = String.format(java.util.Locale.US, "%.1f", requiredBytes / 1073741824.0)
+        // Jangan blokir terlalu agresif — biarkan native mencoba dengan ctx kecil.
+        // Hanya tolak jika RAM benar-benar kritis (<700MB) dan model besar.
+        if (memory.availMem < 700L * 1024L * 1024L && modelBytes >= 1_800_000_000L) {
             val available = String.format(java.util.Locale.US, "%.1f", memory.availMem / 1073741824.0)
-            return "RAM bebas belum cukup: perlu sekitar ${required} GB, tersedia ${available} GB. Tutup aplikasi lain atau gunakan model lebih kecil."
+            return "RAM bebas sangat rendah (${available} GB). Tutup aplikasi lain atau pilih model Mini / 1.5B–3B."
         }
         if (memory.lowMemory && modelBytes >= 1_500_000_000L) {
             return "RAM perangkat sedang mepet. Model besar tidak dimuat agar aplikasi tetap ringan. Pakai model 1.5B atau nyalakan Server Mode Groq."
@@ -263,17 +264,32 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun useInstalledModel(modelIdOrName: String): Boolean {
+        if (AppPrefs.isServerMode(this)) {
+            val ok = AppPrefs.hasGroqApiKey(this)
+            notifySelectedModel(ok, "Server Mode", if (ok) "Server Mode Groq aktif (tanpa GGUF)" else "Simpan Groq API key di Atur")
+            notifyModelReady(ok)
+            return ok
+        }
+        if (!LlamaBridge.libraryOk) {
+            notifySelectedModel(false, modelIdOrName, LlamaBridge.lastError)
+            return false
+        }
         val modelFile = ModelAutoLoader.modelFileForId(this, modelIdOrName)
         if (modelFile == null) {
-            notifySelectedModel(false, modelIdOrName, "Model GGUF tidak ditemukan atau tidak valid")
+            val hint = "Model tidak ketemu di folder app. Unduh ulang atau Impor GGUF. id=$modelIdOrName"
+            Log.e(TAG, hint)
+            notifySelectedModel(false, modelIdOrName, hint)
             return false
         }
         if (LlamaBridge.isReady() && AppPrefs.getLastModelPath(this) == modelFile.absolutePath) {
             notifySelectedModel(true, modelFile.name, "Model sudah aktif")
+            notifyModelReady(true)
             return true
         }
+        // Bebaskan RAM dulu
+        try { LlamaBridge.unload() } catch (_: Throwable) {}
         publishTransfer(ModelDownloadManager.Snapshot("loading", modelIdOrName, modelFile.name, modelFile.length(), modelFile.length(), 0L, "Memuat model ke engine…"))
-        loadModelFile(modelFile, notifyUi = false, selectedCallback = true)
+        loadModelFile(modelFile, notifyUi = true, selectedCallback = true)
         return true
     }
 
@@ -658,10 +674,13 @@ class MainActivity : AppCompatActivity() {
 
         @android.webkit.JavascriptInterface
         fun getLastError(): String {
-            return if (AppPrefs.isServerMode(context)) {
-                if (AppPrefs.hasGroqApiKey(context)) "ok (Groq mode)"
-                else "Groq API key belum disimpan"
-            } else LlamaBridge.lastError
+            if (AppPrefs.isServerMode(context)) {
+                return if (AppPrefs.hasGroqApiKey(context)) "ok" else "Groq API key belum disimpan (Server Mode)"
+            }
+            val base = LlamaBridge.lastError
+            return if (base.isBlank() || base == "ok") {
+                if (LlamaBridge.isReady()) "ok" else LlamaBridge.diagnose(AppPrefs.getLastModelPath(context))
+            } else base
         }
 
         @android.webkit.JavascriptInterface
@@ -793,6 +812,19 @@ class MainActivity : AppCompatActivity() {
 
         @android.webkit.JavascriptInterface
         fun useModel(modelIdOrName: String): Boolean = activity.useInstalledModel(modelIdOrName)
+
+        @android.webkit.JavascriptInterface
+        fun engineStatus(): String {
+            val path = AppPrefs.getLastModelPath(context)
+            return org.json.JSONObject()
+                .put("libraryOk", LlamaBridge.libraryOk)
+                .put("ready", LlamaBridge.isReady())
+                .put("serverMode", AppPrefs.isServerMode(context))
+                .put("lastError", LlamaBridge.lastError)
+                .put("diagnose", LlamaBridge.diagnose(path))
+                .put("lastPath", path ?: "")
+                .toString()
+        }
 
         @android.webkit.JavascriptInterface
         fun moveModelFromDownloads() {

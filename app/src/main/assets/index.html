@@ -1651,6 +1651,14 @@ function modelOk(ok,err){
       try{ if(window.Android&&Android.getLastError) msg=Android.getLastError()||''; }catch(e){}
     }
     if(!msg) msg='Engine gagal load — cek RAM / ukuran model';
+    try{
+      if(window.Android&&Android.engineStatus){
+        const st=JSON.parse(Android.engineStatus()||'{}');
+        if(st.serverMode) msg='Server Mode aktif — matikan di Atur untuk pakai model lokal. '+msg;
+        else if(st.libraryOk===false) msg='libllama.so tidak termuat. Install ulang APK. '+msg;
+        if(st.diagnose) logT('🔎 '+st.diagnose);
+      }
+    }catch(e){}
     $('#mState').textContent='Gagal muat';
     toast(msg,'bad');
     logT('❌ '+msg);
