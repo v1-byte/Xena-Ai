@@ -2,7 +2,7 @@
 
 > **Penting:** dokumen ini adalah blueprint dan roadmap, bukan daftar fitur yang seluruhnya sudah aktif.
 
-## Status implementasi saat ini — v1.6.5
+## Status implementasi saat ini — v1.6.6
 
 Fitur berikut sudah aktif di branch `main` dan APK release terbaru:
 
@@ -17,7 +17,7 @@ Fitur berikut sudah aktif di branch `main` dan APK release terbaru:
 
 Lihat [`SISTEM_TERKINI.md`](SISTEM_TERKINI.md) dan [`CATATAN_UI_V1.2_RELEASE.md`](CATATAN_UI_V1.2_RELEASE.md) untuk dokumentasi fitur yang benar-benar aktif.
 
-Bagian setelah status ini tetap dipertahankan sebagai ide desain dan roadmap V2.0. Item seperti Room, Hilt, WorkManager penuh, OAuth GitHub, Material You native, dan silent update bukan bagian dari APK v1.6.5.
+Bagian setelah status ini tetap dipertahankan sebagai ide desain dan roadmap V2.0. Item seperti Room, Hilt, WorkManager penuh, OAuth GitHub, Material You native, dan silent update bukan bagian dari APK v1.6.6.
 
 ================================================================================
 XENA-AI SATU FILE FULL PRO - SEMUA JADI SATU (V2.0)

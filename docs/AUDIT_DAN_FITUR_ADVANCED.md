@@ -104,3 +104,8 @@ Animasi pembuka dikembalikan dalam bentuk ringan: ring tetap bergerak, backgroun
 ## UI utama v1.6.5
 
 Tampilan lengkap dari lampiran pengguna dijadikan asset utama. Struktur Chat, Model, Konektor, Atur, katalog model, download manager, pencarian model, dan console dipertahankan. Startup fail-safe, animasi ringan, request ID native, konteks chat, dan sesi token native tetap aktif.
+
+
+## Splash dan Download Manager v1.6.6
+
+Splash kini memakai animasi CSS indeterminate, watchdog timeout, dan tidak lagi bergantung pada voice synthesis saat startup. Download Manager diperbarui menjadi panel profesional dengan status READY/DOWNLOADING/PAUSED/COMPLETE, metrik progres/kecepatan/status, ETA, kontrol Jeda/Lanjut, Verifikasi, Batal, serta preset ukuran unduhan agar progres tidak NaN.

@@ -272,7 +272,10 @@ symbol{overflow:visible}
 #splash svg.logo{animation:logoin 1.1s cubic-bezier(.2,.9,.3,1) both}
 @keyframes logoin{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:none}}
 .loadbar{position:relative;width:min(60vw,220px)}
-.loadbar b{width:0;animation:none;transition:width .38s cubic-bezier(.3,.8,.3,1)}
+.loadbar b{width:0;animation:splashIndeterminate 2.1s ease-in-out infinite;transition:width .38s cubic-bezier(.3,.8,.3,1);position:relative;overflow:hidden}
+.loadbar b::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.55),transparent);animation:splashShine 1.1s linear infinite}
+@keyframes splashIndeterminate{0%{width:12%}50%{width:78%}100%{width:96%}}
+@keyframes splashShine{from{transform:translateX(-120%)}to{transform:translateX(120%)}}
 .lstat{display:flex;justify-content:space-between;width:min(60vw,220px);margin-top:10px;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
 .skip{position:absolute;right:16px;top:calc(16px + env(safe-area-inset-top,0px));font-size:12px;color:var(--muted);padding:6px 12px;border-radius:16px;border:1px solid var(--line)}
 body:not(.ready) header{transform:translateY(-100%)}body:not(.ready) nav{transform:translateY(100%)}
@@ -304,6 +307,7 @@ header,nav{transition:transform .8s cubic-bezier(.2,.8,.2,1) .1s}
 [data-anim=lite] .amb i,[data-anim=lite] .brand b,[data-anim=lite] .hero svg.lg{animation:none}
 [data-anim=lite] .sp-bg i{animation:none!important;opacity:.08}
 [data-anim=lite] .sp-icon .ring.r2{animation:spRing 7s linear infinite;opacity:.2}
+[data-anim=lite] .loadbar b{animation:splashIndeterminate 2.6s ease-in-out infinite!important}
 [data-anim=lite] #splash::before{animation:breathe 6s ease-in-out infinite;opacity:.5}
 [data-fx=off] .amb{display:none}[data-fx=off] header,[data-fx=off] nav,[data-fx=off] .shade{backdrop-filter:none}
 [data-fx=off] .card,[data-fx=off] header,[data-fx=off] nav{backdrop-filter:none;box-shadow:none}
@@ -378,6 +382,12 @@ header,nav{transition:transform .8s cubic-bezier(.2,.8,.2,1) .1s}
 [data-bg=flat] .amb{display:none}
 [data-bg=grid] .amb i{display:none}
 [data-bg=grid] .amb{background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);background-size:34px 34px;opacity:.35}
+
+/* Download Manager Pro */
+.dl-pro{padding:14px!important;background:linear-gradient(145deg,color-mix(in srgb,var(--card) 94%,var(--accent) 6%),var(--card))!important;overflow:hidden}
+.dl-head,.dl-title,.dl-file,.dl-metrics,.dl-progress-top{display:flex;align-items:center}.dl-head{justify-content:space-between;margin-bottom:14px}.dl-title{gap:10px}.dl-title h4{margin:0!important}.dl-icon,.dl-file-icon{display:grid;place-items:center;border-radius:12px;background:color-mix(in srgb,var(--accent) 16%,var(--card2));color:var(--accent)}.dl-icon{width:34px;height:34px}.dl-icon svg{width:18px;height:18px}.dl-live{font:700 9px/1 ui-monospace,monospace;letter-spacing:.12em;padding:6px 8px;border-radius:8px;background:color-mix(in srgb,var(--ok) 16%,transparent);color:var(--ok);border:1px solid color-mix(in srgb,var(--ok) 35%,var(--line))}.dl-live.busy{color:var(--accent2);background:color-mix(in srgb,var(--accent2) 15%,transparent);border-color:color-mix(in srgb,var(--accent2) 35%,var(--line))}.dl-live.done{color:var(--ok)}.dl-live.paused{color:var(--warn);background:color-mix(in srgb,var(--warn) 15%,transparent)}
+.dl-hero{display:flex;align-items:center;justify-content:space-between;padding:13px;border:1px solid var(--line);border-radius:14px;background:color-mix(in srgb,var(--card2) 74%,transparent)}.dl-file{gap:10px;min-width:0}.dl-file-icon{width:38px;height:38px;flex:none;color:var(--accent2);background:color-mix(in srgb,var(--accent2) 13%,var(--card2))}.dl-file b,.dl-file span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:230px}.dl-file b{font-size:13px}.dl-file .muted{font-size:10.5px;margin-top:3px}.dl-more{width:32px;height:32px;border-radius:10px;color:var(--muted);font-size:18px;letter-spacing:2px}.dl-more:active{background:var(--card)}
+.dl-metrics{justify-content:space-between;padding:14px 4px 8px;gap:8px}.dl-metrics>div{flex:1;min-width:0}.dl-metrics>div+div{border-left:1px solid var(--line);padding-left:12px}.dl-metrics span,.dl-metrics b{display:block}.dl-metrics span{font-size:9px;letter-spacing:.08em}.dl-metrics b{font-size:14px;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.dl-progress{padding:4px 0 2px}.dl-progress-top{justify-content:space-between;font:10px ui-monospace,monospace;color:var(--muted);margin-bottom:7px}.dl-progress-top span:last-child{opacity:.65}.dl-progress .bar{height:9px;margin:0;background:color-mix(in srgb,var(--card2) 90%,#000)}.dl-progress .bar b{background:linear-gradient(90deg,var(--accent),var(--accent2));box-shadow:0 0 14px color-mix(in srgb,var(--accent) 55%,transparent)}.dl-actions{display:grid;grid-template-columns:1.35fr 1fr 1fr;gap:7px;margin-top:13px}.dl-actions .btn{min-height:40px;padding:8px 7px;font-size:11.5px}.dl-actions .btn svg{width:15px;height:15px}.dl-tip{display:flex;gap:7px;align-items:flex-start;margin-top:12px;padding-top:10px;border-top:1px solid var(--line);color:var(--muted);font-size:10.5px;line-height:1.4}.dl-tip svg{width:15px;height:15px;color:var(--ok);margin-top:1px}
 
 /* ===== v1.5 tombol rapi ===== */
 .fold-in .btns{display:grid;grid-template-columns:repeat(auto-fit,minmax(138px,1fr));gap:8px;margin-top:12px}
@@ -969,22 +979,18 @@ header{border-bottom:1px solid var(--line)}
     </div>
   </div>
   <div class="card"><div class="row"><div><b>Auto load saat buka APK</b><div class="muted">ON: cari model otomatis & muat ±15 detik</div></div><span class="sp"></span><button class="sw" id="swAuto" onclick="tgl('auto',this)"></button></div></div>
-  <div class="card"><h4><svg class="i"><use href="#i-save"/></svg>Download Manager</h4>
-    <div class="row muted"><span id="dlName">Tidak ada unduhan aktif</span><span class="sp"></span><span id="dlSpd"></span></div>
-    <div class="dlrow">
-      <button class="dlbtn" id="dlToggle" onclick="dlToggle()" aria-label="Jeda atau lanjut unduhan" title="Jeda / Lanjut"><svg class="i"><use href="#i-pause"/></svg></button>
-      <div class="dlmid"><div class="bar"><b id="dlBar" style="width:0"></b></div><div class="row muted"><span id="dlPct">0%</span><span class="sp"></span><span id="dlState">Idle</span></div></div>
-    </div>
+  <div class="card dl-pro" id="downloadManager">
+    <div class="dl-head"><div class="dl-title"><span class="dl-icon"><svg class="i"><use href="#i-save"/></svg></span><div><h4>Download Manager</h4><span class="muted">Model & file AI</span></div></div><span class="dl-live" id="dlLive">READY</span></div>
+    <div class="dl-hero"><div class="dl-file"><span class="dl-file-icon"><svg class="i"><use href="#i-box"/></svg></span><div><b id="dlName">Tidak ada unduhan aktif</b><span id="dlSource" class="muted">Pilih model dari katalog untuk mulai</span></div></div><button class="dl-more" aria-label="Info unduhan" onclick="toast('Download Manager Xena siap digunakan','ok')">•••</button></div>
+    <div class="dl-metrics"><div><span class="muted">PROGRES</span><b id="dlPct">0%</b></div><div><span class="muted">KECEPATAN</span><b id="dlSpd">—</b></div><div><span class="muted">STATUS</span><b id="dlState">Idle</b></div></div>
+    <div class="dl-progress"><div class="dl-progress-top"><span id="dlEta">Menunggu unduhan</span><span>GGUF / RANGE</span></div><div class="bar"><b id="dlBar" style="width:0"></b></div></div>
+    <div class="dl-actions"><button class="btn pri" id="dlToggle" onclick="dlToggle()" aria-label="Jeda atau lanjut unduhan"><svg class="i"><use href="#i-play"/></svg><span>Mulai</span></button><button class="btn" id="dlVerify" onclick="verifyDl()"><svg class="i"><use href="#i-check"/></svg>Verifikasi</button><button class="btn dng" id="dlCancel" onclick="cancelDl()"><svg class="i"><use href="#i-x"/></svg>Batal</button></div>
     <button id="dlResume" hidden onclick="resumeDl()"></button><button id="dlPause" hidden onclick="pauseDl()"></button>
-    <div class="btns">
-      <button class="btn" id="dlVerify" onclick="verifyDl()"><svg class="i"><use href="#i-check"/></svg>Verifikasi</button>
-      <button class="btn dng" id="dlCancel" onclick="cancelDl()"><svg class="i"><use href="#i-x"/></svg>Batal</button>
-    </div>
     <div class="dlist" id="dlDoneBox">
       <div class="dlist-h"><span class="dlist-t"><svg class="i"><use href="#i-folder"/></svg>Hasil unduhan<code>/modelAi</code></span><span class="pill" id="dlDoneCount">0</span><button class="ib sm" id="dlDoneRefresh" onclick="dlDoneRender(true)" aria-label="Segarkan daftar"><svg class="i"><use href="#i-refresh"/></svg></button></div>
       <div id="dlDone" class="dlist-b"><div class="dlist-empty">Memeriksa folder model…</div></div>
     </div>
-    <p class="muted" style="margin-bottom:0">Lanjut memakai HTTP Range dan menyimpan berkas parsial. Verifikasi mengecek ukuran unduhan serta header GGUF; jeda dulu sebelum verifikasi.</p>
+    <div class="dl-tip"><svg class="i"><use href="#i-shield"/></svg><span>Resume aman dengan HTTP Range. File diverifikasi sebelum masuk ke model aktif.</span></div>
   </div>
   <div class="sec-label">Pemeliharaan dan berkas</div>
   <div class="card" id="cleanCard">
@@ -1517,12 +1523,19 @@ function modelOk(ok,err){
   logT('✅ Model dimuat di native engine');
   try{updateFabModelLabel(true)}catch(e){}
 }
-function cancelDl(){if(!dlT)return;clearInterval(dlT);dlT=null;dlP=0;$('#dlBar').style.width=0;$('#dlPct').textContent='0%';$('#dlSpd').textContent='';$('#dlName').textContent='Tidak ada unduhan aktif';toast('Unduhan dibatalkan')}
+function cancelDl(){if(!dlT)return;clearInterval(dlT);dlT=null;dlP=0;$('#dlBar').style.width=0;dlSet('#dlPct','0%');dlSet('#dlSpd','—');dlSet('#dlName','Tidak ada unduhan aktif');dlSet('#dlSource','Pilih model dari katalog untuk mulai');dlSet('#dlState','Idle');dlSet('#dlEta','Menunggu unduhan');dlSet('#dlLive','READY');$('#dlLive')?.classList.remove('busy','paused','done');toast('Unduhan dibatalkan','ok')}
 async function bench(){toast('Menjalankan benchmark…');$('#mSpd').textContent='…';await sleep(1500);const v=(6+Math.random()*4).toFixed(1);$('#mSpd').textContent=v+' tok/s';S.set('spd',v);toast('Kecepatan: '+v+' tok/s','ok')}
-let dlT=null,dlP=0,dlPaused=false,dlTot=0;
-function startDl(n,gb){if(dlT)return toast('Unduhan masih berjalan');dlP=0;dlPaused=false;dlTot=gb;$('#dlName').textContent=n;toast('Mulai unduh '+n);
-dlT=setInterval(()=>{if(dlPaused)return;const sp=(8+Math.random()*10);dlP=Math.min(100,dlP+sp/(gb*10.24));$('#dlBar').style.width=dlP+'%';$('#dlPct').textContent=dlP.toFixed(0)+'%';$('#dlSpd').textContent=sp.toFixed(1)+' MB/s';if(dlP>=100){clearInterval(dlT);dlT=null;$('#dlSpd').textContent='Selesai';toast('Unduhan selesai & disalin ke privat','ok')}},250)}
-function pauseDl(){if(!dlT)return;dlPaused=!dlPaused;const pb=$('#dlPause');if(pb)pb.innerHTML=dlPaused?ic('play')+'Lanjut':ic('pause')+'Jeda'}
+let dlT=null,dlP=0,dlPaused=false,dlTot=0,dlStartedAt=0;
+const DL_PRESETS={'qwen7b-q3':2.8,'qwen7b-q4':4.1};
+function dlSet(id,value){const e=$(id);if(e)e.textContent=value}
+function startDl(n,gb){
+  if(dlT)return toast('Unduhan masih berjalan','bad');
+  gb=Number(gb)||DL_PRESETS[n]||1.5;dlP=0;dlPaused=false;dlTot=gb;dlStartedAt=Date.now();
+  dlSet('#dlName',n);dlSet('#dlSource',gb.toFixed(1)+' GB · Penyimpanan aplikasi');dlSet('#dlLive','DOWNLOADING');$('#dlLive')?.classList.add('busy');$('#dlLive')?.classList.remove('done','paused');dlSet('#dlState','Mengunduh…');dlSet('#dlEta','Menghitung waktu tersisa…');
+  toast('Mulai unduh '+n,'ok');
+  dlT=setInterval(()=>{if(dlPaused)return;const sp=8+Math.random()*10;dlP=Math.min(100,dlP+sp/(gb*10.24));$('#dlBar').style.width=dlP+'%';dlSet('#dlPct',dlP.toFixed(0)+'%');dlSet('#dlSpd',sp.toFixed(1)+' MB/s');const remain=Math.max(0,(100-dlP)*gb*102.4/sp);dlSet('#dlEta',remain>60?Math.ceil(remain/60)+' m tersisa':'Hampir selesai');if(dlP>=100){clearInterval(dlT);dlT=null;dlPaused=false;dlSet('#dlSpd','Selesai');dlSet('#dlState','Selesai');dlSet('#dlEta','File siap diverifikasi');dlSet('#dlLive','COMPLETE');$('#dlLive')?.classList.remove('busy','paused');$('#dlLive')?.classList.add('done');toast('Unduhan selesai — verifikasi file','ok')}},250)
+}
+function pauseDl(){if(!dlT)return;dlPaused=!dlPaused;dlSet('#dlLive',dlPaused?'PAUSED':'DOWNLOADING');$('#dlLive')?.classList.toggle('paused',dlPaused);$('#dlLive')?.classList.toggle('busy',!dlPaused);dlSet('#dlState',dlPaused?'Dijeda':'Mengunduh…');dlSet('#dlEta',dlPaused?'Siap dilanjutkan':'Menghitung waktu tersisa…');const pb=$('#dlPause');if(pb)pb.innerHTML=dlPaused?ic('play')+'Lanjut':ic('pause')+'Jeda'}
 function storage(){let used=3.55,tot=10;try{const j=JSON.parse(Android.storageInfo());used=j.used;tot=j.total}catch(e){}$('#stUsed').textContent=used.toFixed(2)+' GB / '+tot+' GB terpakai';const p=used/tot*100;$('#stBar').style.width=p+'%';$('#stBar').style.background=p>85?'var(--err)':'';$('#stFree').textContent=(tot-used).toFixed(2)+' GB bebas · '+((tot-used)>4?'Cukup':'Hampir penuh');$('#stFree').style.color=(tot-used)>4?'var(--ok)':'var(--err)'}
 
 /* ---------- konektor ---------- */
@@ -1694,6 +1707,7 @@ function speakWelcome(){
   }catch(e){}
 }
 let splashClosed=false,bootCancelled=false,autoLoadStarted=false;
+let splashWatchdog=null;
 function applyPerformanceGuard(){
   try{
     const cores=navigator.hardwareConcurrency||8,ram=Number(navigator.deviceMemory||0);
@@ -1716,7 +1730,8 @@ async function boot(){
   try{if(!S.get('splash',true))return endSplash()}catch(e){return bootError(e.message||'Pengaturan splash rusak')}
   const total=4800;
   const t0=Date.now();
-  let voiceDone=false;
+  clearTimeout(splashWatchdog);
+  splashWatchdog=setTimeout(()=>{if(!splashClosed)bootError('Startup timeout aman')},6200);
   while(true){
     if(bootCancelled||document.body.classList.contains('ready'))return;
     const elapsed=Date.now()-t0;
@@ -1725,8 +1740,6 @@ async function boot(){
     for(const [th,tx] of BOOT){if(p>=th)label=tx}
     const lt=$('#lt'),lb=$('#lb'),lp=$('#lp');
     if(lt)lt.textContent=label;if(lb)lb.style.width=p+'%';if(lp)lp.textContent=p+'%';
-    // Voice after title animation (~2.2s)
-    if(!voiceDone && elapsed>=2200){voiceDone=true;speakWelcome()}
     if(elapsed>=total)break;
     await sleep(100);
   }
@@ -1734,6 +1747,7 @@ async function boot(){
 }
 function endSplash(){
   if(splashClosed)return;splashClosed=true;bootCancelled=true;
+  clearTimeout(splashWatchdog);
   const splash=$('#splash');if(splash)splash.classList.add('hide');document.body.classList.add('ready');
   try{if(S.get('pin',''))$('#lock').classList.add('on')}catch(e){}
   if(!autoLoadStarted){autoLoadStarted=true;try{if(S.get('auto',false))setTimeout(()=>{try{loadModel()}catch(e){bootError(e.message)}},350)}catch(e){}}
@@ -1786,9 +1800,10 @@ function dlPaint(){
   const run=active&&dlRunning();
   const b=$('#dlToggle');if(!b)return;
   b.classList.toggle('run',run);b.classList.toggle('idle',!active);
-  b.innerHTML=ic(run?'pause':'play');
+  b.innerHTML=ic(run?'pause':'play')+'<span>'+(run?'Jeda':active?'Lanjut':'Mulai')+'</span>';
   b.title=run?'Jeda unduhan':(active?'Lanjutkan unduhan':'Tidak ada unduhan');
   const st=$('#dlState');if(st)st.textContent=!active?'Idle':run?'Mengunduh…':'Dijeda';
+  const live=$('#dlLive');if(live&&active&&!/COMPLETE/i.test(live.textContent))live.textContent=run?'DOWNLOADING':'PAUSED';
 }
 function dlToggle(){
   const nm=($('#dlName')?.textContent||'');
