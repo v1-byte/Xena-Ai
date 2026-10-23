@@ -12,8 +12,8 @@ android {
         applicationId = "com.xena.ai"
         minSdk = 26
         targetSdk = 34
-        versionCode = 171
-        versionName = "1.6.11"
+        versionCode = 172
+        versionName = "1.6.12"
         ndk {
             abiFilters += listOf("arm64-v8a")
         }

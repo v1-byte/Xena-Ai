@@ -942,6 +942,7 @@ header{border-bottom:1px solid var(--line)}
     <svg class="mark"><use href="#xmark"/></svg>
     <div><b>XENA</b><small id="subt">eXpert Engine for Neural Assistance</small></div>
   </div>
+  <button class="pill" id="hdrModelBtn" onclick="openModelPicker()" style="max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;padding:4px 8px;cursor:pointer" title="Pilih model aktif">Model</button>
   <div class="net" id="net"><span class="dot"></span><span id="netT">Online</span></div>
   <button class="ib" onclick="openPal()" aria-label="Palette"><svg class="i"><use href="#i-search"/></svg></button>
 </header>
@@ -988,7 +989,10 @@ header{border-bottom:1px solid var(--line)}
       <div class="stat"><span class="muted">Kecepatan</span><b id="mSpd">– tok/s</b></div>
     </div>
     <p class="muted callout">Model 7B tetap dapat gagal dimuat di RAM 6 GB; mulai dengan 1.5B bila terjadi kehabisan memori.</p>
-    <div class="btns"><button class="btn pri lg" onclick="loadModel()"><svg class="i"><use href="#i-bolt"/></svg>Muat Model</button></div>
+    <div class="btns" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <button class="btn pri lg" onclick="openModelPicker()"><svg class="i"><use href="#i-folder"/></svg>Pilih Model</button>
+      <button class="btn pri lg" onclick="loadModel()"><svg class="i"><use href="#i-bolt"/></svg>Muat Model</button>
+    </div>
     <div class="btns acts">
       <button class="btn" onclick="bench()"><svg class="i"><use href="#i-flask"/></svg>Tes Kecepatan</button>
       <button class="btn" onclick="showActiveModelDetails()"><svg class="i"><use href="#i-info"/></svg>Detail</button>
@@ -1484,8 +1488,6 @@ function runCleanResiduals(){
   }catch(e){toast('Gagal: '+e.message,'bad');$('#cleanStatus').textContent='Gagal'}
 }
 function updateFabModelLabel(ready){
-  const el=$('#fabModelLabel');
-  if(!el)return;
   let name='Model AI';
   try{
     if(window.Android&&Android.getModelInfo){
@@ -1493,7 +1495,13 @@ function updateFabModelLabel(ready){
       if(j.name||j.fileName)name=(j.name||j.fileName).replace(/\.gguf$/i,'').slice(0,18);
     }
   }catch(e){}
-  el.textContent=ready?('✓ '+name):name;
+  const el=$('#fabModelLabel');
+  if(el) el.textContent=ready?('✓ '+name):name;
+  const hdr=$('#hdrModelBtn');
+  if(hdr){
+    hdr.textContent=name.length>12?name.slice(0,11)+'…':name;
+    hdr.title=ready?('Model aktif: '+name):('Pilih model — '+name);
+  }
 }
 function runCleanAll(){
   runCleanResiduals();
@@ -1514,6 +1522,87 @@ let tx=null;document.addEventListener('touchstart',e=>{tx=e.touches[0].clientX<2
 
 /* ---------- model ---------- */
 function tgl(k,el){const v=!S.get(k,false);S.set(k,v);el.classList.toggle('on',v);toast(v?'Auto load aktif':'Auto load mati','ok')}
+
+/** Buka pemilih model aktif (tombol di tab Model + header Chat) */
+function openModelPicker(){
+  let items=[];
+  try{
+    if(window.Android&&Android.listInstalledModels){
+      items=JSON.parse(Android.listInstalledModels()||'[]');
+    }else if(window.Android&&Android.getModelInfo){
+      const info=JSON.parse(Android.getModelInfo()||'{}');
+      if(info&&info.name) items=[{id:info.id||'active',title:info.name,fileName:info.name,active:true,sizeBytes:info.sizeBytes||0}];
+    }
+  }catch(e){}
+  // Fallback: ambil dari katalog yang sudah di-render
+  if(!items.length){
+    try{
+      document.querySelectorAll('#modelCatalog [data-model-id]').forEach(card=>{
+        const id=card.getAttribute('data-model-id');
+        const title=card.querySelector('b')?.textContent||id;
+        const file=card.querySelector('.muted')?.textContent||'';
+        const isActive=!!card.querySelector('.btn:not(.pri)');
+        items.push({id,title,fileName:file,active:isActive});
+      });
+    }catch(e){}
+  }
+  if(!items.length){
+    // Arahkan ke Pilih GGUF bila belum ada model terpasang
+    toast('Belum ada model terpasang. Gunakan Pilih GGUF atau unduh dari katalog.','ok');
+    tab(1);
+    setTimeout(()=>{try{selectModelFromDownloads()}catch(e){}},300);
+    return;
+  }
+  // Modal sederhana
+  let overlay=document.getElementById('modelPickerOverlay');
+  if(!overlay){
+    overlay=document.createElement('div');
+    overlay.id='modelPickerOverlay';
+    overlay.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center;padding:12px';
+    overlay.innerHTML=`<div style="background:var(--card);border:1px solid var(--line);border-radius:18px 18px 12px 12px;width:100%;max-width:420px;max-height:70vh;overflow:auto;padding:14px">
+      <div class="row" style="margin-bottom:10px"><b style="font-size:16px">Pilih Model Aktif</b><span class="sp"></span><button class="ib" id="modelPickerClose"><svg class="i"><use href="#i-x"/></svg></button></div>
+      <div id="modelPickerList"></div>
+      <div class="btns" style="margin-top:12px">
+        <button class="btn" style="flex:1" id="modelPickerOther"><svg class="i"><use href="#i-folder"/></svg>Pilih GGUF lain</button>
+      </div>
+    </div>`;
+    overlay.querySelector('#modelPickerClose').onclick=()=>overlay.remove();
+    overlay.querySelector('#modelPickerOther').onclick=()=>{overlay.remove();selectModelFromDownloads()};
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.remove()});
+  }
+  const list=document.getElementById('modelPickerList');
+  list.innerHTML=items.map(m=>{
+    const name=m.title||m.fileName||m.id||'Model';
+    const sub=m.fileName&&m.fileName!==name?m.fileName:'';
+    const active=m.active?' <span class="pill">Aktif</span>':'';
+    return `<button class="btn" style="width:100%;justify-content:flex-start;text-align:left;margin-top:6px;padding:12px" onclick="pickModel('${(m.id||'').replace(/'/g,"\\'")}')">
+      <div style="flex:1;min-width:0"><b style="display:block;word-break:break-all">${esc(name)}</b>${sub?`<span class="muted" style="font-size:11px;word-break:break-all">${esc(sub)}</span>`:''}</div>${active}
+    </button>`;
+  }).join('');
+  // pastikan overlay terlihat
+  if(!overlay.parentNode) document.body.appendChild(overlay);
+}
+
+function pickModel(id){
+  const ov=document.getElementById('modelPickerOverlay');
+  if(ov) ov.remove();
+  if(!id) return;
+  if(typeof useInstalledModel==='function'){
+    useInstalledModel(id);
+    toast('Model dipilih. Tekan Muat Model jika belum dimuat.','ok');
+    // update label header
+    try{
+      const btn=document.getElementById('hdrModelBtn');
+      if(btn) btn.textContent=(id.length>14?id.slice(0,12)+'…':id);
+    }catch(e){}
+    // refresh status
+    setTimeout(()=>{try{if(window.renderCatalog)renderCatalog()}catch(e){}},400);
+  }else{
+    toast('Pilih model hanya tersedia di APK','bad');
+  }
+}
+
 async function loadModel(force){
   // Cek status native dulu — jangan percaya flag UI saja
   let nativeReady=false;

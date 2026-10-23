@@ -73,6 +73,7 @@
       if ($('#activeModelSize')) $('#activeModelSize').textContent = active ? fmtBytes(active.sizeBytes) : (info.size || '—');
       if ($('#activeModelQuant')) $('#activeModelQuant').textContent = active?.quantization || '—';
       if ($('#activeModelPill')) $('#activeModelPill').textContent = active?.quantization || '—';
+      try { if (typeof updateFabModelLabel === 'function') updateFabModelLabel(!!(active || info.name)); } catch (_) {}
 
       host.innerHTML = items.map((model) => {
         const isInstalled = Boolean(model.installed);
