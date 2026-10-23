@@ -99,3 +99,8 @@ Efek blur dan backdrop-filter berat pada splash dikurangi, ring/animasi dibuat G
 ## Animasi v1.6.4
 
 Animasi pembuka dikembalikan dalam bentuk ringan: ring tetap bergerak, background tetap terlihat dengan opacity rendah, dan error resource nonfatal tidak lagi langsung menutup splash. Blur berat tetap tidak digunakan.
+
+
+## UI utama v1.6.5
+
+Tampilan lengkap dari lampiran pengguna dijadikan asset utama. Struktur Chat, Model, Konektor, Atur, katalog model, download manager, pencarian model, dan console dipertahankan. Startup fail-safe, animasi ringan, request ID native, konteks chat, dan sesi token native tetap aktif.

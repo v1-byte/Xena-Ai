@@ -49,7 +49,7 @@ svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.9;stro
 .amb i:nth-child(1){background:var(--accent);top:-25vmax;left:-20vmax}
 .amb i:nth-child(2){background:var(--accent2);bottom:-30vmax;right:-25vmax;animation-delay:-9s}
 @keyframes drift{to{transform:translate(8vmax,6vmax) scale(1.15)}}
-/* splash v3: ringan dan fail-safe untuk WebView Android */
+/* splash v3: tampilan lampiran dengan render ringan */
 #splash{position:fixed;inset:0;z-index:999;background:#03040a;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .35s,visibility .35s;overflow:hidden;contain:paint}
 #splash.hide{opacity:0;visibility:hidden;pointer-events:none}
 #splash .sp-bg{position:absolute;inset:0;pointer-events:none}
@@ -426,6 +426,382 @@ header,nav{transition:transform .8s cubic-bezier(.2,.8,.2,1) .1s}
 .fit.ok{background:color-mix(in srgb,var(--ok) 20%,transparent);color:var(--ok)}
 .fit.mid{background:color-mix(in srgb,var(--warn) 20%,transparent);color:var(--warn)}
 .fit.bad{background:color-mix(in srgb,var(--err) 20%,transparent);color:var(--err)}
+
+/* ===== v2 · Tampilan profesional (lapisan rapi: menu, kolom, kartu, tombol, form) ===== */
+:root{--r:14px;--rc:10px;--onacc:#fff;--gap:12px}
+[data-theme=hacker]{--onacc:#001a07}
+[data-theme=aurora]{--onacc:#042029}
+[data-theme=gold]{--onacc:#1f1500}
+[data-theme=ocean]{--onacc:#02121f}
+html,body{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;-webkit-text-size-adjust:100%}
+button:focus-visible,summary:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+input:focus,textarea:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 16%,transparent)}
+
+/* header */
+header{height:56px;padding:0 8px;gap:4px}
+.ib{width:40px;height:40px;border-radius:var(--rc)}
+.ib:hover{background:var(--card)}
+.brand{gap:10px;padding-left:2px}
+.brand b{font-size:15px;letter-spacing:.2em;font-weight:700;background:none;animation:none;color:var(--text);-webkit-text-fill-color:currentColor}
+.brand small{font-size:10px;margin-top:0;letter-spacing:.02em;opacity:.9}
+.net{padding:5px 10px;font-size:11.5px;font-weight:500;border-radius:999px;gap:6px}
+.dot,.dot.bad,.cc .dot.live{box-shadow:none;animation:none}
+
+/* area konten */
+.scroll{padding:14px 12px 20px;gap:var(--gap)}
+.amb i{opacity:.1}
+
+/* kartu */
+.card{border-radius:var(--r);padding:16px;box-shadow:none;backdrop-filter:none;animation:cardin .25s both;animation-delay:calc(var(--n,0)*30ms)}
+@keyframes cardin{from{opacity:0}to{opacity:1}}
+[data-style=glass] .card{backdrop-filter:blur(12px)}
+.card h4{gap:10px;font-size:14.5px;font-weight:600;letter-spacing:.005em;margin-bottom:12px;line-height:1.3}
+.card h4>svg:first-child{box-sizing:content-box;width:16px;height:16px;padding:7px;border-radius:9px;background:color-mix(in srgb,var(--accent) 13%,transparent);color:var(--accent);flex:none}
+.card.fold>h4{padding:0;min-height:30px}
+.card.fold:not(.closed)>h4{margin-bottom:12px}
+.card>p.muted,.fold-in>p.muted{line-height:1.55}
+.card .row b{font-weight:600}
+.row{gap:12px}
+.muted{font-size:12px;line-height:1.5}
+label{font-size:12px;font-weight:500;margin:14px 0 6px}
+.card>label:first-of-type{margin-top:0}
+
+/* statistik: kolom rata dan seragam */
+.stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.stat{background:var(--card2);border:1px solid var(--line);border-radius:var(--rc);padding:10px 12px;min-width:0}
+.stat span{display:block;font-size:11px;margin-bottom:2px}
+.stat b{font-size:15px;font-weight:600;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* progress */
+.bar{height:8px;border-radius:999px;margin:10px 0}
+.bar b{border-radius:999px;background:var(--accent)}
+.bar b::after{display:none}
+
+/* tombol */
+.btn{min-height:40px;padding:8px 14px;border-radius:var(--rc);font-size:13px;font-weight:500;gap:7px;line-height:1.2}
+.btn svg.i{width:16px;height:16px}
+.btn.pri{background:var(--accent);color:var(--onacc);box-shadow:none;font-weight:600}
+.btn.dng{background:color-mix(in srgb,var(--err) 10%,var(--card2));border-color:color-mix(in srgb,var(--err) 35%,var(--line))}
+.btn.sm{min-height:34px;padding:6px 12px;font-size:12.5px}
+.btn:disabled{opacity:.45;pointer-events:none}
+@media(hover:hover){.btn:hover{border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}.btn.pri:hover{filter:brightness(1.08)}}
+.card .btns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:14px}
+.card .btns .btn{width:100%;min-width:0;justify-content:center;text-align:center}
+.card .btns:has(>:only-child){grid-template-columns:1fr}
+.card .btns:has(>.btn:nth-child(3)) .btn.pri{grid-column:1/-1}
+#modelCatalog .btns{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.foldbar{padding:6px 0;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(8px)}
+.foldbar .btn{min-height:36px;font-size:12.5px}
+
+/* form */
+input[type=text],input[type=password],input[type=search],input.f,textarea.f,select{width:100%;min-height:42px;background:var(--card2);border:1px solid var(--line);border-radius:var(--rc);padding:10px 12px;font-size:14px;transition:border-color .2s,box-shadow .2s}
+input::placeholder,textarea::placeholder{color:var(--muted);opacity:.8}
+textarea.f{line-height:1.5;resize:vertical}
+select{appearance:none;-webkit-appearance:none;padding-right:36px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238a96b0' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center}
+#setq{margin-bottom:2px}
+input[type=range]{margin:4px 0}
+.thr{margin-top:2px;font-size:11px;gap:8px}
+.thr span:nth-child(2){text-align:center;flex:1}
+.hfbox{border-radius:var(--rc);padding:3px 3px 3px 12px;min-height:44px}
+.hfbox input{min-height:0;border:0;box-shadow:none;padding:8px 2px}
+.hfbox input:focus{box-shadow:none}
+.hftags{padding:10px 0 2px}
+.htag{padding:6px 12px;font-size:12px;border-radius:999px}
+.hfi{border-radius:12px;padding:12px}
+.hfi b{font-weight:600}
+.hff{padding:9px 0}
+#modelCatalog{gap:8px;margin:0}
+#modelCatalog>div:not(.muted),#modelCatalog>article,#modelCatalog>section{border-radius:12px;padding:12px 14px}
+
+/* saklar & segmen */
+.sw{width:42px;height:24px;border-radius:12px}
+.sw::after{width:18px;height:18px}
+.sw.on::after{left:20px;background:var(--onacc)}
+.seg{border-radius:var(--rc);padding:3px}
+.seg button{min-height:32px;padding:5px 12px;border-radius:8px;font-weight:500}
+.seg button.on{background:var(--accent);color:var(--onacc)}
+.pill{padding:3px 9px;border-radius:999px;font-size:11px}
+.sr{padding:10px 0}
+
+/* theme studio: perbaiki susunan kartu tema (sebelumnya terbaca menyamping) */
+.tgrid{gap:10px}
+.tcard.th{display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;gap:0;padding:8px;font-weight:500;transform:none;border-radius:12px}
+.tcard.th.active{transform:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent)}
+.tcard.th:active{transform:scale(.97)}
+.tprev{height:58px;border-radius:8px}
+.tname{margin-top:8px;font-size:12.5px;font-weight:600}
+.sws{margin-top:7px;gap:5px}
+.dots{gap:10px}
+.dots button{width:28px;height:28px}
+.dots button.on{transform:none;box-shadow:0 0 0 2px var(--bg2),0 0 0 4px var(--text);border-color:transparent}
+.vgrp{margin-top:14px}
+
+/* chat */
+.msg{gap:8px}
+.av{width:28px;height:28px;border-radius:8px}
+.bubble{padding:10px 14px;border-radius:14px;font-size:14px;line-height:1.55}
+.msg.user .bubble{background:var(--ubub);border-bottom-right-radius:4px}
+.msg.assistant .bubble{box-shadow:none;border-bottom-left-radius:4px}
+.time{font-size:10.5px;margin:4px 6px 0}
+.cb{border-radius:10px;margin:10px 0}
+.cbh{padding:7px 10px}
+.cbh button{border-radius:6px;padding:3px 9px}
+.qa{gap:6px;margin-top:8px}
+.qa button{padding:5px 11px;border-radius:999px}
+.qbar{padding:8px 12px 4px;gap:8px}
+.chip{padding:7px 13px;border-radius:999px;font-size:12.5px;font-weight:500}
+.inbar{padding:8px 12px calc(10px + 2px);gap:8px;align-items:flex-end}
+.inbox{border-radius:22px;padding:2px 4px;min-height:46px;align-items:center}
+.inbox textarea{padding:11px 6px}
+.inbox .ib{width:38px;height:38px}
+.send{width:44px;height:44px;background:var(--accent);color:var(--onacc);box-shadow:none}
+.send.stop{background:var(--err);color:#fff}
+.hero p{font-size:13.5px;line-height:1.6;max-width:260px;margin:0 auto}
+#toBottom{box-shadow:0 4px 14px rgba(0,0,0,.25)}
+
+/* FAB & menu cepat */
+.fab{right:14px}
+.fab>button.main{width:48px;height:48px;border-radius:14px;background:var(--accent);color:var(--onacc);box-shadow:0 4px 14px rgba(0,0,0,.3)}
+.fab .menu{bottom:58px;gap:6px}
+.fab .menu button{padding:9px 14px;border-radius:12px;font-size:13px;font-weight:500;box-shadow:0 4px 14px rgba(0,0,0,.25);gap:10px}
+.fab .menu svg{width:18px;height:18px}
+
+/* navigasi bawah */
+nav{border-top:1px solid var(--line)}
+#navInd{display:none}
+nav button{gap:3px;font-size:11px;font-weight:500;letter-spacing:.01em}
+nav button svg.i{box-sizing:content-box;width:20px;height:20px;padding:4px 18px;border-radius:999px;transition:background .25s,color .25s}
+nav button.active svg{transform:none;background:color-mix(in srgb,var(--accent) 16%,transparent)}
+nav button.active{font-weight:600}
+.badge{top:5px;left:calc(50% + 10px);min-width:16px;height:16px;font-size:10px;background:var(--err);color:#fff;box-shadow:0 0 0 2px var(--bg2)}
+
+/* sidebar, palette, slash, toast */
+#side{padding:16px 12px;width:min(84vw,320px)}
+#hist{margin-top:14px}
+.hitem{padding:10px 12px;border-radius:var(--rc);font-size:13.5px;margin-bottom:2px}
+.hitem.cur{background:var(--card);box-shadow:inset 3px 0 0 var(--accent)}
+.hitem button{opacity:.55}
+.hitem button:hover{opacity:1}
+.palbox{border-radius:16px;box-shadow:0 16px 48px rgba(0,0,0,.45)}
+.palbox input{min-height:52px;border:0;border-bottom:1px solid var(--line);border-radius:0;box-shadow:none;padding:0 16px;font-size:15px}
+.palbox button{padding:12px 16px;font-size:13.5px}
+.slash{border-radius:12px;box-shadow:0 8px 28px rgba(0,0,0,.35)}
+.slash button{padding:10px 14px;font-size:13px}
+.toast{padding:10px 16px;border-radius:12px;border:1px solid var(--line);font-size:13px;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+.askbox{border-radius:16px;padding:18px}
+.askbox .btns{display:flex;gap:8px;margin-top:4px}
+
+/* konektor, log, unduhan, pembersih */
+.cc{gap:12px}
+.cic{width:42px;height:42px;border-radius:12px;background:color-mix(in srgb,var(--accent) 12%,var(--card2))}
+.cic svg{width:22px;height:22px}
+.cc.on .cic{animation:none}
+.term{border-radius:var(--rc);height:180px;padding:10px 12px}
+.repo div{padding:9px 0;font-size:12.5px}
+.dlrow{gap:14px;margin:8px 0}
+.dlbtn{width:46px;height:46px;background:var(--accent);color:var(--onacc);box-shadow:none}
+.dlbtn.idle{background:var(--card2);color:var(--muted)}
+.clean-anim{height:64px}
+.clean-orb{box-shadow:none}
+.dlmid .row{font-variant-numeric:tabular-nums}
+
+/* ===== v3 · Sistem tombol premium + kolom hasil unduhan ===== */
+:root{--hl:inset 0 1px 0 rgba(255,255,255,.06);--ease:cubic-bezier(.2,.8,.2,1)}
+[data-theme=light]{--hl:inset 0 1px 0 rgba(255,255,255,.9)}
+
+.btn{position:relative;min-height:42px;padding:9px 16px;border-radius:12px;font-size:13px;font-weight:600;letter-spacing:.01em;color:var(--text);background:linear-gradient(180deg,color-mix(in srgb,var(--card2) 100%,#fff 4%),var(--card2));border:1px solid var(--line);box-shadow:var(--hl),0 1px 2px rgba(0,0,0,.18);transition:transform .15s var(--ease),border-color .2s,background .2s,box-shadow .2s,filter .2s}
+.btn svg.i{width:17px;height:17px;stroke-width:2}
+.btn:not(.pri):not(.dng) svg.i{color:var(--accent)}
+.btn:active{transform:scale(.97);box-shadow:none}
+@media(hover:hover){.btn:hover{border-color:color-mix(in srgb,var(--accent) 55%,var(--line));box-shadow:var(--hl),0 4px 14px rgba(0,0,0,.2);transform:translateY(-1px)}.btn:active{transform:scale(.97)}}
+
+.btn.pri{border:1px solid color-mix(in srgb,var(--accent) 70%,#000 30%);color:var(--onacc);background:linear-gradient(180deg,color-mix(in srgb,var(--accent) 100%,#fff 16%),var(--accent) 55%,color-mix(in srgb,var(--accent) 88%,#000 12%));box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 6px 18px color-mix(in srgb,var(--accent) 30%,transparent)}
+.btn.pri svg.i{color:inherit}
+@media(hover:hover){.btn.pri:hover{filter:brightness(1.07);border-color:color-mix(in srgb,var(--accent) 70%,#000 30%);box-shadow:inset 0 1px 0 rgba(255,255,255,.3),0 8px 22px color-mix(in srgb,var(--accent) 38%,transparent)}}
+
+.btn.dng{color:color-mix(in srgb,var(--err) 90%,var(--text) 10%);background:color-mix(in srgb,var(--err) 9%,var(--card2));border-color:color-mix(in srgb,var(--err) 38%,var(--line));box-shadow:none}
+.btn.dng svg.i{color:var(--err)}
+@media(hover:hover){.btn.dng:hover{background:color-mix(in srgb,var(--err) 16%,var(--card2));border-color:var(--err);box-shadow:none}}
+
+.btn.sm{min-height:34px;padding:6px 12px;font-size:12.5px;border-radius:10px;font-weight:600}
+.btn:disabled{opacity:.4;filter:saturate(.5)}
+.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* tombol ikon */
+.ib{border-radius:12px;transition:background .2s,color .2s,transform .15s var(--ease)}
+.ib:hover{background:color-mix(in srgb,var(--accent) 10%,var(--card));color:var(--accent)}
+.ib.sm{width:34px;height:34px;border-radius:10px;border:1px solid var(--line);background:var(--card2);color:var(--muted)}
+.ib.sm svg.i{width:17px;height:17px}
+.ib.spin svg{animation:dlspin .8s linear infinite}
+@keyframes dlspin{to{transform:rotate(360deg)}}
+
+/* chip, tag, segmen */
+.chip,.htag,.qa button{box-shadow:var(--hl);font-weight:500}
+.chip:hover,.htag:hover{border-color:color-mix(in srgb,var(--accent) 50%,var(--line))}
+.htag.on{background:color-mix(in srgb,var(--accent) 16%,var(--card2));color:var(--accent);border-color:color-mix(in srgb,var(--accent) 60%,var(--line));font-weight:600}
+.seg{background:color-mix(in srgb,var(--card2) 85%,#000 15%);box-shadow:inset 0 1px 2px rgba(0,0,0,.25)}
+.seg button{transition:background .2s,color .2s,box-shadow .2s}
+.seg button.on{box-shadow:0 1px 6px color-mix(in srgb,var(--accent) 40%,transparent)}
+
+/* FAB, kirim, unduh, navigasi */
+.send,.fab>button.main,.dlbtn:not(.idle){background:linear-gradient(180deg,color-mix(in srgb,var(--accent) 100%,#fff 16%),var(--accent) 60%,color-mix(in srgb,var(--accent) 88%,#000 12%));box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 6px 16px color-mix(in srgb,var(--accent) 32%,transparent)}
+.send.stop{background:var(--err);box-shadow:0 6px 16px color-mix(in srgb,var(--err) 35%,transparent)}
+.fab .menu button{background:color-mix(in srgb,var(--card) 94%,transparent);backdrop-filter:blur(10px);font-weight:600;box-shadow:var(--hl),0 6px 18px rgba(0,0,0,.28)}
+.fab .menu button:active{transform:scale(.96)}
+nav button:active svg{transform:scale(.92)}
+
+/* kolom hasil unduhan /modelAi */
+.dlist{margin-top:16px;border:1px solid var(--line);border-radius:14px;background:color-mix(in srgb,var(--card2) 70%,transparent);overflow:hidden}
+.dlist-h{display:flex;align-items:center;gap:10px;padding:10px 10px 10px 14px;border-bottom:1px solid var(--line);background:color-mix(in srgb,var(--card2) 90%,transparent)}
+.dlist-t{flex:1;min-width:0;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden}
+.dlist-t svg.i{width:17px;height:17px;color:var(--accent)}
+.dlist-t code{font:600 11px ui-monospace,Menlo,Consolas,monospace;padding:2px 7px;border-radius:6px;background:color-mix(in srgb,var(--accent) 13%,transparent);color:var(--accent);overflow:hidden;text-overflow:ellipsis}
+.dlist-b{max-height:260px;overflow-y:auto;overscroll-behavior:contain}
+.dlist-b::-webkit-scrollbar{width:0}
+.dli{display:flex;align-items:center;gap:12px;padding:11px 14px;transition:background .2s}
+.dli+.dli{border-top:1px solid var(--line)}
+.dli:active{background:color-mix(in srgb,var(--accent) 8%,transparent)}
+.dli-ic{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;flex:none;background:color-mix(in srgb,var(--accent) 13%,transparent);color:var(--accent)}
+.dli-ic svg.i{width:18px;height:18px}
+.dli-m{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.dli-m b{font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dli-m span{font-size:11.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fit.tag{background:color-mix(in srgb,var(--muted) 18%,transparent);color:var(--muted)}
+.dlist-empty{display:flex;flex-direction:column;align-items:center;gap:4px;padding:22px 16px;text-align:center;color:var(--muted);font-size:12px}
+.dlist-empty svg.i{width:26px;height:26px;color:var(--accent);opacity:.8;margin-bottom:4px}
+.dlist-empty b{color:var(--text);font-size:13px;font-weight:600}
+.dlist-mirror{padding:10px 14px;font-size:12.5px}
+
+/* ===== v4 · Gaya profesional: datar, terstruktur, konsisten ===== */
+:root{--hl:none}
+.tab.active{animation:tabfade .2s ease both}
+@keyframes tabfade{from{opacity:0}to{opacity:1}}
+.amb i{opacity:.07}
+.brand b{font-size:15px;letter-spacing:.18em}
+header{border-bottom:1px solid var(--line)}
+
+/* label bagian */
+.sec-label{font-size:12px;font-weight:600;letter-spacing:.02em;color:var(--muted);padding:6px 4px 0}
+.scroll>.sec-label:first-child,.foldbar+.sec-label{padding-top:2px}
+
+/* kartu: judul dengan garis pemisah */
+.card{padding:16px 16px 18px}
+.card>h4{padding-bottom:12px;margin-bottom:14px;border-bottom:1px solid var(--line);font-size:15px}
+.card.fold>h4{padding-bottom:12px}
+.card.fold.closed>h4{padding-bottom:0;border-bottom-color:transparent}
+.card>h4>svg:first-child{padding:7px;border-radius:10px}
+.card .muted{color:color-mix(in srgb,var(--muted) 92%,var(--text) 8%)}
+
+/* tombol: datar ala aplikasi enterprise */
+.btn{min-height:40px;padding:8px 16px;border-radius:10px;font-weight:500;background:transparent;border:1px solid color-mix(in srgb,var(--line) 85%,var(--text) 15%);box-shadow:none;color:var(--text);letter-spacing:0}
+.btn svg.i,.btn:not(.pri):not(.dng) svg.i{color:var(--muted);width:16px;height:16px}
+@media(hover:hover){.btn:hover{background:var(--card2);border-color:color-mix(in srgb,var(--line) 60%,var(--text) 40%);box-shadow:none;transform:none}.btn:hover svg.i{color:var(--text)}}
+.btn:active{transform:scale(.98);background:var(--card2)}
+.btn.pri{background:var(--accent);border:1px solid transparent;color:var(--onacc);font-weight:600;box-shadow:none}
+.btn.pri svg.i{color:inherit}
+@media(hover:hover){.btn.pri:hover{background:var(--accent);filter:brightness(1.08);border-color:transparent}.btn.pri:hover svg.i{color:inherit}}
+.btn.dng{background:transparent;color:var(--err);border-color:color-mix(in srgb,var(--err) 45%,transparent)}
+.btn.dng svg.i{color:var(--err)}
+@media(hover:hover){.btn.dng:hover{background:color-mix(in srgb,var(--err) 12%,transparent);border-color:var(--err)}.btn.dng:hover svg.i{color:var(--err)}}
+.btn.sm{min-height:34px;padding:6px 12px;border-radius:9px}
+.send,.fab>button.main,.dlbtn:not(.idle){background:var(--accent);color:var(--onacc);box-shadow:0 2px 8px rgba(0,0,0,.25)}
+.send.stop{background:var(--err);color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+.fab .menu button{background:var(--card);backdrop-filter:none;font-weight:500;box-shadow:0 4px 14px rgba(0,0,0,.25)}
+.seg button.on{box-shadow:none}
+.chip,.htag,.qa button{box-shadow:none}
+.ib:hover{background:var(--card);color:var(--text)}
+
+/* statistik & daftar */
+.stat{background:transparent}
+.stat span{font-weight:500}
+.dlist{background:transparent;border-radius:12px}
+.dlist-h{background:var(--card2)}
+.dli-ic{border-radius:9px}
+.hfi,#modelCatalog>div:not(.muted),#modelCatalog>article,#modelCatalog>section{background:transparent}
+
+/* chat */
+.msg.assistant .bubble{background:var(--card)}
+.msg.assistant .mb,.msg.user .bubble{max-width:100%}
+.bubble{border-radius:12px}
+.msg.user .bubble{border-bottom-right-radius:4px}
+.msg.assistant .bubble{border-bottom-left-radius:4px}
+
+/* ===== v5 · Tab Model: tata letak profesional ===== */
+#activeModelName{font-size:16px;font-weight:600;line-height:1.35;letter-spacing:0}
+#mState{font-size:12.5px;font-weight:500}
+#activeModelPill{font-size:11px;padding:3px 10px}
+#t1 .stats{margin-top:14px}
+#t1 .stat{padding:11px 12px}
+.callout{margin:14px 0 0!important;padding:10px 12px;border-radius:10px;border:1px solid color-mix(in srgb,var(--warn) 30%,transparent);border-left:3px solid var(--warn);background:color-mix(in srgb,var(--warn) 8%,transparent);color:color-mix(in srgb,var(--text) 82%,var(--muted) 18%)!important;font-size:12px;line-height:1.55}
+.card .btns .btn.pri.lg{min-height:46px;font-size:14px;border-radius:12px;grid-column:1/-1}
+
+/* ubin aksi */
+.card .btns.acts{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:8px}
+.card .btns.acts .btn{flex-direction:column;gap:7px;min-height:70px;padding:10px 4px;font-size:11.5px;font-weight:500;line-height:1.25;border-radius:12px;background:color-mix(in srgb,var(--card2) 55%,transparent);text-align:center}
+.card .btns.acts .btn svg.i{width:20px;height:20px;color:var(--accent)}
+@media(hover:hover){.card .btns.acts .btn:hover{background:var(--card2)}.card .btns.acts .btn:hover svg.i{color:var(--accent)}}
+.card .btns.acts .btn.dng{background:color-mix(in srgb,var(--err) 6%,transparent)}
+.card .btns.acts .btn.dng svg.i{color:var(--err)}
+
+/* penyimpanan */
+#stBar{background:var(--accent)}
+#t1 .bar{height:10px;margin:12px 0 10px}
+#stUsed,#stFree{font-size:12.5px;font-variant-numeric:tabular-nums}
+#stFree{font-weight:600}
+
+/* auto load: baris pengaturan */
+#t1 .card>.row>div>b{font-size:14px;font-weight:600}
+#t1 .card>.row>div>.muted{margin-top:2px}
+
+/* unduhan & pembersih */
+#dlName{font-weight:600;color:var(--text);font-size:12.5px}
+#dlPct{font-weight:600;color:var(--text);font-variant-numeric:tabular-nums}
+#cleanStatus{font-weight:600;color:var(--text)}
+#modelFileSearch{margin-bottom:0}
+#modelFiles{margin-top:12px}
+
+/* ===== v6 · Penyempurnaan akhir: konektor, pengaturan, unduhan, kosong-state ===== */
+::selection{background:color-mix(in srgb,var(--accent) 35%,transparent)}
+.card,.stat,.dli,#t1,#t3{font-variant-numeric:tabular-nums}
+.brand small{overflow:hidden;text-overflow:ellipsis;max-width:46vw}
+
+/* urutan tombol: aksi utama dulu, aksi berisiko terakhir */
+.card .btns .btn.pri{order:-1}
+.card .btns .btn.dng{order:2}
+.card .btns.acts .btn.pri,.card .btns.acts .btn.dng{order:0}
+
+/* konektor */
+.cc b{font-size:14.5px;font-weight:600}
+.cc .muted{margin-top:1px}
+.cc+.btns{margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+.cic{width:44px;height:44px;border-radius:12px;border:1px solid var(--line)}
+.cc.on .cic{border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}
+.cic .dot{width:9px;height:9px;top:-3px;right:-3px}
+.term{background:#090d14;border:1px solid var(--line);font-size:12px;line-height:1.65;color:#7ee0a0;padding:12px 14px;height:190px}
+.repo div:last-child{border-bottom:0}
+
+/* pengaturan: baris daftar yang rapi */
+#t3 .sr.row{min-height:52px;padding:10px 0;gap:14px}
+#t3 .sr.row .sp{font-size:14px;color:var(--text);line-height:1.35}
+#t3 .sr.row:last-child{padding-bottom:0}
+#t3 .sr .muted{font-size:12.5px;text-align:right}
+#t3 .sr:not(.row) label{font-size:13px;color:var(--text);font-weight:500}
+#t3 .sr:not(.row) label b{color:var(--accent);font-weight:600}
+#setq{padding-left:40px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%238a96b0' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='M20 20l-3.5-3.5'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:13px center}
+
+/* unduhan: panel progres */
+.dlrow{padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--card2);margin:10px 0 0}
+.dlmid .bar{background:color-mix(in srgb,var(--bg) 65%,var(--card2));margin:0 0 6px;height:8px}
+.dlbtn{width:44px;height:44px}
+
+/* keadaan kosong chat */
+.hero::before{content:"Xena AI";display:block;font-size:22px;font-weight:700;letter-spacing:.16em;margin-bottom:10px;color:var(--text)}
+.hero p{color:var(--muted)}
+
+/* toast & riwayat */
+.toast{border-left:3px solid var(--accent);padding:11px 16px}
+.hitem span{font-weight:500}
+#side .row b{font-size:15px;letter-spacing:.2em}
 </style>
 </head>
 <body>
@@ -552,11 +928,7 @@ header,nav{transition:transform .8s cubic-bezier(.2,.8,.2,1) .1s}
 
 <!-- ===== MODEL ===== -->
 <section class="tab" id="t1"><div class="scroll">
-  <div class="card"><h4><svg class="i"><use href="#i-box"/></svg>Penyimpanan Model</h4>
-    <div class="bar"><b id="stBar" style="width:0"></b></div>
-    <div class="row muted"><span id="stUsed">Memeriksa penyimpanan aplikasi…</span><span class="sp"></span><span id="stFree" style="color:var(--ok)">— bebas</span></div>
-    <p class="muted" style="margin-top:6px">Unduhan baru masuk langsung ke folder app. Pindah dari Download mencoba rename agar tidak membuat salinan besar; impor SAF dapat perlu ruang tambahan.</p>
-  </div>
+  <div class="sec-label">Model aktif</div>
   <div class="card"><h4><svg class="i"><use href="#i-cpu"/></svg>Model Aktif</h4>
     <div class="row"><b id="activeModelName" style="word-break:break-all">Memeriksa model…</b></div>
     <div class="row" style="margin-top:6px"><span class="dot off" id="mDot"></span><span id="mState" class="muted">Belum dimuat</span><span class="sp"></span><span class="pill" id="activeModelPill">—</span></div>
@@ -566,10 +938,10 @@ header,nav{transition:transform .8s cubic-bezier(.2,.8,.2,1) .1s}
       <div class="stat"><span class="muted">Profil RAM</span><b>1024 / 32 / 2</b></div>
       <div class="stat"><span class="muted">Kecepatan</span><b id="mSpd">– tok/s</b></div>
     </div>
-    <p class="muted" style="margin-top:8px">Model 7B tetap dapat gagal dimuat di RAM 6 GB; mulai dengan 1.5B bila terjadi kehabisan memori.</p>
-    <div class="btns">
-      <button class="btn pri" onclick="loadModel()"><svg class="i"><use href="#i-bolt"/></svg>Muat Model</button>
-      <button class="btn" onclick="bench()"><svg class="i"><use href="#i-flask"/></svg>Test Kecepatan</button>
+    <p class="muted callout">Model 7B tetap dapat gagal dimuat di RAM 6 GB; mulai dengan 1.5B bila terjadi kehabisan memori.</p>
+    <div class="btns"><button class="btn pri lg" onclick="loadModel()"><svg class="i"><use href="#i-bolt"/></svg>Muat Model</button></div>
+    <div class="btns acts">
+      <button class="btn" onclick="bench()"><svg class="i"><use href="#i-flask"/></svg>Tes Kecepatan</button>
       <button class="btn" onclick="showActiveModelDetails()"><svg class="i"><use href="#i-info"/></svg>Detail</button>
       <button class="btn" onclick="toast('Membuka folder model…')"><svg class="i"><use href="#i-folder"/></svg>Folder</button>
       <button class="btn" onclick="selectModelFromDownloads()"><svg class="i"><use href="#i-folder"/></svg>Pilih GGUF</button>
@@ -577,6 +949,12 @@ header,nav{transition:transform .8s cubic-bezier(.2,.8,.2,1) .1s}
       <button class="btn dng" onclick="toast('Konfirmasi hapus lewat aplikasi','bad')"><svg class="i"><use href="#i-trash"/></svg>Hapus</button>
     </div>
   </div>
+  <div class="card"><h4><svg class="i"><use href="#i-box"/></svg>Penyimpanan Model</h4>
+    <div class="bar"><b id="stBar" style="width:0"></b></div>
+    <div class="row muted"><span id="stUsed">Memeriksa penyimpanan aplikasi…</span><span class="sp"></span><span id="stFree" style="color:var(--ok)">— bebas</span></div>
+    <p class="muted" style="margin-top:6px">Unduhan baru masuk langsung ke folder app. Pindah dari Download mencoba rename agar tidak membuat salinan besar; impor SAF dapat perlu ruang tambahan.</p>
+  </div>
+  <div class="sec-label">Katalog dan unduhan</div>
   <div class="card"><h4><svg class="i"><use href="#i-box"/></svg>Model Rekomendasi · RAM 6 GB</h4>
     <p class="muted" style="margin-top:0">Ukuran diambil dari file Hugging Face. Kebutuhan RAM dan kecepatan tetap bergantung pada perangkat.</p>
     <div class="hfs">
@@ -585,6 +963,10 @@ header,nav{transition:transform .8s cubic-bezier(.2,.8,.2,1) .1s}
       <div id="hfRes" class="hfres"></div>
     </div>
     <div id="modelCatalog"><div class="muted">Memuat katalog model…</div></div>
+    <div class="btns" aria-label="Preset model cepat">
+      <button class="btn sm" onclick="startDl('qwen7b-q3')">Unduh Qwen 7B Q3</button>
+      <button class="btn sm" onclick="startDl('qwen7b-q4')">Unduh Qwen 7B Q4</button>
+    </div>
   </div>
   <div class="card"><div class="row"><div><b>Auto load saat buka APK</b><div class="muted">ON: cari model otomatis & muat ±15 detik</div></div><span class="sp"></span><button class="sw" id="swAuto" onclick="tgl('auto',this)"></button></div></div>
   <div class="card"><h4><svg class="i"><use href="#i-save"/></svg>Download Manager</h4>
@@ -597,11 +979,14 @@ header,nav{transition:transform .8s cubic-bezier(.2,.8,.2,1) .1s}
     <div class="btns">
       <button class="btn" id="dlVerify" onclick="verifyDl()"><svg class="i"><use href="#i-check"/></svg>Verifikasi</button>
       <button class="btn dng" id="dlCancel" onclick="cancelDl()"><svg class="i"><use href="#i-x"/></svg>Batal</button>
-      <button class="btn pri" onclick="startDl('qwen7b-q3')"><svg class="i"><use href="#i-save"/></svg>Unduh Q3</button>
-      <button class="btn" onclick="startDl('qwen7b-q4')"><svg class="i"><use href="#i-save"/></svg>Unduh Q4_K_M</button>
+    </div>
+    <div class="dlist" id="dlDoneBox">
+      <div class="dlist-h"><span class="dlist-t"><svg class="i"><use href="#i-folder"/></svg>Hasil unduhan<code>/modelAi</code></span><span class="pill" id="dlDoneCount">0</span><button class="ib sm" id="dlDoneRefresh" onclick="dlDoneRender(true)" aria-label="Segarkan daftar"><svg class="i"><use href="#i-refresh"/></svg></button></div>
+      <div id="dlDone" class="dlist-b"><div class="dlist-empty">Memeriksa folder model…</div></div>
     </div>
     <p class="muted" style="margin-bottom:0">Lanjut memakai HTTP Range dan menyimpan berkas parsial. Verifikasi mengecek ukuran unduhan serta header GGUF; jeda dulu sebelum verifikasi.</p>
   </div>
+  <div class="sec-label">Pemeliharaan dan berkas</div>
   <div class="card" id="cleanCard">
     <h4><svg class="i"><use href="#i-trash"/></svg>Pembersih · Ponsel Lebih Ringan</h4>
     <p class="muted" style="margin-top:0">Lepas bobot model dari RAM (llama_free, bukan cuma GC), hapus cache, dan turunkan context otomatis saat RAM mepet.</p>
@@ -753,6 +1138,7 @@ function saveCode(b){const l=b.closest('.cb').querySelector('.cbh span').textCon
 
 /* ---------- chats ---------- */
 let chats=S.get('chats',[]),cid=S.get('cid',null),busy=false,stopFlag=false,lastPrompt='',activeRequestId=0;
+const connectorSession=Object.create(null);
 const curChat=()=>chats.find(c=>c.id===cid);
 const fmtT=ts=>new Date(ts).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
 function persist(){S.set('chats',chats);S.set('cid',cid)}
@@ -777,7 +1163,7 @@ if(l.includes('html')||l.includes('ui'))return 'Berikut contoh kartu HTML sederh
 if(l.includes('kotlin')||l.includes('fix')||l.includes('build'))return 'Cek langkah ini dulu:\n\n1. Pastikan `libllama.so` ada di `jniLibs/arm64-v8a`\n2. Sinkronkan Gradle\n3. Build ulang APK\n\n```kotlin\nSystem.loadLibrary("llama")\nlog("libllama dimuat")\n```\n\nKalau masih gagal, kirim log error-nya.';
 return 'Siap, saya **Xena**. Mode demo aktif karena model belum terhubung. Setelah model dimuat, jawaban akan datang dari mesin lokal.\n\n- Ketik `/` untuk perintah cepat\n- Tekan **Ctrl+K** untuk command palette\n- Lampirkan file `.kt` atau `.html` untuk di-fix';}
 async function answer(p){try{await answer0(p)}catch(e){toast('Gagal menjawab: '+e.message,'bad');logT('❌ '+e.message)}finally{busy=false;setSend(false)}}
-async function answer0(p){busy=true;stopFlag=false;setSend(true);const c=curChat();
+async function answer0(p){busy=true;stopFlag=false;setSend(true);const requestId=++activeRequestId;const c=curChat();
 // Pastikan engine ready sebelum chat
 try{
   let ready=false;
@@ -799,13 +1185,13 @@ const holder=addMsg('assistant','',Date.now());holder.querySelector('.bubble').i
 let full='';const bub=holder.querySelector('.bubble');const chatEl=$('#chat');const upd=()=>{bub.innerHTML=md(full)+'<span class="caret"></span>';if(S.get('asc',true)&&nearBottom())chatEl.scrollTop=chatEl.scrollHeight};
 const params={system:$('#sys').value,ctx:+$('#ctx').value,temp:+$('#tmp').value,threads:S.get('thr',2),top_p:S.get('topp',.9),top_k:S.get('topk',40),repeat_penalty:S.get('rep',1.1),max_tokens:S.get('maxt',1024)};
 // Prompt ke model: data GitHub nyata + instruksi jangan beri tutorial konektor
-const prior=c.msgs.filter(m=>m.role==='user'||m.role==='assistant').slice(-9,-1);
-const history=prior.length?'[KONTEKS PERCAKAPAN TERBARU]\n'+prior.map(m=>(m.role==='user'?'USER: ':'ASSISTANT: ')+m.text).join('\n')+'\n\n':'';
+const historyContext=(c?.msgs||[]).slice(-8).map(m=>m.role+': '+m.text).join('\n');
+const promptWithContext='KONTEKS PERCAKAPAN TERBARU:\n'+historyContext+'\n\n'+p;
 const promptToModel=ghContext
-  ? (history+'[DATA GITHUB NYATA — hasil API, bukan tebakan]\n'+ghContext+'\n\n[PERMINTAAN USER]\n'+p+'\n\n[INSTRUKSI]\nJawab berdasarkan DATA GITHUB di atas. Jangan berikan panduan cara menghubungkan connector. Langsung ringkas hasil, status, dan langkah berikutnya yang relevan.')
-  : history+p;
+  ? ('[DATA GITHUB NYATA — hasil API, bukan tebakan]\n'+ghContext+'\n\n[PERMINTAAN USER]\n'+p+'\n\n[INSTRUKSI]\nJawab berdasarkan DATA GITHUB di atas. Jangan berikan panduan cara menghubungkan connector. Langsung ringkas hasil, status, dan langkah berikutnya yang relevan.')
+  : promptWithContext;
 if(window.Android&&Android.chat){ /* Native: Android.chat(prompt, paramsJson) → panggil window.xenaToken(t) & window.xenaDone() */
-  await new Promise(res=>{window.xenaToken=(id,t)=>{if(id!==activeRequestId||stopFlag)return;full+=t;upd()};window.xenaDone=id=>{if(id===activeRequestId)res()};window.xenaError=(id,code,m,retryable)=>{if(id!==activeRequestId)return;full=m||'Mesin error';upd();toast(full,'bad');logT('❌ '+code+': '+full);res()};window.xenaStop=()=>stopFlag&&res();activeRequestId=Number(Android.chat(promptToModel,JSON.stringify(params)))||0});
+  await new Promise(res=>{let nativeId=0;window.xenaToken=(id,t)=>{if((nativeId&&id!==nativeId)||stopFlag)return;full+=t;upd()};window.xenaDone=id=>{if(!nativeId||id===nativeId)res()};window.xenaError=(id,kind,m)=>{if(nativeId&&id!==nativeId)return;toast(m||kind||'Mesin error','bad');logT('❌ '+(m||kind||'Mesin error'));res()};window.xenaStop=id=>(!nativeId||id===nativeId)&&stopFlag&&res();nativeId=Android.chat(promptToModel,JSON.stringify(params))});
 }else if(ghContext){
   // Tanpa engine: tampilkan hasil tool langsung
   await sleep(200);
@@ -824,7 +1210,6 @@ function toBottom(){const e=$('#chat');e.scrollTo({top:e.scrollHeight,behavior:'
 
 /* ===== GitHub API nyata (Contents API = commit/push tanpa git CLI) ===== */
 const GH_REPO='v1-byte/Xena-Ai';
-const connectorSession=Object.create(null);
 function ghToken(){return connectorSession.github||''}
 function ghHeaders(){
   const t=ghToken();
@@ -1158,8 +1543,8 @@ async function conTok(k){
   if(t===null)return;
   connectorSession[k]=t;
   try{ if(window.Android&&Android.saveConnectorToken) Android.saveConnectorToken(k,t,''); }catch(e){}
-  toast('Token disimpan','ok');
-  logT('✅ Token '+k+' disimpan native; tidak dipersistenkan di WebView');
+  toast('Token disimpan aman','ok');
+  logT('✅ Token '+k+' disimpan pada Android Keystore');
 }
 function conDel(k){
   delete connectorSession[k];S.set('con_'+k,false);
@@ -1169,7 +1554,6 @@ function conDel(k){
 async function conTest(k){
   logT('⏳ Tes konektor '+k+'…');
   if(!navigator.onLine){logT('❌ Offline');toast('Butuh internet','bad');return}
-  if(window.Android&&Android.testConnector){try{const r=JSON.parse(Android.testConnector(k));if(r.ok){logT('✅ '+k+' OK · native broker');toast(k+' OK','ok')}else{logT('❌ '+k+': '+r.message);toast(r.message,'bad')}return}catch(e){logT('❌ Broker: '+e.message);return}}
   const tok=connectorSession[k]||'';
   try{
     if(k==='github'){
@@ -1203,7 +1587,7 @@ async function conTest(k){
   }catch(e){logT('❌ '+k+': '+e.message);toast('Tes gagal','bad')}
 }
 async function scanQR(k){if(!('BarcodeDetector' in window)){toast('Scan QR belum didukung WebView ini — tempel token manual','bad');return conTok(k)}
-try{const st=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});const v=document.createElement('video');v.srcObject=st;v.playsInline=true;await v.play();const bd=new BarcodeDetector({formats:['qr_code']});toast('Arahkan kamera ke QR token…');const t0=Date.now();while(Date.now()-t0<20000){const r=await bd.detect(v);if(r.length){connectorSession[k]=r[0].rawValue;try{Android.saveConnectorToken(k,connectorSession[k],'')}catch(e){}toast('Token dipindai','ok');break}await sleep(300)}st.getTracks().forEach(t=>t.stop())}catch(e){toast('Kamera tidak tersedia','bad')}}
+try{const st=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});const v=document.createElement('video');v.srcObject=st;v.playsInline=true;await v.play();const bd=new BarcodeDetector({formats:['qr_code']});toast('Arahkan kamera ke QR token…');const t0=Date.now();while(Date.now()-t0<20000){const r=await bd.detect(v);if(r.length){S.set('tok_'+k,r[0].rawValue);toast('Token dipindai','ok');break}await sleep(300)}st.getTracks().forEach(t=>t.stop())}catch(e){toast('Kamera tidak tersedia','bad')}}
 
 /* ---------- pengaturan ---------- */
 const TPL={agent:'Kamu adalah Xena, asisten coding. Jawab singkat, beri kode lengkap yang siap pakai, dan jelaskan langkah perbaikan secara berurutan.',hacker:'Kamu Xena Hacker Mode: ringkas, teknis, langsung ke solusi. Hanya untuk keamanan defensif & edukasi.',guru:'Kamu Xena, guru ngoding yang sabar. Jelaskan konsep dengan analogi sederhana lalu beri contoh kode kecil.',nurut:'Kamu Xena. Ikuti instruksi pengguna secara tepat, tanpa basa-basi, dan konfirmasi hasilnya di akhir.'};
@@ -1293,33 +1677,6 @@ const BOOT=[
   [88,'Almost ready…'],
   [100,'Welcome']
 ];
-let splashClosed=false,bootCancelled=false,autoLoadStarted=false;
-function applyPerformanceGuard(){
-  try{
-    const cores=navigator.hardwareConcurrency||8;
-    const ram=Number(navigator.deviceMemory||0);
-    const lowEnd=cores<=4||(ram>0&&ram<=4);
-    if(lowEnd){
-      document.documentElement.dataset.anim='lite';
-      document.documentElement.dataset.fx='off';
-      document.documentElement.dataset.ts='off';
-      document.documentElement.dataset.qb='off';
-      document.body.classList.add('perf-lite');
-    }
-    return lowEnd;
-  }catch(e){return false}
-}
-function bootError(message){
-  bootCancelled=true;
-  const lt=$('#lt'),lb=$('#lb'),lp=$('#lp');
-  if(lt)lt.textContent='Xena siap';
-  if(lb)lb.style.width='100%';
-  if(lp)lp.textContent='100%';
-  try{logT&&logT('⚠️ Startup fallback: '+message)}catch(e){}
-  endSplash();
-}
-window.addEventListener('error',e=>{if(e.error&&!document.body.classList.contains('ready'))bootError(e.message||'UI error')});
-window.addEventListener('unhandledrejection',e=>{if(!document.body.classList.contains('ready'))bootError(e.reason?.message||'Promise error')});
 function speakWelcome(){
   try{
     if(!window.speechSynthesis)return;
@@ -1336,9 +1693,27 @@ function speakWelcome(){
     else speechSynthesis.onvoiceschanged=pick;
   }catch(e){}
 }
+let splashClosed=false,bootCancelled=false,autoLoadStarted=false;
+function applyPerformanceGuard(){
+  try{
+    const cores=navigator.hardwareConcurrency||8,ram=Number(navigator.deviceMemory||0);
+    if(cores<=4||(ram>0&&ram<=4)){
+      document.documentElement.dataset.anim='lite';document.documentElement.dataset.fx='off';
+      document.documentElement.dataset.ts='off';document.documentElement.dataset.qb='off';
+    }
+  }catch(e){}
+}
+function bootError(message){
+  bootCancelled=true;
+  const lt=$('#lt'),lb=$('#lb'),lp=$('#lp');
+  if(lt)lt.textContent='Xena siap';if(lb)lb.style.width='100%';if(lp)lp.textContent='100%';
+  try{logT&&logT('⚠️ Startup fallback: '+message)}catch(e){}
+  endSplash();
+}
+window.addEventListener('error',e=>{if(e.error&&!document.body.classList.contains('ready'))bootError(e.message||'UI error')});
+window.addEventListener('unhandledrejection',e=>{if(!document.body.classList.contains('ready'))bootError(e.reason?.message||'Promise error')});
 async function boot(){
   try{if(!S.get('splash',true))return endSplash()}catch(e){return bootError(e.message||'Pengaturan splash rusak')}
-  // Splash maksimal 4.8 detik; tidak boleh menahan aplikasi jika WebView lambat.
   const total=4800;
   const t0=Date.now();
   let voiceDone=false;
@@ -1349,9 +1724,7 @@ async function boot(){
     let label='Starting…';
     for(const [th,tx] of BOOT){if(p>=th)label=tx}
     const lt=$('#lt'),lb=$('#lb'),lp=$('#lp');
-    if(lt)lt.textContent=label;
-    if(lb)lb.style.width=p+'%';
-    if(lp)lp.textContent=p+'%';
+    if(lt)lt.textContent=label;if(lb)lb.style.width=p+'%';if(lp)lp.textContent=p+'%';
     // Voice after title animation (~2.2s)
     if(!voiceDone && elapsed>=2200){voiceDone=true;speakWelcome()}
     if(elapsed>=total)break;
@@ -1360,11 +1733,8 @@ async function boot(){
   endSplash()
 }
 function endSplash(){
-  if(splashClosed)return;
-  splashClosed=true;
-  bootCancelled=true;
-  const splash=$('#splash');if(splash)splash.classList.add('hide');
-  document.body.classList.add('ready');
+  if(splashClosed)return;splashClosed=true;bootCancelled=true;
+  const splash=$('#splash');if(splash)splash.classList.add('hide');document.body.classList.add('ready');
   try{if(S.get('pin',''))$('#lock').classList.add('on')}catch(e){}
   if(!autoLoadStarted){autoLoadStarted=true;try{if(S.get('auto',false))setTimeout(()=>{try{loadModel()}catch(e){bootError(e.message)}},350)}catch(e){}}
 }
@@ -1467,12 +1837,70 @@ function hfDownload(id,file,size){
   const url='https://huggingface.co/'+id+'/resolve/main/'+file.split('/').map(encodeURIComponent).join('/');
   try{
     if(window.Android&&Android.startModelDownload){Android.startModelDownload(url,file,size);logT('⬇ Unduh '+file);toast('Mulai unduh '+file,'ok');return}
+    if(window.Android&&Android.downloadModel){Android.downloadModel(url,file);logT('⬇ Unduh '+file);toast('Mulai unduh '+file,'ok');return}
   }catch(e){toast('Gagal memulai unduhan: '+e.message,'bad');return}
   navigator.clipboard?.writeText(url).catch(()=>{});
   window.open(url,'_blank');
   toast('Bridge unduhan belum ada — tautan dibuka/disalin','bad');
 }
 hfTags();
+
+
+/* ---------- v2: daftar hasil unduhan /modelAi ---------- */
+const DL_BRIDGES=['listModels','getModelList','getModelFiles','listLocalModels','getDownloadedModels'];
+function dlFmtSize(v){if(typeof v==='string'&&isNaN(+v))return v;const b=+v;if(!b)return '';return b>=1073741824?(b/1073741824).toFixed(2)+' GB':(b/1048576).toFixed(0)+' MB'}
+function dlNorm(raw){
+  let a=raw;if(typeof a==='string'){try{a=JSON.parse(a)}catch(e){return []}}
+  if(a&&!Array.isArray(a))a=a.models||a.files||a.items||[];
+  if(!Array.isArray(a))return [];
+  return a.map(o=>{
+    if(typeof o==='string')o={path:o};
+    const path=o.path||o.location||o.dir||'';
+    const name=o.name||o.fileName||o.file||String(path).split('/').pop();
+    return {name:String(name||''),path:String(path),size:dlFmtSize(o.size??o.bytes??o.length??o.sizeText),active:!!(o.active||o.loaded||o.current),partial:/\.(part|tmp|download)$/i.test(name||'')};
+  }).filter(x=>x.name);
+}
+function dlFromBridge(){
+  if(!window.Android)return null;
+  for(const k of DL_BRIDGES){if(typeof Android[k]==='function'){try{const r=dlNorm(Android[k]());if(r.length)return r}catch(e){}}}
+  return null;
+}
+function dlFromInfo(){
+  try{if(window.Android&&Android.getModelInfo){const j=JSON.parse(Android.getModelInfo()||'{}');const n=j.name||j.fileName;if(n)return [{name:n,path:j.path||'',size:dlFmtSize(j.size??j.bytes),active:true,partial:false}]}}catch(e){}
+  return [];
+}
+function dlRow(x){
+  const q=(x.name.match(/(IQ\d_\w+|Q\d(?:_[A-Z0-9]+)*|BF16|F16|F32)/i)||[])[1];
+  const meta=[x.size,q&&q.toUpperCase(),x.path&&x.path.replace(/\/[^/]*$/,'')].filter(Boolean).join(' · ');
+  const tag=x.partial?'<span class="fit mid">Parsial</span>':x.active?'<span class="fit ok">Aktif</span>':'<span class="fit tag">GGUF</span>';
+  return `<div class="dli" title="${esc(x.path||x.name)}"><span class="dli-ic">${ic('box')}</span><div class="dli-m"><b>${esc(x.name)}</b><span>${esc(meta||'/modelAi')}</span></div>${tag}</div>`;
+}
+let dlDoneBusy=false;
+async function dlDoneRender(manual){
+  const box=$('#dlDone');if(!box||dlDoneBusy)return;dlDoneBusy=true;
+  const rb=$('#dlDoneRefresh');if(rb)rb.classList.add('spin');
+  try{
+    if(manual&&typeof searchLocalModels==='function'){try{await searchLocalModels(true)}catch(e){}}
+    let items=dlFromBridge();
+    if(!items){
+      const mf=$('#modelFiles');
+      const real=mf&&[...mf.children].some(c=>!c.classList.contains('muted'));
+      if(real){box.innerHTML='<div class="dlist-mirror">'+mf.innerHTML+'</div>';$('#dlDoneCount').textContent='•';return}
+      items=dlFromInfo();
+    }
+    const only=items.filter(x=>/modelAi/i.test(x.path));
+    if(only.length)items=only;
+    $('#dlDoneCount').textContent=items.length;
+    box.innerHTML=items.length?items.map(dlRow).join(''):'<div class="dlist-empty">'+ic('box')+'<b>Belum ada model di /modelAi</b><span>Unduh dari katalog atau impor file GGUF.</span></div>';
+    if(manual)toast(items.length?items.length+' model ditemukan':'Belum ada model','ok');
+  }finally{dlDoneBusy=false;if(rb)rb.classList.remove('spin')}
+}
+(function(){
+  const _tab=tab;tab=function(i){_tab(i);if(i===1)setTimeout(()=>dlDoneRender(),60)};
+  const mf=$('#modelFiles');if(mf)new MutationObserver(()=>{clearTimeout(window._dlT);window._dlT=setTimeout(()=>dlDoneRender(),400)}).observe(mf,{childList:true,subtree:true});
+  const sp=$('#dlSpd');if(sp)new MutationObserver(()=>{if(/selesai/i.test(sp.textContent))setTimeout(()=>dlDoneRender(),800)}).observe(sp,{childList:true,characterData:true,subtree:true});
+  setTimeout(()=>dlDoneRender(),900);
+})();
 
 /* ---------- init ---------- */
 
