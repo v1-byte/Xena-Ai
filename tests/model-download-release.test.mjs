@@ -238,7 +238,7 @@ test('advanced audit protections are wired end-to-end', () => {
   assert.match(activity, /fun testConnector\(id: String\)/);
   assert.doesNotMatch(activity, /fun getConnectorToken/);
   assert.match(html, /connectorSession/);
-  assert.match(html, /const total=4800/);
+  assert.match(html, /const total=2200/);
   assert.match(html, /window\.addEventListener\('error'/);
   assert.match(html, /function bootError/);
   assert.match(html, /splashWatchdog/);
