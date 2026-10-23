@@ -387,6 +387,21 @@ header,nav{transition:transform .8s cubic-bezier(.2,.8,.2,1) .1s}
 [data-bg=grid] .amb{background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);background-size:34px 34px;opacity:.35}
 
 
+
+/* Engine picker — alur profesional */
+.engine-steps{display:flex;gap:6px;margin:4px 0 2px;flex-wrap:wrap}
+.engine-steps .estep{font-size:10px;font-weight:600;letter-spacing:.04em;padding:4px 8px;border-radius:999px;background:var(--card2);color:var(--muted);border:1px solid var(--line)}
+.engine-steps .estep.on{color:var(--text);border-color:color-mix(in srgb,var(--accent) 45%,var(--line));background:color-mix(in srgb,var(--accent) 12%,var(--card2))}
+.engine-steps .estep.done{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 40%,var(--line))}
+.engine-status{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:14px;border:1px solid var(--line);background:var(--card2);margin-bottom:12px}
+.engine-status-text{flex:1;min-width:0}
+.engine-status-text b{display:block;font-size:13px;word-break:break-all}
+.engine-status-text span{display:block;font-size:11px;margin-top:2px}
+.engine-hint{font-size:12px;color:var(--muted);line-height:1.45;margin:0 0 10px}
+.engine-label{display:block;font-size:11px;font-weight:600;color:var(--muted);margin:0 0 6px;letter-spacing:.04em;text-transform:uppercase}
+.engine-input{width:100%;padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--text);font-size:14px}
+.engine-panel{margin-top:2px}
+
 /* Model radio list — satu aktif */
 .model-radio-list{display:flex;flex-direction:column;gap:6px;max-height:42vh;overflow-y:auto}
 .model-radio{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:12px 12px;border-radius:14px;border:1px solid var(--line);background:var(--card2);color:var(--text);cursor:pointer;transition:border-color .2s,background .2s}
@@ -994,36 +1009,54 @@ header{border-bottom:1px solid var(--line)}
 
 <!-- ===== MODEL ===== -->
 <section class="tab" id="t1"><div class="scroll">
-  <div class="sec-label">Model aktif</div>
+  <div class="sec-label">Engine</div>
   <div class="card" id="activeModelCard">
-    <h4><svg class="i"><use href="#i-cpu"/></svg>Model Aktif</h4>
-    <div class="seg" id="engineModeSeg" style="margin:8px 0 12px">
+    <h4><svg class="i"><use href="#i-cpu"/></svg>Pilih Engine</h4>
+    <div class="engine-steps" id="engineSteps">
+      <span class="estep on" data-s="1">1 · Mode</span>
+      <span class="estep" data-s="2">2 · Siapkan</span>
+      <span class="estep" data-s="3">3 · Aktif</span>
+    </div>
+    <div class="seg" id="engineModeSeg" style="margin:10px 0 12px">
       <button type="button" id="modeLocalBtn" class="on" onclick="setEngineMode(false)">Lokal</button>
-      <button type="button" id="modeServerBtn" onclick="setEngineMode(true)">Groq Server</button>
+      <button type="button" id="modeServerBtn" onclick="setEngineMode(true)">API · Groq</button>
     </div>
-    <div id="serverModePanel" style="display:none;margin-bottom:12px">
-      <div class="row" style="margin-bottom:6px"><span class="dot" id="mDot"></span><span id="mState" class="muted">Server Mode</span><span class="sp"></span><span class="pill" id="activeModelPill">Groq</span></div>
-      <b id="activeModelName" style="display:block;margin-bottom:8px;word-break:break-all">Groq</b>
-      <p class="muted" style="margin:0 0 8px;font-size:12px">Chat memakai API Groq (tanpa file GGUF di HP). Simpan API key di bawah atau di tab Atur.</p>
-      <input type="password" id="quickGroqKey" placeholder="gsk_… API key Groq" style="width:100%;margin-bottom:8px;padding:10px;border-radius:12px;border:1px solid var(--line);background:var(--card2);color:var(--text)">
-      <div class="btns"><button class="btn pri" style="flex:1" onclick="quickSaveGroq()">Simpan &amp; Aktifkan</button></div>
+    <div class="engine-status" id="engineStatusBar">
+      <span class="dot off" id="mDot"></span>
+      <div class="engine-status-text">
+        <b id="activeModelName">—</b>
+        <span id="mState" class="muted">Pilih mode di atas</span>
+      </div>
+      <span class="pill" id="activeModelPill">—</span>
     </div>
-    <div id="localModePanel">
-      <div class="row" style="margin-bottom:8px"><span class="dot off" id="mDotLocal"></span><span id="mStateLocal" class="muted">Pilih satu model di bawah</span><span class="sp"></span><span class="pill" id="activeModelPillLocal">—</span></div>
+    <div id="serverModePanel" class="engine-panel" style="display:none">
+      <div class="engine-hint">Butuh API key. Isi sekali → aktifkan → chat berjalan di cloud.</div>
+      <label class="engine-label">API Key Groq</label>
+      <input type="password" id="quickGroqKey" class="engine-input" placeholder="gsk_…" autocomplete="off">
+      <div class="btns" style="margin-top:10px">
+        <button class="btn pri" style="flex:1" id="btnActivateApi" onclick="quickSaveGroq()"><svg class="i"><use href="#i-bolt"/></svg>Aktifkan API</button>
+        <button class="btn" onclick="testGroqQuick()">Tes</button>
+      </div>
+      <p class="muted" id="apiHint" style="margin:8px 0 0;font-size:11px">Key disimpan terenkripsi di perangkat.</p>
+    </div>
+    <div id="localModePanel" class="engine-panel">
+      <div class="engine-hint">Pilih hasil unduhan / impor → aktifkan. Hanya satu model yang berjalan.</div>
       <div class="stats" style="margin:8px 0 10px">
         <div class="stat"><span class="muted">Ukuran</span><b id="activeModelSize">—</b></div>
         <div class="stat"><span class="muted">Kuantisasi</span><b id="activeModelQuant">—</b></div>
         <div class="stat"><span class="muted">Kecepatan</span><b id="mSpd">– tok/s</b></div>
       </div>
-      <p class="muted" style="margin:0 0 8px;font-size:12px">Ketuk satu model untuk mengaktifkannya. Hanya satu yang aktif.</p>
-      <div id="modelRadioList" class="model-radio-list"><div class="muted">Memuat daftar model…</div></div>
+      <div class="row" style="margin-bottom:8px">
+        <span class="muted" style="font-size:12px">Model di perangkat</span>
+        <span class="sp"></span>
+        <button class="btn sm" type="button" onclick="scanLocalModels()"><svg class="i"><use href="#i-search"/></svg>Pindai</button>
+      </div>
+      <div id="modelRadioList" class="model-radio-list"><div class="muted">Memuat…</div></div>
       <div class="btns" style="margin-top:12px">
         <button class="btn" style="flex:1" onclick="selectModelFromDownloads()"><svg class="i"><use href="#i-folder"/></svg>Impor GGUF</button>
-        <button class="btn sm" onclick="refreshModelRadioList(true)" title="Segarkan"><svg class="i"><use href="#i-refresh"/></svg></button>
       </div>
     </div>
   </div>
-
   <div class="card"><h4><svg class="i"><use href="#i-box"/></svg>Penyimpanan Model</h4>
     <div class="bar"><b id="stBar" style="width:0"></b></div>
     <div class="row muted"><span id="stUsed">Memeriksa penyimpanan aplikasi…</span><span class="sp"></span><span id="stFree" style="color:var(--ok)">— bebas</span></div>
@@ -1546,220 +1579,183 @@ let tx=null;document.addEventListener('touchstart',e=>{tx=e.touches[0].clientX<2
 function tgl(k,el){const v=!S.get(k,false);S.set(k,v);el.classList.toggle('on',v);toast(v?'Auto load aktif':'Auto load mati','ok')}
 
 /** Buka pemilih model aktif (tombol di tab Model + header Chat) */
+function setEngineSteps(phase){
+  $$('#engineSteps .estep').forEach(el=>{
+    const s=Number(el.getAttribute('data-s')||0);
+    el.classList.toggle('on', s===phase);
+    el.classList.toggle('done', s<phase);
+  });
+}
+function setStatusBar(ok, state, pill, name){
+  const d=$('#mDot'), st=$('#mState'), p=$('#activeModelPill'), n=$('#activeModelName');
+  if(d){ d.className = ok ? 'dot' : (/gagal|GAGAL|PERLU|KOSONG/i.test(String(pill)+String(state)) ? 'dot bad' : 'dot off'); d.dataset.l=ok?1:''; }
+  if(st) st.textContent=state||'';
+  if(p) p.textContent=pill||'—';
+  if(n && name!=null) n.textContent=name;
+}
 function syncModeUI(){
-  let server=false;
+  let server=false, hasKey=false, ready=false;
   try{ if(window.Android&&Android.isServerMode) server=!!Android.isServerMode(); }catch(e){}
+  try{ if(window.Android&&Android.hasGroqApiKey) hasKey=!!Android.hasGroqApiKey(); }catch(e){}
+  try{ if(window.Android&&Android.isModelReady) ready=!!Android.isModelReady(); }catch(e){}
   const lb=$('#modeLocalBtn'), sb=$('#modeServerBtn');
   if(lb) lb.classList.toggle('on', !server);
   if(sb) sb.classList.toggle('on', server);
-  const sp=$('#serverModePanel'), lp=$('#localModePanel');
-  if(sp) sp.style.display = server ? 'block' : 'none';
-  if(lp) lp.style.display = server ? 'none' : 'block';
-  // mirror dots for server panel
+  if($('#serverModePanel')) $('#serverModePanel').style.display = server ? 'block' : 'none';
+  if($('#localModePanel')) $('#localModePanel').style.display = server ? 'none' : 'block';
   if(server){
-    const ready = !!(window.Android&&Android.isModelReady&&Android.isModelReady());
-    const d=$('#mDot'); if(d){ d.className = ready?'dot':'dot bad'; d.dataset.l = ready?1:''; }
-    const st=$('#mState'); if(st) st.textContent = ready ? 'Groq siap' : 'API key diperlukan';
-    try{
-      const info=JSON.parse((Android.getModelInfo&&Android.getModelInfo())||'{}');
-      if($('#activeModelName')) $('#activeModelName').textContent = info.name || 'Groq Server';
-    }catch(e){}
+    setEngineSteps(hasKey && ready ? 3 : 2);
+    setStatusBar(ready, hasKey ? (ready ? 'Berjalan · Groq siap' : 'Key ada — aktifkan / tes') : 'Isi API key lalu aktifkan', hasKey ? (ready ? 'AKTIF' : 'API') : 'PERLU KEY', 'Groq API');
+    if($('#apiHint')) $('#apiHint').textContent = hasKey ? 'Key tersimpan. Chat memakai Groq.' : 'Key disimpan terenkripsi di perangkat.';
   }else{
     refreshModelRadioList(false);
+    setEngineSteps(ready ? 3 : 2);
+    if(ready){
+      let name='Model lokal';
+      try{ const info=JSON.parse((Android.getModelInfo&&Android.getModelInfo())||'{}'); if(info.name) name=info.name; }catch(e){}
+      setStatusBar(true, 'Berjalan · siap chat', 'AKTIF', name);
+    }
   }
-  try{ updateFabModelLabel(!server && !!(window.Android&&Android.isModelReady&&Android.isModelReady())); }catch(e){}
+  try{ updateFabModelLabel(ready); }catch(e){}
 }
-
 function setEngineMode(server){
   if(!window.Android||!Android.setServerMode){ toast('Hanya di APK','bad'); return; }
   Android.setServerMode(!!server);
-  toast(server ? 'Mode Groq Server' : 'Mode Lokal','ok');
+  toast(server ? 'Mode API · Groq' : 'Mode Lokal','ok');
   syncModeUI();
-  if(!server) refreshModelRadioList(true);
+  if(!server) scanLocalModels();
 }
-
 function quickSaveGroq(){
   const key=($('#quickGroqKey')&&$('#quickGroqKey').value||'').trim();
-  if(!key){ toast('Masukkan Groq API key (gsk_…)','bad'); return; }
-  if(!key.startsWith('gsk_')){ toast('Format key tidak dikenali','bad'); return; }
-  if(!window.Android||!Android.setGroqApiKey){ toast('Bridge tidak tersedia','bad'); return; }
-  Android.setGroqApiKey(key);
+  let hasKey=false;
+  try{ hasKey=!!(window.Android&&Android.hasGroqApiKey&&Android.hasGroqApiKey()); }catch(e){}
+  if(key){
+    if(!key.startsWith('gsk_')){ toast('Format key: gsk_…','bad'); return; }
+    if(!Android.setGroqApiKey){ toast('Bridge tidak tersedia','bad'); return; }
+    Android.setGroqApiKey(key);
+    if($('#quickGroqKey')) $('#quickGroqKey').value='';
+    hasKey=true;
+  }else if(!hasKey){ toast('Masukkan API key Groq dulu','bad'); return; }
   if(Android.setServerMode) Android.setServerMode(true);
-  if($('#quickGroqKey')) $('#quickGroqKey').value='';
-  toast('Groq diaktifkan','ok');
+  setStatusBar(false, 'Mengaktifkan API…', '…', 'Groq API');
+  let ok=false;
+  try{ ok=!!(Android.pingGroqServer&&Android.pingGroqServer()); }catch(e){}
+  try{ ok = ok || !!(Android.isModelReady&&Android.isModelReady()); }catch(e){}
+  if(ok){ toast('API aktif · siap chat','ok'); setStatusBar(true,'Berjalan · Groq','AKTIF','Groq API'); setEngineSteps(3); }
+  else { toast('Key disimpan. Tes jika chat gagal.','ok'); setStatusBar(false,'Key tersimpan','API','Groq API'); setEngineSteps(2); }
   syncModeUI();
-  try{ if(Android.pingGroqServer) Android.pingGroqServer(); }catch(e){}
 }
-
-function refreshModelRadioList(force){
-  const host=$('#modelRadioList');
-  if(!host) return;
-  let items=[];
-  try{
-    if(window.Android&&Android.getInstalledModels){
-      items=JSON.parse(Android.getInstalledModels()||'[]');
-    }
-  }catch(e){}
-  if(!items.length){
-    host.innerHTML='<div class="muted" style="padding:8px 0">Belum ada model di HP. Unduh dari katalog di bawah, atau Impor GGUF.</div>';
-    setLocalStatus(false,'Belum ada model','—');
-    return;
+function testGroqQuick(){
+  const key=($('#quickGroqKey')&&$('#quickGroqKey').value||'').trim();
+  if(key){
+    if(!key.startsWith('gsk_')){ toast('Format key: gsk_…','bad'); return; }
+    Android.setGroqApiKey(key); $('#quickGroqKey').value='';
   }
-  let activeId='';
-  items.forEach(m=>{ if(m.active) activeId=m.id||m.fileName; });
+  if(!window.Android||!Android.pingGroqServer){ toast('Bridge tidak ada','bad'); return; }
+  setStatusBar(false,'Menguji koneksi…','…','Groq API');
+  setTimeout(()=>{
+    try{
+      const ok=Android.pingGroqServer();
+      if(ok){ toast('Koneksi OK','ok'); setStatusBar(true,'Berjalan · Groq','AKTIF','Groq API'); setEngineSteps(3); }
+      else { toast('Tes gagal — cek key / internet','bad'); setStatusBar(false,'Tes gagal','GAGAL','Groq API'); }
+    }catch(e){ toast(e.message||'Tes gagal','bad'); }
+  },40);
+}
+function scanLocalModels(){
+  setStatusBar(false,'Memindai perangkat…','…',$('#activeModelName')?.textContent||'Lokal');
+  try{ if(window.Android&&Android.rescanModelFiles) Android.rescanModelFiles(); }catch(e){}
+  setTimeout(()=>{
+    refreshModelRadioList(true);
+    const n=$$('#modelRadioList .model-radio').length;
+    if(n){ toast(n+' model ditemukan','ok'); setStatusBar(false,'Pilih satu model','PILIH','Lokal'); setEngineSteps(2); }
+    else { toast('Belum ada model','ok'); setStatusBar(false,'Kosong — unduh atau impor','KOSONG','Lokal'); setEngineSteps(1); }
+  },350);
+}
+function refreshModelRadioList(force){
+  const host=$('#modelRadioList'); if(!host) return;
+  let items=[];
+  try{ if(window.Android&&Android.getInstalledModels) items=JSON.parse(Android.getInstalledModels()||'[]'); }catch(e){}
+  if(!items.length){ host.innerHTML='<div class="muted" style="padding:10px 0">Belum ada model. Unduh dari katalog atau Impor GGUF.</div>'; return; }
   host.innerHTML=items.map(m=>{
     const id=String(m.id||m.fileName||'');
     const name=m.title||m.fileName||id;
     const quant=m.quantization||'GGUF';
     const size=m.sizeBytes? (Number(m.sizeBytes)>=1073741824?(Number(m.sizeBytes)/1073741824).toFixed(2)+' GB':Math.round(Number(m.sizeBytes)/1048576)+' MB') : '';
     const on=!!m.active;
-    const badge=on?'AKTIF':'';
     return `<button type="button" class="model-radio${on?' on':''}" data-mid="${esc(id)}" onclick="selectExclusiveModel('${id.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')">
       <span class="mr-dot" aria-hidden="true"></span>
       <span class="mr-body"><b>${esc(name)}</b><span>${esc(quant)}${size?' · '+size:''}</span></span>
-      ${badge?`<span class="mr-badge">${badge}</span>`:''}
+      ${on?'<span class="mr-badge">AKTIF</span>':''}
     </button>`;
   }).join('');
-  if(activeId){
-    setLocalStatus(true,'Siap dipakai', items.find(x=>x.active)?.quantization||'OK');
-  }else{
-    setLocalStatus(false,'Pilih satu model','—');
-  }
 }
-
-function setLocalStatus(ok, state, pill){
-  const d=$('#mDotLocal')||$('#mDot');
-  const st=$('#mStateLocal')||$('#mState');
-  const p=$('#activeModelPillLocal')||$('#activeModelPill');
-  if(d){ d.className = ok?'dot':(state&&/gagal|error/i.test(state)?'dot bad':'dot off'); d.dataset.l=ok?1:''; }
-  if(st) st.textContent=state||'';
-  if(p) p.textContent=pill||'—';
-}
-
-/** Pilih satu model — yang lain otomatis nonaktif. */
 function selectExclusiveModel(id){
   if(!id) return;
-  // UI: tandai segera
+  try{ if(window.Android&&Android.isServerMode&&Android.isServerMode()&&Android.setServerMode) Android.setServerMode(false); }catch(e){}
   $$('#modelRadioList .model-radio').forEach(el=>{
     const on=el.getAttribute('data-mid')===id;
-    el.classList.toggle('on', on);
-    const b=el.querySelector('.mr-badge');
-    if(on){
-      if(!b){ const s=document.createElement('span'); s.className='mr-badge'; s.textContent='MEMUAT…'; el.appendChild(s); }
-      else b.textContent='MEMUAT…';
-      el.classList.add('busy'); el.classList.remove('err');
-    }else if(b) b.remove();
+    el.classList.toggle('on',on); el.classList.remove('err');
+    let b=el.querySelector('.mr-badge');
+    if(on){ el.classList.add('busy'); if(!b){ b=document.createElement('span'); b.className='mr-badge'; el.appendChild(b);} b.textContent='MEMUAT'; }
+    else if(b) b.remove();
   });
-  setLocalStatus(false,'Memuat…','…');
-  toast('Mengaktifkan model…','ok');
-  if(!window.Android||!Android.useModel){
-    toast('Hanya di APK','bad');
-    return;
-  }
+  setStatusBar(false,'Mengaktifkan…','MEMUAT',id); setEngineSteps(2);
+  if(!window.Android||!Android.useModel){ toast('Hanya di APK','bad'); return; }
   window.xenaSelectedModelReady=function(ok,name,error){
     if(ok){
-      modelOk(true);
-      setLocalStatus(true,'Siap dipakai','AKTIF');
-      if($('#activeModelName')) $('#activeModelName').textContent=name||id;
+      modelOk(true); setStatusBar(true,'Berjalan · siap chat','AKTIF',name||id); setEngineSteps(3);
       try{ const btn=$('#hdrModelBtn'); if(btn) btn.textContent=(name||id).slice(0,12); }catch(e){}
       refreshModelRadioList(true);
     }else{
-      modelOk(false, error||'Gagal memuat');
-      setLocalStatus(false, (error||'Gagal').slice(0,48), 'GAGAL');
+      modelOk(false, error||'Gagal'); setStatusBar(false,(error||'Gagal').slice(0,60),'GAGAL',name||id);
       $$('#modelRadioList .model-radio').forEach(el=>{
         if(el.getAttribute('data-mid')===id){ el.classList.add('err'); el.classList.remove('busy');
           const b=el.querySelector('.mr-badge'); if(b) b.textContent='GAGAL'; }
       });
     }
   };
-  window.xenaModelReady=function(ok){ window.xenaSelectedModelReady(ok,'', ok?'':'Gagal'); };
-  try{
-    const ok=Android.useModel(String(id));
-    if(!ok && Android.loadModel) Android.loadModel();
-  }catch(e){
-    modelOk(false, e.message||'Error');
-  }
+  window.xenaModelReady=function(ok){ window.xenaSelectedModelReady(ok,'',ok?'':'Gagal'); };
+  try{ const ok=Android.useModel(String(id)); if(!ok&&Android.loadModel) Android.loadModel(); }catch(e){ modelOk(false,e.message||'Error'); }
 }
-
 function openModelPicker(){
-  // kompatibilitas: fokus ke daftar radio
-  tab(1);
-  syncModeUI();
-  refreshModelRadioList(true);
-  const el=$('#modelRadioList');
-  if(el) el.scrollIntoView({behavior:'smooth',block:'center'});
+  tab(1); syncModeUI();
+  const server=!!(window.Android&&Android.isServerMode&&Android.isServerMode());
+  if(server) $('#quickGroqKey')?.focus();
+  else { scanLocalModels(); $('#modelRadioList')?.scrollIntoView({behavior:'smooth',block:'center'}); }
 }
-
 function pickModel(id){ selectExclusiveModel(id); }
-
 async function loadModel(force){
   let server=false;
   try{ if(window.Android&&Android.isServerMode) server=!!Android.isServerMode(); }catch(e){}
-  if(server){
-    let ready=false;
-    try{ ready=!!(Android.isModelReady&&Android.isModelReady()); }catch(e){}
-    if(ready){ toast('Groq sudah siap','ok'); setLocalStatus(true,'Groq siap','Groq'); }
-    else toast('Simpan Groq API key dulu','bad');
-    syncModeUI();
-    return;
-  }
+  if(server) return quickSaveGroq();
   let nativeReady=false;
   try{ if(window.Android&&Android.isModelReady) nativeReady=!!Android.isModelReady(); }catch(e){}
-  if(!force && nativeReady){ modelOk(true); return toast('Model sudah siap','ok'); }
-  // muat model yang ditandai aktif / terakhir
+  if(!force&&nativeReady){ modelOk(true); return toast('Model sudah aktif','ok'); }
   let id='';
-  try{
-    const items=JSON.parse((Android.getInstalledModels&&Android.getInstalledModels())||'[]');
-    const act=items.find(x=>x.active)||items[0];
-    if(act) id=act.id||act.fileName;
-  }catch(e){}
+  try{ const items=JSON.parse((Android.getInstalledModels&&Android.getInstalledModels())||'[]'); const act=items.find(x=>x.active)||items[0]; if(act) id=act.id||act.fileName; }catch(e){}
   if(id) return selectExclusiveModel(id);
-  toast('Pilih model di daftar dulu','bad');
-  refreshModelRadioList(true);
+  toast('Pilih model di daftar','bad'); scanLocalModels();
 }
-
 function modelOk(ok,err){
   if(ok===false||ok===0||ok==='false'){
     let msg=(err&&err!=='ok')?String(err):'';
-    if(!msg||msg==='ok'){
-      try{ if(window.Android&&Android.getLastError) msg=Android.getLastError()||''; }catch(e){}
-    }
-    // Pesan bersih, tidak dobel
-    if(/Server Mode/i.test(msg) && /API key/i.test(msg)){
-      msg='Groq API key belum disimpan. Isi key atau pilih mode Lokal.';
-    }
-    if(!msg) msg='Gagal memuat model';
-    setLocalStatus(false,'Gagal muat','GAGAL');
-    toast(msg,'bad');
-    logT('❌ '+msg);
-    try{updateFabModelLabel(false)}catch(e){}
-    return;
+    if(!msg||msg==='ok'){ try{ if(window.Android&&Android.getLastError) msg=Android.getLastError()||''; }catch(e){} }
+    if(/Server Mode/i.test(msg)&&/API key/i.test(msg)) msg='API key belum disimpan. Pilih mode API · Groq.';
+    if(!msg) msg='Gagal mengaktifkan engine';
+    setStatusBar(false,msg.slice(0,72),'GAGAL',$('#activeModelName')?.textContent||'—');
+    toast(msg,'bad'); logT('❌ '+msg); try{updateFabModelLabel(false)}catch(e){} return;
   }
   let ready=true;
   try{ if(window.Android&&Android.isModelReady) ready=!!Android.isModelReady(); }catch(e){}
-  if(!ready && window.Android){
+  if(!ready&&window.Android){
     setTimeout(()=>{
-      let r2=false;
-      try{ r2=!!Android.isModelReady(); }catch(e){}
-      if(r2){
-        setLocalStatus(true,'Siap dipakai','AKTIF');
-        toast('Model siap','ok');
-        try{updateFabModelLabel(true)}catch(e){}
-        refreshModelRadioList(false);
-      }else{
-        let e2='';
-        try{ e2=(Android.getLastError&&Android.getLastError())||''; }catch(e){}
-        setLocalStatus(false,'Belum siap','—');
-        toast(e2||'Engine belum siap','bad');
-      }
-    },500);
-    return;
+      let r2=false; try{ r2=!!Android.isModelReady(); }catch(e){}
+      if(r2){ setStatusBar(true,'Berjalan · siap chat','AKTIF',$('#activeModelName')?.textContent||'Model'); setEngineSteps(3); toast('Model aktif','ok'); try{updateFabModelLabel(true)}catch(e){} refreshModelRadioList(false); }
+      else { let e2=''; try{ e2=(Android.getLastError&&Android.getLastError())||''; }catch(e){} setStatusBar(false,e2||'Belum siap','—',$('#activeModelName')?.textContent||'—'); toast(e2||'Engine belum siap','bad'); }
+    },500); return;
   }
-  setLocalStatus(true,'Siap dipakai','AKTIF');
-  toast('Model siap','ok');
-  logT('✅ Model siap');
-  try{updateFabModelLabel(true)}catch(e){}
-  refreshModelRadioList(false);
+  setStatusBar(true,'Berjalan · siap chat','AKTIF',$('#activeModelName')?.textContent||'Model'); setEngineSteps(3);
+  toast('Model aktif','ok'); logT('✅ Engine aktif'); try{updateFabModelLabel(true)}catch(e){} refreshModelRadioList(false);
 }
 
 function dlSet(id,value){const e=$(id);if(e)e.textContent=value}
