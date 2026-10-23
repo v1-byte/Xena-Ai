@@ -36,7 +36,7 @@ test('the existing app sections and primary navigation remain in place', () => {
   for (const tab of ['Chat', 'Model', 'Konektor', 'Atur']) assert.ok(html.includes(tab));
   assert.match(html, /id="modelCatalog"/);
   assert.match(html, /openModelPicker/);
-  assert.match(html, /onclick="bench\(\)"/);
+  assert.match(html, /selectExclusiveModel/);
   assert.match(html, /onclick="startDl\('qwen7b-q3'\)"/);
   assert.match(html, /onclick="startDl\('qwen7b-q4'\)"/);
   assert.match(html, /onclick="moveModelFromDownloads\(\)"/);
