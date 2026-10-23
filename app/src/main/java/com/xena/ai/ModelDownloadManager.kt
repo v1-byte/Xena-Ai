@@ -22,6 +22,11 @@ class ModelDownloadManager(context: Context) {
             sharedInstance ?: synchronized(this) {
                 sharedInstance ?: ModelDownloadManager(context.applicationContext).also { sharedInstance = it }
             }
+
+        private const val TAG = "XENA-Download"
+        private const val PREFS = "xena_model_transfer"
+        private const val KEY_PENDING_MODEL = "pending_model_id"
+        private val CONTENT_RANGE = Regex("bytes\\s+(\\d+)-(\\d+)/(\\d+|\\*)", RegexOption.IGNORE_CASE)
     }
 
     data class Snapshot(
@@ -628,10 +633,4 @@ class ModelDownloadManager(context: Context) {
 
     private class PausedTransferException : IOException("paused")
 
-    companion object {
-        private const val TAG = "XENA-Download"
-        private const val PREFS = "xena_model_transfer"
-        private const val KEY_PENDING_MODEL = "pending_model_id"
-        private val CONTENT_RANGE = Regex("bytes\\s+(\\d+)-(\\d+)/(\\d+|\\*)", RegexOption.IGNORE_CASE)
-    }
 }
