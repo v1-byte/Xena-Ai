@@ -243,7 +243,7 @@ test('advanced audit protections are wired end-to-end', () => {
   assert.match(html, /function bootError/);
   assert.match(html, /splashWatchdog/);
   assert.match(html, /Download Manager Pro/);
-  assert.match(html, /DL_PRESETS/);
+  assert.match(html, /startModelDownload/);
   assert.match(html, /dlEta/);
   assert.match(html, /bootCancelled=true/);
   assert.match(html, /if\(bootCancelled\|\|document\.body\.classList\.contains\('ready'\)\)return/);
