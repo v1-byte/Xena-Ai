@@ -246,7 +246,7 @@ test('advanced audit protections are wired end-to-end', () => {
   assert.match(html, /startModelDownload/);
   assert.match(html, /dlEta/);
   assert.match(html, /bootCancelled=true/);
-  assert.match(html, /if\(bootCancelled\|\|document\.body\.classList\.contains\('ready'\)\)return/);
+  assert.match(html, /requestAnimationFrame\(frame\)/);
   assert.match(html, /if\(!autoLoadStarted\)/);
   assert.doesNotMatch(html, /setTimeout\(loadModel,2600\)/);
   assert.match(ram, /instead of adding overlapping measurements twice/);
