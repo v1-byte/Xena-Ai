@@ -39,7 +39,7 @@ test('the existing app sections and primary navigation remain in place', () => {
   assert.match(html, /selectExclusiveModel/);
   assert.match(html, /onclick="startDl\('qwen7b-q3'\)"/);
   assert.match(html, /onclick="startDl\('qwen7b-q4'\)"/);
-  assert.match(html, /onclick="moveModelFromDownloads\(\)"/);
+  assert.match(html, /setEngineMode/);
   assert.match(html, /onclick="selectModelFromDownloads\(\)"/);
   assert.match(html, /id="groqServerSettings"/);
   assert.match(html, /id="groqApiKey"/);
