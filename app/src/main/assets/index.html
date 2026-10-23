@@ -1523,19 +1523,32 @@ function modelOk(ok,err){
   logT('✅ Model dimuat di native engine');
   try{updateFabModelLabel(true)}catch(e){}
 }
-function cancelDl(){if(!dlT)return;clearInterval(dlT);dlT=null;dlP=0;$('#dlBar').style.width=0;dlSet('#dlPct','0%');dlSet('#dlSpd','—');dlSet('#dlName','Tidak ada unduhan aktif');dlSet('#dlSource','Pilih model dari katalog untuk mulai');dlSet('#dlState','Idle');dlSet('#dlEta','Menunggu unduhan');dlSet('#dlLive','READY');$('#dlLive')?.classList.remove('busy','paused','done');toast('Unduhan dibatalkan','ok')}
-async function bench(){toast('Menjalankan benchmark…');$('#mSpd').textContent='…';await sleep(1500);const v=(6+Math.random()*4).toFixed(1);$('#mSpd').textContent=v+' tok/s';S.set('spd',v);toast('Kecepatan: '+v+' tok/s','ok')}
-let dlT=null,dlP=0,dlPaused=false,dlTot=0,dlStartedAt=0;
-const DL_PRESETS={'qwen7b-q3':2.8,'qwen7b-q4':4.1};
 function dlSet(id,value){const e=$(id);if(e)e.textContent=value}
-function startDl(n,gb){
-  if(dlT)return toast('Unduhan masih berjalan','bad');
-  gb=Number(gb)||DL_PRESETS[n]||1.5;dlP=0;dlPaused=false;dlTot=gb;dlStartedAt=Date.now();
-  dlSet('#dlName',n);dlSet('#dlSource',gb.toFixed(1)+' GB · Penyimpanan aplikasi');dlSet('#dlLive','DOWNLOADING');$('#dlLive')?.classList.add('busy');$('#dlLive')?.classList.remove('done','paused');dlSet('#dlState','Mengunduh…');dlSet('#dlEta','Menghitung waktu tersisa…');
-  toast('Mulai unduh '+n,'ok');
-  dlT=setInterval(()=>{if(dlPaused)return;const sp=8+Math.random()*10;dlP=Math.min(100,dlP+sp/(gb*10.24));$('#dlBar').style.width=dlP+'%';dlSet('#dlPct',dlP.toFixed(0)+'%');dlSet('#dlSpd',sp.toFixed(1)+' MB/s');const remain=Math.max(0,(100-dlP)*gb*102.4/sp);dlSet('#dlEta',remain>60?Math.ceil(remain/60)+' m tersisa':'Hampir selesai');if(dlP>=100){clearInterval(dlT);dlT=null;dlPaused=false;dlSet('#dlSpd','Selesai');dlSet('#dlState','Selesai');dlSet('#dlEta','File siap diverifikasi');dlSet('#dlLive','COMPLETE');$('#dlLive')?.classList.remove('busy','paused');$('#dlLive')?.classList.add('done');toast('Unduhan selesai — verifikasi file','ok')}},250)
+function cancelDl(){
+  if(window.Android&&Android.cancelModelDownload){Android.cancelModelDownload();toast('Membatalkan unduhan…');return}
+  toast('Tidak ada unduhan aktif');
 }
-function pauseDl(){if(!dlT)return;dlPaused=!dlPaused;dlSet('#dlLive',dlPaused?'PAUSED':'DOWNLOADING');$('#dlLive')?.classList.toggle('paused',dlPaused);$('#dlLive')?.classList.toggle('busy',!dlPaused);dlSet('#dlState',dlPaused?'Dijeda':'Mengunduh…');dlSet('#dlEta',dlPaused?'Siap dilanjutkan':'Menghitung waktu tersisa…');const pb=$('#dlPause');if(pb)pb.innerHTML=dlPaused?ic('play')+'Lanjut':ic('pause')+'Jeda'}
+async function bench(){toast('Menjalankan benchmark…');$('#mSpd').textContent='…';await sleep(1500);const v=(6+Math.random()*4).toFixed(1);$('#mSpd').textContent=v+' tok/s';S.set('spd',v);toast('Kecepatan: '+v+' tok/s','ok')}
+function startDl(n,gb){
+  try{window.__lastDlId=n}catch(e){}
+  if(window.Android&&Android.startModelDownload){
+    const ok=Android.startModelDownload(String(n));
+    if(!ok){toast('Unduhan tidak dapat dimulai — cek ruang / batalkan unduhan lain','bad');return}
+    dlSet('#dlName',String(n));dlSet('#dlLive','DOWNLOADING');$('#dlLive')?.classList.add('busy');$('#dlLive')?.classList.remove('done','paused');
+    dlSet('#dlState','Mengunduh…');dlSet('#dlEta','Menghubungkan…');
+    toast('Mengunduh… progress real-time di Download Manager','ok');
+    return;
+  }
+  toast('Unduhan model hanya di APK Android','bad');
+}
+function pauseDl(){
+  if(window.Android&&Android.pauseModelDownload&&Android.pauseModelDownload()){toast('Unduhan dijeda','ok');return}
+  toast('Tidak ada unduhan aktif','bad');
+}
+function resumeDl(){
+  if(window.Android&&Android.resumeModelDownload&&Android.resumeModelDownload()){toast('Melanjutkan unduhan','ok');return}
+  toast('Tidak ada unduhan parsial','bad');
+}
 function storage(){let used=3.55,tot=10;try{const j=JSON.parse(Android.storageInfo());used=j.used;tot=j.total}catch(e){}$('#stUsed').textContent=used.toFixed(2)+' GB / '+tot+' GB terpakai';const p=used/tot*100;$('#stBar').style.width=p+'%';$('#stBar').style.background=p>85?'var(--err)':'';$('#stFree').textContent=(tot-used).toFixed(2)+' GB bebas · '+((tot-used)>4?'Cukup':'Hampir penuh');$('#stFree').style.color=(tot-used)>4?'var(--ok)':'var(--err)'}
 
 /* ---------- konektor ---------- */
@@ -1933,5 +1946,21 @@ try{init()}catch(e){bootError(e.message||'Gagal menyiapkan UI')}
 try{boot().catch(e=>bootError(e.message||'Gagal menjalankan splash'))}catch(e){bootError(e.message||'Startup error')}
 </script>
 <script src="model-manager.js"></script>
+<script>
+/* Pastikan unduhan selalu native — jangan pakai progress palsu */
+(function(){
+  if(!window.Android)return;
+  window.startDl=function(id){
+    try{window.__lastDlId=id}catch(e){}
+    if(!Android.startModelDownload){toast('Unduhan hanya di APK','bad');return}
+    const ok=Android.startModelDownload(String(id));
+    if(!ok)toast('Gagal mulai unduhan — ruang penuh atau unduhan lain aktif','bad');
+    else toast('Mengunduh… lihat progress di Download Manager','ok');
+  };
+  window.pauseDl=function(){Android.pauseModelDownload&&Android.pauseModelDownload()};
+  window.resumeDl=function(){Android.resumeModelDownload&&Android.resumeModelDownload()};
+  window.cancelDl=function(){Android.cancelModelDownload&&Android.cancelModelDownload()};
+})();
+</script>
 </body>
 </html>

@@ -77,15 +77,15 @@
         const canResume = isBusy && Number(transferStatus.bytes) > 0;
         const action = isInstalled
           ? `<button class="btn sm ${model.active ? '' : 'pri'}" onclick="useInstalledModel('${esc(model.id)}')">${model.active ? 'Aktif' : 'Gunakan'}</button>`
-          : `<button class="btn sm pri" onclick="startDl('${esc(model.id)}')">${canResume ? 'Lanjut' : 'Unduh'}</button>`;
+          : `<button class="btn pri" style="flex:1;border-radius:12px;padding:11px" onclick="startDl('${esc(model.id)}')">${canResume ? 'Lanjut' : 'Download'}</button>`;
         const recommendation = model.recommendation || 'Model GGUF terpasang';
         const ramNote = model.ramNote || '';
-        return `<div style="border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:10px;background:var(--card2)">
+        return `<div data-model-id="${esc(model.id)}" style="border:1px solid var(--line);border-radius:14px;padding:14px;margin-top:10px;background:var(--card)">
           <div class="row"><b>${esc(model.title)}</b><span class="sp"></span><span class="pill">${esc(model.quantization)}</span></div>
           <div class="muted" style="font-size:12px;word-break:break-all;margin-top:4px">${esc(model.fileName)}</div>
           <div class="muted" style="font-size:12px;margin-top:5px">${fmtBytes(model.sizeBytes)} · ${esc(recommendation)}</div>
           ${ramNote ? `<div class="muted" style="font-size:12px;margin-top:3px">${esc(ramNote)}</div>` : ''}
-          <div class="row" style="margin-top:8px"><span class="muted">${isInstalled ? 'Tersimpan di folder aplikasi' : 'Unduh langsung ke folder aplikasi'}</span><span class="sp"></span>${action}</div>
+          <div class="row" style="margin-top:10px;gap:8px"><span class="muted" style="font-size:12px">${isInstalled ? 'Tersimpan di app' : fmtBytes(model.sizeBytes)}</span><span class="sp"></span>${action}</div>
         </div>`;
       }).join('') || '<div class="muted">Belum ada model di katalog.</div>';
     } catch (error) {
@@ -144,28 +144,72 @@
     const total = Number(snapshot.totalBytes) || 0;
     const bytes = Number(snapshot.bytes) || 0;
     const pct = total > 0 ? Math.min(100, bytes / total * 100) : -1;
-    const name = $('#dlName');
+    const bps = Number(snapshot.bytesPerSecond) || 0;
+    const set = (sel, text) => { const el = $(sel); if (el) el.textContent = text; };
+
+    set('#dlName', snapshot.fileName || snapshot.message || 'Tidak ada unduhan aktif');
+    set('#dlSource', total > 0 ? `${fmtBytes(bytes)} / ${fmtBytes(total)} · penyimpanan aplikasi` : (snapshot.message || 'Pilih model dari katalog'));
     const bar = $('#dlBar');
-    const percent = $('#dlPct');
-    const speed = $('#dlSpd');
-    const resume = $('#dlResume');
-    const pause = $('#dlPause');
+    if (bar) {
+      bar.style.width = `${pct >= 0 ? pct : (isActive ? 30 : 0)}%`;
+      bar.style.transition = 'width .2s linear';
+    }
+    set('#dlPct', pct >= 0 ? `${pct.toFixed(1)}%` : (isActive ? '…' : '0%'));
+    set('#dlSpd', snapshot.state === 'downloading' && bps > 0 ? fmtRate(bps) : (snapshot.state === 'paused' ? 'Dijeda' : '—'));
+    const stateMap = {
+      downloading: 'Mengunduh…', paused: 'Dijeda', verifying: 'Verifikasi',
+      ready: 'Selesai', failed: 'Gagal', cancelled: 'Dibatalkan', idle: 'Idle'
+    };
+    set('#dlState', stateMap[snapshot.state] || snapshot.state || 'Idle');
+    if (snapshot.state === 'downloading' && bps > 0 && total > bytes) {
+      const sec = (total - bytes) / bps;
+      set('#dlEta', sec > 90 ? `${Math.ceil(sec / 60)} m tersisa` : `${Math.ceil(sec)} d tersisa`);
+    } else if (snapshot.state === 'paused') set('#dlEta', 'Siap dilanjutkan');
+    else if (snapshot.state === 'ready') set('#dlEta', 'File siap dipakai');
+    else if (snapshot.state === 'failed') set('#dlEta', snapshot.message || 'Gagal');
+    else set('#dlEta', isActive ? (snapshot.message || 'Memproses…') : 'Menunggu unduhan');
+
+    const live = $('#dlLive');
+    if (live) {
+      live.classList.remove('busy', 'paused', 'done');
+      if (snapshot.state === 'downloading' || snapshot.state === 'verifying') { live.textContent = 'DOWNLOADING'; live.classList.add('busy'); }
+      else if (snapshot.state === 'paused') { live.textContent = 'PAUSED'; live.classList.add('paused'); }
+      else if (snapshot.state === 'ready') { live.textContent = 'COMPLETE'; live.classList.add('done'); }
+      else if (snapshot.state === 'failed') { live.textContent = 'FAILED'; }
+      else { live.textContent = 'READY'; }
+    }
+    const toggle = $('#dlToggle');
+    if (toggle) {
+      const span = toggle.querySelector('span');
+      if (snapshot.state === 'downloading') { if (span) span.textContent = 'Jeda'; }
+      else if (snapshot.state === 'paused' || snapshot.state === 'failed') { if (span) span.textContent = 'Lanjut'; }
+      else if (snapshot.state === 'ready') { if (span) span.textContent = 'Selesai'; }
+      else { if (span) span.textContent = 'Mulai'; }
+    }
     const verify = $('#dlVerify');
     const cancel = $('#dlCancel');
-    if (name) name.textContent = snapshot.fileName || snapshot.message || 'Tidak ada unduhan aktif';
-    if (bar) {
-      bar.style.width = `${pct >= 0 ? pct : (isActive ? 35 : 0)}%`;
-      bar.style.opacity = pct < 0 && isActive ? '.55' : '1';
-    }
-    if (percent) percent.textContent = pct >= 0
-      ? `${pct.toFixed(1)}% · ${fmtBytes(bytes)} / ${fmtBytes(total)}`
-      : (snapshot.message || snapshot.state || '0%');
-    if (speed) speed.textContent = snapshot.state === 'downloading' && Number(snapshot.bytesPerSecond) > 0
-      ? fmtRate(snapshot.bytesPerSecond) : '';
-    if (resume) resume.disabled = !(['paused', 'failed'].includes(snapshot.state) && bytes > 0 && Boolean(snapshot.modelId));
-    if (pause) pause.disabled = snapshot.state !== 'downloading';
     if (verify) verify.disabled = !((bytes > 0 && snapshot.state !== 'downloading') || snapshot.state === 'ready');
     if (cancel) cancel.disabled = !['downloading', 'paused', 'failed'].includes(snapshot.state);
+
+    // Progress di kartu katalog (tanpa rebuild penuh saat downloading)
+    const card = document.querySelector(`[data-model-id="${snapshot.modelId}"]`);
+    if (card) {
+      let row = card.querySelector('.cat-progress');
+      if (!row && isActive) {
+        row = document.createElement('div');
+        row.className = 'cat-progress';
+        row.innerHTML = '<div class="bar" style="height:8px;margin:8px 0 4px"><b style="width:0%"></b></div><div class="row muted" style="font-size:11px"><span class="cat-pct"></span><span class="sp"></span><span class="cat-spd"></span></div>';
+        card.appendChild(row);
+      }
+      if (row) {
+        const b = row.querySelector('b');
+        const p = row.querySelector('.cat-pct');
+        const s = row.querySelector('.cat-spd');
+        if (b && pct >= 0) b.style.width = pct.toFixed(1) + '%';
+        if (p) p.textContent = pct >= 0 ? pct.toFixed(1) + '% · ' + fmtBytes(bytes) + ' / ' + fmtBytes(total) : (snapshot.message || '');
+        if (s) s.textContent = snapshot.state === 'downloading' && bps > 0 ? fmtRate(bps) : (stateMap[snapshot.state] || '');
+      }
+    }
 
     const logKey = `${snapshot.state}:${pct >= 0 ? Math.floor(pct / 10) : ''}`;
     if (logKey !== lastTransferLog && (['failed', 'ready', 'paused', 'verifying', 'moving', 'importing'].includes(snapshot.state) || pct >= 0)) {
@@ -175,13 +219,13 @@
         logT(`${prefix}${snapshot.message || snapshot.state}${pct >= 0 ? ` · ${Math.floor(pct)}%` : ''}`);
       }
     }
-    if (['ready', 'failed', 'cancelled'].includes(snapshot.state)) {
-      storage();
-      renderCatalog();
-      renderLocalFiles();
+    if (snapshot.state === 'downloading') {
+      /* progress sudah di-patch di atas */
+    } else if (['ready', 'failed', 'cancelled', 'paused', 'verifying'].includes(snapshot.state)) {
+      try { storage(); } catch (_) {}
+      requestAnimationFrame(() => { try { renderCatalog(); renderLocalFiles(); } catch (_) {} });
     } else if (previous.modelId !== snapshot.modelId || previous.state !== snapshot.state) {
-      renderCatalog();
-      renderLocalFiles();
+      requestAnimationFrame(() => { try { renderCatalog(); renderLocalFiles(); } catch (_) {} });
     }
   }
 
