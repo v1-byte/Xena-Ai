@@ -157,7 +157,7 @@ test('startup honors opt-in auto-load and blocks likely low-RAM model kills befo
   assert.doesNotMatch(onCreate, /autoLoadModelIfExists/);
   assert.match(activity, /private fun prepareModelIfExists\(\)/);
   assert.match(activity, /memory\.totalMem <= 6L \* gib \+ gib \/ 2L && modelBytes >= 3L \* gib/);
-  assert.match(activity, /memory\.availMem < requiredBytes/);
+  assert.match(activity, /RAM bebas sangat rendah/);
   assert.match(activity, /val memoryWarning = activity\.modelLoadMemoryWarning\(f\)/);
   assert.match(activity, /activity\.loadModelFile\(f, notifyUi = false\)/);
   assert.match(html, /if\(!autoLoadStarted\)/);
