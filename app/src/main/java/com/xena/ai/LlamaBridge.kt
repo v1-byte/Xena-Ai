@@ -21,7 +21,17 @@ object LlamaBridge {
         useMlock: Boolean
     ): Boolean
 
-    external fun nativeGenerate(prompt: String, temp: Float, topP: Float, repeatPenalty: Float): String
+    interface TokenCallback {
+        fun onToken(token: String)
+    }
+
+    external fun nativeGenerate(
+        prompt: String,
+        temp: Float,
+        topP: Float,
+        repeatPenalty: Float,
+        callback: TokenCallback?
+    ): String
     external fun nativeIsLoaded(): Boolean
     external fun nativeFreeModel()
     external fun nativeCancelGeneration()
@@ -151,6 +161,32 @@ object LlamaBridge {
         temperature: Float = 0.2f,
         topP: Float = 0.9f,
         repeatPenalty: Float = 1.1f
+    ): String = generateInternal(userMessage, systemPromptRaw, temperature, topP, repeatPenalty, null)
+
+    fun generateStreaming(
+        userMessage: String?,
+        systemPromptRaw: String?,
+        temperature: Float = 0.2f,
+        topP: Float = 0.9f,
+        repeatPenalty: Float = 1.1f,
+        onToken: (String) -> Unit
+    ): String {
+        val tokenConsumer = onToken
+        return generateInternal(
+            userMessage, systemPromptRaw, temperature, topP, repeatPenalty,
+            object : TokenCallback {
+                override fun onToken(token: String) = tokenConsumer(token)
+            }
+        )
+    }
+
+    private fun generateInternal(
+        userMessage: String?,
+        systemPromptRaw: String?,
+        temperature: Float,
+        topP: Float,
+        repeatPenalty: Float,
+        callback: TokenCallback?
     ): String {
         if (!isModelLoaded) {
             try {
@@ -168,12 +204,11 @@ object LlamaBridge {
                 "<|im_start|>system\n$system<|im_end|>\n" +
                     "<|im_start|>user\n$user<|im_end|>\n" +
                     "<|im_start|>assistant\n"
-            nativeGenerate(fullPrompt, temperature, topP, repeatPenalty)
+            nativeGenerate(fullPrompt, temperature, topP, repeatPenalty, callback)
         } catch (e: Exception) {
             "[XENA Generate error: ${e.message}]"
         }
     }
-
     fun isReady(): Boolean {
         if (isModelLoaded) return true
         return try {

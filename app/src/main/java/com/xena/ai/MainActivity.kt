@@ -492,12 +492,11 @@ class MainActivity : AppCompatActivity() {
                     }
                     val safePrompt = AppPrefs.getSafeSystemPrompt(context)
                     val userMsg = extractUserMessage(prompt)
-                    var streamedByProvider = false
+                    var streamedAny = false
                     val out = if (AppPrefs.isServerMode(context)) {
-                        // Server mode: true SSE streaming; token tidak menunggu seluruh respons.
-                        streamedByProvider = true
                         KonektorGroq.chatStreaming(userMsg, safePrompt, temp, AppPrefs.getGroqApiKey(context), topP, maxTokens) { token ->
                             if (activity.isChatActive(chatId)) {
+                                streamedAny = true
                                 val part = JSONObject.quote(token)
                                 activity.emitChatJs("if(typeof window.xenaToken==='function'){window.xenaToken($chatId,$part)}")
                             }
@@ -524,22 +523,21 @@ class MainActivity : AppCompatActivity() {
                             }
                         }
                         if (!activity.isChatActive(chatId)) return@synchronized "[XENA_CANCELLED]"
-                        LlamaBridge.generate(userMsg, safePrompt, temp, topP, repeatPenalty)
+                        LlamaBridge.generateStreaming(userMsg, safePrompt, temp, topP, repeatPenalty) { token ->
+                            if (activity.isChatActive(chatId)) {
+                                streamedAny = true
+                                val part = JSONObject.quote(token)
+                                activity.emitChatJs("if(typeof window.xenaToken==='function'){window.xenaToken($chatId,$part)}")
+                            }
+                        }
                     }
                     if (!activity.isChatActive(chatId)) {
                         return@chatTask
                     }
-                    if (!streamedByProvider) {
-                        // Local JNI fallback: emit bounded chunks while native generation is synchronous.
-                        val chunk = 24
-                        var i = 0
-                        while (i < out.length && activity.isChatActive(chatId)) {
-                            val end = minOf(i + chunk, out.length)
-                            val part = JSONObject.quote(out.substring(i, end))
-                            activity.emitChatJs("if(typeof window.xenaToken==='function'){window.xenaToken($chatId,$part)}")
-                            i = end
-                            try { Thread.sleep(12) } catch (_: Exception) {}
-                        }
+                    if (!streamedAny && out.isNotBlank() && out != "[XENA_CANCELLED]" && activity.isChatActive(chatId)) {
+                        // Show setup/provider errors immediately; generated local text streams from JNI.
+                        val part = JSONObject.quote(out)
+                        activity.emitChatJs("if(typeof window.xenaToken==='function'){window.xenaToken($chatId,$part)}")
                     }
                     activity.emitChatJs("if(typeof window.xenaDone==='function'){window.xenaDone($chatId)}")
                 } catch (e: Throwable) {

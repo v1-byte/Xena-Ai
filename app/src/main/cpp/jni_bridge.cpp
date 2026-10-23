@@ -1,6 +1,7 @@
 #include <jni.h>
 #include <android/log.h>
 #include <string>
+#include <cstdint>
 #include <vector>
 #include <mutex>
 #include <atomic>
@@ -43,6 +44,77 @@ static void set_err(const char *m) {
 static void free_all_locked() {
     if (g_ctx) { llama_free(g_ctx); g_ctx = nullptr; }
     if (g_model) { llama_model_free(g_model); g_model = nullptr; }
+}
+
+static size_t utf8_sequence_length(unsigned char lead) {
+    if (lead <= 0x7f) return 1;
+    if (lead >= 0xc2 && lead <= 0xdf) return 2;
+    if (lead >= 0xe0 && lead <= 0xef) return 3;
+    if (lead >= 0xf0 && lead <= 0xf4) return 4;
+    return 1;
+}
+
+static bool valid_utf8_sequence(const std::string& text, size_t offset, size_t length) {
+    const auto lead = static_cast<unsigned char>(text[offset]);
+    if (length == 1) return lead <= 0x7f;
+    for (size_t j = 1; j < length; ++j) {
+        const auto next = static_cast<unsigned char>(text[offset + j]);
+        if ((next & 0xc0) != 0x80) return false;
+    }
+    const auto second = static_cast<unsigned char>(text[offset + 1]);
+    if (lead == 0xe0 && second < 0xa0) return false;
+    if (lead == 0xed && second >= 0xa0) return false;
+    if (lead == 0xf0 && second < 0x90) return false;
+    if (lead == 0xf4 && second > 0x8f) return false;
+    return true;
+}
+
+static size_t complete_utf8_prefix(const std::string& text) {
+    size_t i = 0;
+    while (i < text.size()) {
+        const size_t length = utf8_sequence_length(static_cast<unsigned char>(text[i]));
+        if (i + length > text.size()) break;
+        if (!valid_utf8_sequence(text, i, length)) { ++i; continue; }
+        i += length;
+    }
+    return i;
+}
+
+static jstring utf8_to_java_string(JNIEnv *env, const std::string& text) {
+    std::vector<jchar> utf16;
+    utf16.reserve(text.size());
+    size_t i = 0;
+    while (i < text.size()) {
+        const auto lead = static_cast<unsigned char>(text[i]);
+        const size_t length = utf8_sequence_length(lead);
+        uint32_t codepoint = 0xfffd;
+        if (i + length <= text.size() && valid_utf8_sequence(text, i, length)) {
+            if (length == 1) codepoint = lead;
+            else if (length == 2) codepoint = ((lead & 0x1f) << 6) | (static_cast<unsigned char>(text[i + 1]) & 0x3f);
+            else if (length == 3) codepoint = ((lead & 0x0f) << 12) | ((static_cast<unsigned char>(text[i + 1]) & 0x3f) << 6) | (static_cast<unsigned char>(text[i + 2]) & 0x3f);
+            else codepoint = ((lead & 0x07) << 18) | ((static_cast<unsigned char>(text[i + 1]) & 0x3f) << 12) | ((static_cast<unsigned char>(text[i + 2]) & 0x3f) << 6) | (static_cast<unsigned char>(text[i + 3]) & 0x3f);
+            i += length;
+        } else {
+            ++i;
+        }
+        if (codepoint <= 0xffff) {
+            utf16.push_back(static_cast<jchar>(codepoint));
+        } else {
+            codepoint -= 0x10000;
+            utf16.push_back(static_cast<jchar>(0xd800 + (codepoint >> 10)));
+            utf16.push_back(static_cast<jchar>(0xdc00 + (codepoint & 0x3ff)));
+        }
+    }
+    return env->NewString(utf16.empty() ? nullptr : utf16.data(), static_cast<jsize>(utf16.size()));
+}
+
+static void emit_stream_text(JNIEnv *env, jobject callback, jmethodID on_token, const std::string& text) {
+    if (!callback || !on_token || text.empty()) return;
+    jstring chunk = utf8_to_java_string(env, text);
+    if (!chunk) return;
+    env->CallVoidMethod(callback, on_token, chunk);
+    env->DeleteLocalRef(chunk);
+    if (env->ExceptionCheck()) env->ExceptionClear();
 }
 
 extern "C" {
@@ -145,7 +217,19 @@ Java_com_xena_ai_LlamaBridge_nativeCancelGeneration(JNIEnv *, jclass) {
 JNIEXPORT jstring JNICALL
 Java_com_xena_ai_LlamaBridge_nativeGenerate(
         JNIEnv *env, jclass,
-        jstring jprompt, jfloat temp, jfloat topP, jfloat repeatPenalty) {
+        jstring jprompt, jfloat temp, jfloat topP, jfloat repeatPenalty, jobject callback) {
+    jmethodID on_token = nullptr;
+    if (callback) {
+        jclass callback_class = env->GetObjectClass(callback);
+        if (callback_class) {
+            on_token = env->GetMethodID(callback_class, "onToken", "(Ljava/lang/String;)V");
+            env->DeleteLocalRef(callback_class);
+        }
+        if (!on_token) {
+            if (env->ExceptionCheck()) env->ExceptionClear();
+            return env->NewStringUTF("[XENA] Callback streaming tidak tersedia");
+        }
+    }
     std::lock_guard<std::mutex> lock(g_mu);
     g_cancel_generation.store(false, std::memory_order_release);
     if (!g_model || !g_ctx) {
@@ -199,6 +283,7 @@ Java_com_xena_ai_LlamaBridge_nativeGenerate(
 
     std::string out;
     out.reserve(1024);
+    std::string pending_utf8;
     const int max_new = 256;
     for (int i = 0; i < max_new; i++) {
         if (g_cancel_generation.load(std::memory_order_acquire)) {
@@ -209,7 +294,17 @@ Java_com_xena_ai_LlamaBridge_nativeGenerate(
         if (llama_vocab_is_eog(vocab, id)) break;
         char buf[256];
         int npiece = llama_token_to_piece(vocab, id, buf, (int32_t)sizeof(buf), 0, true);
-        if (npiece > 0) out.append(buf, (size_t)npiece);
+        if (npiece > 0) {
+            out.append(buf, (size_t)npiece);
+            if (callback && on_token) {
+                pending_utf8.append(buf, (size_t)npiece);
+                const size_t ready_bytes = complete_utf8_prefix(pending_utf8);
+                if (ready_bytes > 0) {
+                    emit_stream_text(env, callback, on_token, pending_utf8.substr(0, ready_bytes));
+                    pending_utf8.erase(0, ready_bytes);
+                }
+            }
+        }
         llama_batch batch = llama_batch_get_one(&id, 1);
         if (g_cancel_generation.load(std::memory_order_acquire)) {
             llama_sampler_free(smpl);
@@ -219,11 +314,12 @@ Java_com_xena_ai_LlamaBridge_nativeGenerate(
         llama_sampler_accept(smpl, id);
     }
     llama_sampler_free(smpl);
+    if (!pending_utf8.empty()) emit_stream_text(env, callback, on_token, pending_utf8);
 
     if (out.empty()) {
         return env->NewStringUTF("[XENA] Output kosong");
     }
-    return env->NewStringUTF(out.c_str());
+    return utf8_to_java_string(env, out);
 }
 
 } // extern C
