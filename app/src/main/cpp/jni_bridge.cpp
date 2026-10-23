@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <mutex>
+#include <atomic>
 #include <algorithm>
 #include <malloc.h>
 
@@ -32,6 +33,7 @@ static llama_model * g_model = nullptr;
 static llama_context * g_ctx = nullptr;
 static bool g_backend = false;
 static std::string g_last_err = "ok";
+static std::atomic<bool> g_cancel_generation{false};
 
 static void set_err(const char *m) {
     g_last_err = m ? m : "unknown";
@@ -134,11 +136,18 @@ Java_com_xena_ai_LlamaBridge_nativeFreeModel(JNIEnv *, jclass) {
     release_native_heap();
 }
 
+JNIEXPORT void JNICALL
+Java_com_xena_ai_LlamaBridge_nativeCancelGeneration(JNIEnv *, jclass) {
+    // nativeGenerate holds g_mu while decoding, so cancellation must not lock it.
+    g_cancel_generation.store(true, std::memory_order_release);
+}
+
 JNIEXPORT jstring JNICALL
 Java_com_xena_ai_LlamaBridge_nativeGenerate(
         JNIEnv *env, jclass,
         jstring jprompt, jfloat temp, jfloat topP, jfloat repeatPenalty) {
     std::lock_guard<std::mutex> lock(g_mu);
+    g_cancel_generation.store(false, std::memory_order_release);
     if (!g_model || !g_ctx) {
         return env->NewStringUTF("[XENA] Model belum dimuat");
     }
@@ -169,6 +178,7 @@ Java_com_xena_ai_LlamaBridge_nativeGenerate(
     if (n_batch < 1) n_batch = 64;
 
     for (int i = 0; i < (int)tokens.size(); i += n_batch) {
+        if (g_cancel_generation.load(std::memory_order_acquire)) return env->NewStringUTF("[XENA_CANCELLED]");
         int n_eval = std::min(n_batch, (int)tokens.size() - i);
         llama_batch batch = llama_batch_get_one(tokens.data() + i, n_eval);
         if (llama_decode(g_ctx, batch) != 0) {
@@ -191,12 +201,20 @@ Java_com_xena_ai_LlamaBridge_nativeGenerate(
     out.reserve(1024);
     const int max_new = 256;
     for (int i = 0; i < max_new; i++) {
+        if (g_cancel_generation.load(std::memory_order_acquire)) {
+            llama_sampler_free(smpl);
+            return env->NewStringUTF("[XENA_CANCELLED]");
+        }
         llama_token id = llama_sampler_sample(smpl, g_ctx, -1);
         if (llama_vocab_is_eog(vocab, id)) break;
         char buf[256];
         int npiece = llama_token_to_piece(vocab, id, buf, (int32_t)sizeof(buf), 0, true);
         if (npiece > 0) out.append(buf, (size_t)npiece);
         llama_batch batch = llama_batch_get_one(&id, 1);
+        if (g_cancel_generation.load(std::memory_order_acquire)) {
+            llama_sampler_free(smpl);
+            return env->NewStringUTF("[XENA_CANCELLED]");
+        }
         if (llama_decode(g_ctx, batch) != 0) break;
         llama_sampler_accept(smpl, id);
     }

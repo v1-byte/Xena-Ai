@@ -97,6 +97,7 @@ test('catalog keeps the requested model variants and direct Hugging Face files',
   assert.match(catalog, /sizeBytes = 3_015_941_312L/);
   assert.match(catalog, /sizeBytes = 2_780_343_488L/);
   assert.match(catalog, /sizeBytes = 3_114_515_648L/);
+  assert.equal((catalog.match(/sha256 = "[0-9a-f]{64}"/g) || []).length, 13);
 });
 
 test('model downloads use resumable byte ranges and validate partials before activation', () => {
@@ -122,6 +123,8 @@ test('download UI has explicit resume, pause, verification, and searchable local
   assert.match(modelUi, /Android\.getLocalModelFiles/);
   assert.match(activity, /fun getLocalModelFiles\(\)/);
   assert.match(activity, /fun verifyModelDownload\(modelId: String\)/);
+  assert.match(activity, /fun startHfModelDownload\(url: String, fileName: String, sizeBytes: Long\): Boolean/);
+  assert.match(activity, /ModelDownloadManager\.shared\(this\)/);
   assert.match(transfer, /fun verifyDownload\(modelId: String\? = null\)/);
   assert.match(transfer, /parsial tetap disimpan, tidak diunduh ulang/);
 });
@@ -194,8 +197,8 @@ test('RAM cleaner frees native weights, light mode lowers context, and model sea
 });
 
 test('APK release is version-driven and verifies native llama library packaging', () => {
-  assert.match(gradle, /versionCode = 166/);
-  assert.match(gradle, /versionName = "1\.6\.6"/);
+  assert.match(gradle, /versionCode = 167/);
+  assert.match(gradle, /versionName = "1\.6\.7"/);
   assert.doesNotMatch(gradle, /versionName = "1\.4\.2"/);
   assert.match(gradle, /signingConfig = signingConfigs\.getByName\("release"\)/);
   assert.match(workflow, /steps\.release_meta\.outputs\.tag/);
@@ -224,6 +227,11 @@ test('advanced audit protections are wired end-to-end', () => {
   assert.match(groqConnector, /max_completion_tokens/);
   assert.match(cpp, /llama_sampler_init_penalties/);
   assert.match(cpp, /Sampler tidak dapat dibuat/);
+  assert.match(cpp, /nativeCancelGeneration/);
+  assert.match(cpp, /g_cancel_generation/);
+  assert.match(activity, /LlamaBridge\.cancelGeneration\(\)/);
+  assert.match(transfer, /expected\.isBlank\(\).*return false/);
+  assert.match(html, /Android\.startHfModelDownload/);
   assert.match(prefs, /setConnectorSecret/);
   assert.match(connectors, /allowedIds/);
   assert.match(broker, /Tokens never cross the WebView bridge/);

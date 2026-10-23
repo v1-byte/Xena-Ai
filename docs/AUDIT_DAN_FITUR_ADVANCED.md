@@ -106,6 +106,14 @@ Animasi pembuka dikembalikan dalam bentuk ringan: ring tetap bergerak, backgroun
 Tampilan lengkap dari lampiran pengguna dijadikan asset utama. Struktur Chat, Model, Konektor, Atur, katalog model, download manager, pencarian model, dan console dipertahankan. Startup fail-safe, animasi ringan, request ID native, konteks chat, dan sesi token native tetap aktif.
 
 
-## Splash dan Download Manager v1.6.6
+## Splash dan Download Manager v1.6.7
 
 Splash kini memakai animasi CSS indeterminate, watchdog timeout, dan tidak lagi bergantung pada voice synthesis saat startup. Download Manager diperbarui menjadi panel profesional dengan status READY/DOWNLOADING/PAUSED/COMPLETE, metrik progres/kecepatan/status, ETA, kontrol Jeda/Lanjut, Verifikasi, Batal, serta preset ukuran unduhan agar progres tidak NaN.
+
+
+## v1.6.7 — Prioritas stabilitas 1–5
+
+- Native generation memiliki cancellation token atomic dan tombol Stop memanggil pembatalan native tanpa menunggu mutex decode.
+- `ModelDownloadManager` dibuat shared per proses agar download tidak dobel saat Activity direcreate; listener UI hanya dilepas saat Activity ditutup.
+- Download dari Hugging Face kini discovery-only dan hanya boleh masuk Download Manager bila URL, file GGUF, ukuran, serta file cocok dengan katalog aman.
+- Seluruh 13 model katalog memiliki digest SHA-256 LFS resmi dan verifikasi kini fail-closed bila digest kosong/tidak valid.

@@ -4,7 +4,7 @@ import android.util.Log
 
 object LlamaBridge {
     private const val TAG = "XENA-Llama"
-    private var isModelLoaded = false
+    @Volatile private var isModelLoaded = false
     @Volatile private var loadedModelPath: String? = null
     @Volatile var lastError: String = "ok"
         private set
@@ -21,6 +21,7 @@ object LlamaBridge {
     external fun nativeGenerate(prompt: String, temp: Float, topP: Float, repeatPenalty: Float): String
     external fun nativeIsLoaded(): Boolean
     external fun nativeFreeModel()
+    external fun nativeCancelGeneration()
     external fun nativeLastError(): String
 
     init {
@@ -137,5 +138,10 @@ object LlamaBridge {
         }
         isModelLoaded = false
         loadedModelPath = null
+    }
+
+    /** Interrupts the current native decode without waiting for its model mutex. */
+    fun cancelGeneration() {
+        try { nativeCancelGeneration() } catch (_: Throwable) { }
     }
 }

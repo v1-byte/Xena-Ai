@@ -53,7 +53,7 @@ class MainActivity : AppCompatActivity() {
         topStatus = findViewById(R.id.topStatus)
         bottomNav = findViewById(R.id.bottom_navigation)
         webView = findViewById(R.id.webview)
-        modelDownloads = ModelDownloadManager(this)
+        modelDownloads = ModelDownloadManager.shared(this)
         modelDownloads.setListener { snapshot ->
             runOnUiThread { publishTransfer(snapshot) }
         }
@@ -390,7 +390,8 @@ class MainActivity : AppCompatActivity() {
         activeChatId = chatSequence.incrementAndGet()
         chatExecutor.shutdownNow()
         if (::modelDownloads.isInitialized) {
-            modelDownloads.pause()
+            // Keep the application-scoped download alive across Activity recreation;
+            // only detach this Activity's UI listener.
             modelDownloads.setListener(null)
         }
         try { webView.removeJavascriptInterface("Android") } catch (_: Throwable) {}
@@ -499,6 +500,7 @@ class MainActivity : AppCompatActivity() {
                                 }
                             }
                         }
+                        if (!activity.isChatActive(chatId)) return@synchronized "[XENA_CANCELLED]"
                         LlamaBridge.generate(userMsg, safePrompt, temp, topP, repeatPenalty)
                     }
                     if (!activity.isChatActive(chatId)) {
@@ -531,6 +533,7 @@ class MainActivity : AppCompatActivity() {
         fun stop() {
             val oldId = activity.activeChatId
             activity.activeChatId = activity.chatSequence.incrementAndGet()
+            LlamaBridge.cancelGeneration()
             if (oldId != 0L) {
                 activity.emitChatJs("if(typeof window.xenaDone==='function'){window.xenaDone($oldId)}")
             }
@@ -711,6 +714,22 @@ class MainActivity : AppCompatActivity() {
 
         @android.webkit.JavascriptInterface
         fun startModelDownload(modelId: String): Boolean = activity.modelDownloads.start(modelId)
+
+        /**
+         * HF search is discovery-only: downloads are allowed only when the file
+         * is pinned in the signed-in-app catalog, never from an arbitrary URL.
+         */
+        @android.webkit.JavascriptInterface
+        fun startHfModelDownload(url: String, fileName: String, sizeBytes: Long): Boolean {
+            val uri = try { Uri.parse(url) } catch (_: Throwable) { return false }
+            if (uri.scheme != "https" || uri.host?.lowercase() != "huggingface.co") return false
+            if (!fileName.endsWith(".gguf", ignoreCase = true) || fileName.contains("..")) return false
+            val model = ModelCatalog.all().firstOrNull { it.fileName.equals(fileName, true) &&
+                (sizeBytes <= 0L || kotlin.math.abs(it.sizeBytes - sizeBytes) <= 1024L * 1024L) }
+                ?: return false
+            if (!url.startsWith("https://huggingface.co/", ignoreCase = true)) return false
+            return activity.modelDownloads.start(model.id)
+        }
 
         @android.webkit.JavascriptInterface
         fun pauseModelDownload(): Boolean = activity.modelDownloads.pause()

@@ -1851,12 +1851,14 @@ async function hfFiles(id,btn){
 function hfDownload(id,file,size){
   const url='https://huggingface.co/'+id+'/resolve/main/'+file.split('/').map(encodeURIComponent).join('/');
   try{
-    if(window.Android&&Android.startModelDownload){Android.startModelDownload(url,file,size);logT('⬇ Unduh '+file);toast('Mulai unduh '+file,'ok');return}
-    if(window.Android&&Android.downloadModel){Android.downloadModel(url,file);logT('⬇ Unduh '+file);toast('Mulai unduh '+file,'ok');return}
+    if(window.Android&&Android.startHfModelDownload){
+      const ok=!!Android.startHfModelDownload(url,file,Number(size)||0);
+      if(ok){logT('⬇ Unduh '+file);toast('Unduhan masuk Download Manager','ok')}
+      else{logT('⚠️ File HF belum dipin katalog: '+file);toast('File ini belum ada di katalog aman Xena. Pilih model dari katalog utama.','bad')}
+      return
+    }
   }catch(e){toast('Gagal memulai unduhan: '+e.message,'bad');return}
-  navigator.clipboard?.writeText(url).catch(()=>{});
-  window.open(url,'_blank');
-  toast('Bridge unduhan belum ada — tautan dibuka/disalin','bad');
+  toast('Download Manager belum siap. Coba buka ulang aplikasi.','bad');
 }
 hfTags();
 

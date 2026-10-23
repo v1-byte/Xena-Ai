@@ -15,6 +15,15 @@ import java.util.Properties
 import kotlin.math.max
 
 class ModelDownloadManager(context: Context) {
+    companion object {
+        @Volatile private var sharedInstance: ModelDownloadManager? = null
+
+        fun shared(context: Context): ModelDownloadManager =
+            sharedInstance ?: synchronized(this) {
+                sharedInstance ?: ModelDownloadManager(context.applicationContext).also { sharedInstance = it }
+            }
+    }
+
     data class Snapshot(
         val state: String,
         val modelId: String,
@@ -578,8 +587,8 @@ class ModelDownloadManager(context: Context) {
     private fun metaFile(model: ModelCatalog.Model): File = File(ModelAutoLoader.modelDirectory(appContext), "${model.fileName}.part.properties")
 
     private fun sha256Matches(model: ModelCatalog.Model, file: File): Boolean {
-        val expected = model.sha256?.trim()?.lowercase() ?: return true
-        if (expected.isBlank()) return true
+        val expected = model.sha256?.trim()?.lowercase() ?: return false
+        if (expected.isBlank() || expected.length != 64 || !expected.matches(Regex("[0-9a-f]{64}"))) return false
         return try {
             val digest = MessageDigest.getInstance("SHA-256")
             FileInputStream(file).use { input ->
